@@ -1,20 +1,24 @@
-import { useState } from "react";
-import { tarefasMock, type Tarefa, prioridadeColors } from "@/data/mockData";
-import { Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, CalendarClock, SkipForward, Square, CheckSquare2, Filter, LayoutGrid, List } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getTasks, updateTaskStatus, type DBTask, type TaskStatus } from "@/services/taskService";
+import { prioridadeColors } from "@/data/mockData";
+import { Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, CalendarClock, SkipForward, Square, CheckSquare2, Filter, LayoutGrid, List, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "lista" | "kanban";
 type TabFilter = "minhas" | "time";
 
 const kanbanColumns = [
-  { id: "a_fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
-  { id: "em_progresso" as const, label: "Em Progresso", color: "border-t-blue-400" },
+  { id: "fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
+  { id: "progresso" as const, label: "Em Progresso", color: "border-t-blue-400" },
   { id: "revisao" as const, label: "Revisão", color: "border-t-amber-400" },
   { id: "concluido" as const, label: "Concluído", color: "border-t-green-400" },
 ];
 
 export function Tarefas() {
-  const [tarefas, setTarefas] = useState<Tarefa[]>(tarefasMock);
+  const { user } = useAuth();
+  const [tarefas, setTarefas] = useState<DBTask[]>([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("lista");
   const [tab, setTab] = useState<TabFilter>("minhas");
   const [busca, setBusca] = useState("");
@@ -25,30 +29,63 @@ export function Tarefas() {
 
   const hoje = new Date().toISOString().split("T")[0];
 
-  const filtradas = tarefas.filter((t) =>
-    t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-    t.responsavel.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+  useEffect(() => {
+    fetchTarefas();
+  }, []);
+
+  async function fetchTarefas() {
+    try {
+      const data = await getTasks();
+      setTarefas(data);
+    } catch (error) {
+      console.error("Erro ao buscar tarefas:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtradas = tarefas.filter((t) => {
+    const matchBusca = t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
+                       t.profiles?.full_name.toLowerCase().includes(busca.toLowerCase());
+    
+    if (tab === "minhas") {
+      return matchBusca && t.responsavel_id === user?.id;
+    }
+    return matchBusca;
+  });
 
   const pendentes = filtradas.filter((t) => t.status !== "concluido");
   const concluidas = filtradas.filter((t) => t.status === "concluido");
   const atrasadas = pendentes.filter((t) => t.prazo < hoje);
   const paraHoje = pendentes.filter((t) => t.prazo === hoje);
   const proximas = pendentes.filter((t) => t.prazo > hoje);
-  const altaPrioridade = pendentes.filter((t) => t.prioridade === "alta");
+  const altaPrioridade = pendentes.filter((t) => t.prioridade === "alta" || t.prioridade === "urgente");
 
   const totalTarefas = filtradas.length;
   const progresso = totalTarefas > 0 ? Math.round((concluidas.length / totalTarefas) * 100) : 0;
 
-  const toggleConcluida = (id: string) => {
-    setTarefas((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, status: t.status === "concluido" ? "a_fazer" : "concluido" as Tarefa["status"] }
-          : t
-      )
-    );
+  const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
+    const newStatus: TaskStatus = currentStatus === "concluido" ? "fazer" : "concluido";
+    
+    // Otimista
+    setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+
+    try {
+      await updateTaskStatus(id, newStatus);
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      // Reverter se der erro
+      fetchTarefas();
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-letitia-gold" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -134,14 +171,9 @@ export function Tarefas() {
               color="text-red-500"
               open={showAtrasadas}
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
-              action={
-                <button className="text-[11px] font-medium text-letitia-clay bg-letitia-clay/10 px-3 py-1 rounded-md hover:bg-letitia-clay/20 transition-colors flex items-center gap-1">
-                  <SkipForward className="h-3 w-3" /> Adiar para Hoje
-                </button>
-              }
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onToggle={toggleConcluida} isOverdue />
+                <TaskRow key={t.id} tarefa={t} onToggle={() => toggleConcluida(t.id, t.status)} isOverdue />
               ))}
             </TaskSection>
           )}
@@ -158,7 +190,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={toggleConcluida} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={() => toggleConcluida(t.id, t.status)} />)
             )}
           </TaskSection>
 
@@ -171,19 +203,19 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={toggleConcluida} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={() => toggleConcluida(t.id, t.status)} />)}
           </TaskSection>
 
           {/* Seção: Concluídas */}
           <TaskSection
-            label={`Concluídas hoje`}
+            label={`Concluídas`}
             count={concluidas.length}
             icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
             color="text-green-500"
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={toggleConcluida} isDone />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onToggle={() => toggleConcluida(t.id, t.status)} isDone />)}
           </TaskSection>
         </div>
       ) : (
@@ -222,9 +254,9 @@ function KPIBox({ icon, label, value, color }: { icon: React.ReactNode; label: s
   );
 }
 
-function TaskSection({ label, count, icon, color, open, onToggle, action, children }: {
+function TaskSection({ label, count, icon, color, open, onToggle, children }: {
   label: string; count: number; icon: React.ReactNode; color: string;
-  open: boolean; onToggle: () => void; action?: React.ReactNode; children: React.ReactNode;
+  open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
     <div>
@@ -235,7 +267,6 @@ function TaskSection({ label, count, icon, color, open, onToggle, action, childr
           <span className="text-xs font-medium text-muted bg-card border border-border px-2 py-0.5 rounded-full">{count}</span>
           {open ? <ChevronUp className="h-3.5 w-3.5 text-muted" /> : <ChevronDown className="h-3.5 w-3.5 text-muted" />}
         </button>
-        {action}
       </div>
       {open && <div className="space-y-1">{children}</div>}
     </div>
@@ -243,9 +274,10 @@ function TaskSection({ label, count, icon, color, open, onToggle, action, childr
 }
 
 function TaskRow({ tarefa, onToggle, isOverdue, isDone }: {
-  tarefa: Tarefa; onToggle: (id: string) => void; isOverdue?: boolean; isDone?: boolean;
+  tarefa: DBTask; onToggle: () => void; isOverdue?: boolean; isDone?: boolean;
 }) {
-  const prior = prioridadeColors[tarefa.prioridade];
+  const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
+  const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
 
   return (
     <div className={cn(
@@ -254,9 +286,8 @@ function TaskRow({ tarefa, onToggle, isOverdue, isDone }: {
       isDone ? "border-green-500/20 bg-green-500/5" :
       "border-border bg-card"
     )}>
-      {/* Checkbox */}
       <button
-        onClick={(e) => { e.stopPropagation(); onToggle(tarefa.id); }}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
         className="flex-shrink-0"
       >
         {isDone ? (
@@ -266,25 +297,21 @@ function TaskRow({ tarefa, onToggle, isOverdue, isDone }: {
         )}
       </button>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <p className={cn("text-sm font-medium leading-snug", isDone ? "line-through text-muted" : "text-foreground")}>
           {tarefa.titulo}
         </p>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
-          {/* Responsável */}
           <span className="flex items-center gap-1.5 text-[11px] text-muted">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
-              {tarefa.responsavel.iniciais}
+              {iniciais}
             </span>
-            {tarefa.responsavel.nome.split(" ")[0]}
+            {tarefa.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}
           </span>
-          {/* Data */}
           <span className={cn("flex items-center gap-1 text-[11px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
             <Clock className="h-3 w-3" />
-            {new Date(tarefa.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+            {tarefa.prazo ? new Date(tarefa.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "Sem prazo"}
           </span>
-          {/* Prioridade */}
           {tarefa.prioridade !== "baixa" && (
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>
               {prior.label}
@@ -292,43 +319,28 @@ function TaskRow({ tarefa, onToggle, isOverdue, isDone }: {
           )}
         </div>
       </div>
-
-      {/* Subtarefas progress */}
-      {tarefa.subtarefas && tarefa.subtarefas.length > 0 && !isDone && (
-        <div className="hidden sm:flex items-center gap-2">
-          <div className="w-16 h-1.5 rounded-full bg-border overflow-hidden">
-            <div className="h-full bg-letitia-gold rounded-full" style={{ width: `${(tarefa.subtarefas.filter(s => s.concluida).length / tarefa.subtarefas.length) * 100}%` }} />
-          </div>
-          <span className="text-[10px] text-muted">{tarefa.subtarefas.filter(s => s.concluida).length}/{tarefa.subtarefas.length}</span>
-        </div>
-      )}
     </div>
   );
 }
 
-function KanbanCard({ tarefa }: { tarefa: Tarefa }) {
-  const prior = prioridadeColors[tarefa.prioridade];
+function KanbanCard({ tarefa }: { tarefa: DBTask }) {
+  const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
+  const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
+
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
       <p className="text-sm font-medium text-foreground leading-snug">{tarefa.titulo}</p>
-      {tarefa.subtarefas && tarefa.subtarefas.length > 0 && (
-        <div className="mt-2">
-          <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
-            <div className="h-full bg-letitia-gold rounded-full" style={{ width: `${(tarefa.subtarefas.filter(s => s.concluida).length / tarefa.subtarefas.length) * 100}%` }} />
-          </div>
-          <p className="text-[10px] text-muted mt-1">{tarefa.subtarefas.filter(s => s.concluida).length}/{tarefa.subtarefas.length} subtarefas</p>
-        </div>
-      )}
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border text-[10px] font-medium text-foreground">{tarefa.responsavel.iniciais}</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border text-[10px] font-medium text-foreground">{iniciais}</span>
           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", prior.bg, prior.text)}>{prior.label}</span>
         </div>
         <span className="text-[10px] text-muted flex items-center gap-1">
           <Clock className="h-3 w-3" />
-          {new Date(tarefa.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+          {tarefa.prazo ? new Date(tarefa.prazo).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "---"}
         </span>
       </div>
     </div>
   );
 }
+

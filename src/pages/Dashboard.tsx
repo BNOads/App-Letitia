@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardStats } from "@/services/dashboardService";
 import { 
   TrendingUp, Users, CheckSquare, FileText, Clock, 
-  ArrowUpRight, AlertCircle, Loader2, ChevronRight, Youtube, Camera
+  ArrowUpRight, AlertCircle, Loader2, ChevronRight, Video, Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -100,7 +100,7 @@ export function Dashboard() {
               stats?.pautas.map((pauta) => (
                 <div key={pauta.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50 hover:shadow-sm transition-shadow">
                   <span className="text-xl">
-                    {pauta.formato === 'youtube' ? <Youtube className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+                    {pauta.formato === 'youtube' ? <Video className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{pauta.titulo}</p>

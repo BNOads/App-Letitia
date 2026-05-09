@@ -1,21 +1,8 @@
-import { useState } from "react";
-import { pautasMock as pautasBase, pilarColors, formatoIcons, type PautaConteudo } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { getContent, updateContentStatus, type DBContent } from "@/services/contentService";
+import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video } from "lucide-react";
-
-// Pautas extras para os novos perfis
-const pautasExtras: PautaConteudo[] = [
-  { id: "p9", titulo: "Stories: Rotina matinal com as crianças", pilar: "pessoal", formato: "reels", status: "rascunho", responsavel: "Ana Beatriz", dataPrevista: "2026-05-12", plataforma: "@leticiacazarre.pessoal" },
-  { id: "p10", titulo: "Carrossel: Checklist de fim de semana produtivo", pilar: "profissional", formato: "carrossel", status: "aprovado", responsavel: "Mariana Costa", dataPrevista: "2026-05-14", plataforma: "@leticiacazarre.pessoal" },
-  { id: "p11", titulo: "Reels: Antes e depois — escritório", pilar: "interior", formato: "reels", status: "revisao_leticia", responsavel: "Mariana Costa", dataPrevista: "2026-05-13", plataforma: "@metodoleticia" },
-  { id: "p12", titulo: "Post: Depoimento de mentorada THE WAY", pilar: "profissional", formato: "post", status: "rascunho", responsavel: "Ana Beatriz", dataPrevista: "2026-05-15", plataforma: "@metodoleticia" },
-  { id: "p13", titulo: "Carrossel: 7 erros ao criar conteúdo", pilar: "profissional", formato: "carrossel", status: "aprovado", responsavel: "Mariana Costa", dataPrevista: "2026-05-11", plataforma: "@metodoleticia" },
-  { id: "p14", titulo: "Vídeo: Como organizo minha semana", pilar: "profissional", formato: "youtube", status: "rascunho", responsavel: "Letícia Cazarré", dataPrevista: "2026-05-17", plataforma: "YouTube" },
-  { id: "p15", titulo: "Vídeo: Q&A — Perguntas sobre THE WAY", pilar: "pessoal", formato: "youtube", status: "revisao_leticia", responsavel: "Letícia Cazarré", dataPrevista: "2026-05-19", plataforma: "YouTube" },
-  { id: "p16", titulo: "Vídeo: Um dia na minha vida (vlog)", pilar: "interior", formato: "youtube", status: "rascunho", responsavel: "Mariana Costa", dataPrevista: "2026-05-22", plataforma: "YouTube" },
-];
-
-const allPautas = [...pautasBase, ...pautasExtras];
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2 } from "lucide-react";
 
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
@@ -26,8 +13,6 @@ const plataformas = [
   { id: "@leticiacazarre.pessoal", label: "@leti.pessoal", icon: Camera, color: "text-purple-500" },
   { id: "@metodoleticia", label: "@metodoleticia", icon: Camera, color: "text-orange-500" },
   { id: "YouTube", label: "YouTube", icon: Video, color: "text-red-500" },
-  { id: "Spotify", label: "Podcast", icon: null },
-  { id: "Substack", label: "Newsletter", icon: null },
 ];
 
 const statusCols = [
@@ -38,14 +23,39 @@ const statusCols = [
 ];
 
 export function Conteudo() {
+  const [pautas, setPautas] = useState<DBContent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("kanban");
   const [calMode, setCalMode] = useState<CalMode>("semana");
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);
 
+  useEffect(() => {
+    fetchPautas();
+  }, []);
+
+  async function fetchPautas() {
+    try {
+      const data = await getContent();
+      setPautas(data);
+    } catch (error) {
+      console.error("Erro ao buscar pautas:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const filtradas = filtroPlataforma === "todas"
-    ? allPautas
-    : allPautas.filter((p) => p.plataforma === filtroPlataforma);
+    ? pautas
+    : pautas.filter((p) => p.plataforma === filtroPlataforma);
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-letitia-gold" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -53,7 +63,7 @@ export function Conteudo() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Calendário Editorial</h2>
-          <p className="mt-1 text-sm text-muted">{allPautas.length} pautas neste ciclo</p>
+          <p className="mt-1 text-sm text-muted">{pautas.length} pautas neste ciclo</p>
         </div>
         <div className="flex items-center gap-2">
           {/* View Toggle */}
@@ -113,7 +123,7 @@ export function Conteudo() {
       )}
 
       {/* Views */}
-      {view === "kanban" && <KanbanView pautas={filtradas} />}
+      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} />}
       {view === "lista" && <ListView pautas={filtradas} />}
       {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} />}
     </div>
@@ -121,7 +131,16 @@ export function Conteudo() {
 }
 
 /* ─── Kanban ──────────────────────────────────────────────── */
-function KanbanView({ pautas }: { pautas: PautaConteudo[] }) {
+function KanbanView({ pautas, onUpdate }: { pautas: DBContent[]; onUpdate: () => void }) {
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await updateContentStatus(id, status);
+      onUpdate();
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {statusCols.map((col) => {
@@ -143,7 +162,7 @@ function KanbanView({ pautas }: { pautas: PautaConteudo[] }) {
 }
 
 /* ─── Lista ───────────────────────────────────────────────── */
-function ListView({ pautas }: { pautas: PautaConteudo[] }) {
+function ListView({ pautas }: { pautas: DBContent[] }) {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="overflow-x-auto">
@@ -157,14 +176,14 @@ function ListView({ pautas }: { pautas: PautaConteudo[] }) {
           </thead>
           <tbody>
             {pautas.map((p) => {
-              const pilar = pilarColors[p.pilar];
+              const pilar = pilarColors[p.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
               return (
                 <tr key={p.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer">
-                  <td className="px-4 py-3"><div className="flex items-center gap-2"><span>{formatoIcons[p.formato]}</span><span className="text-sm font-medium text-foreground">{p.titulo}</span></div></td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-2"><span>{formatoIcons[p.formato as keyof typeof formatoIcons]}</span><span className="text-sm font-medium text-foreground">{p.titulo}</span></div></td>
                   <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                  <td className="px-4 py-3 text-sm text-muted">{new Date(p.dataPrevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
+                  <td className="px-4 py-3"><StatusBadge status={p.status || "rascunho"} /></td>
+                  <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
                 </tr>
               );
             })}
@@ -176,14 +195,14 @@ function ListView({ pautas }: { pautas: PautaConteudo[] }) {
 }
 
 /* ─── Calendário ──────────────────────────────────────────── */
-function CalendarView({ pautas, mode, weekOffset }: { pautas: PautaConteudo[]; mode: CalMode; weekOffset: number }) {
+function CalendarView({ pautas, mode, weekOffset }: { pautas: DBContent[]; mode: CalMode; weekOffset: number }) {
   const today = new Date();
 
   if (mode === "dia") {
     const day = new Date(today);
     day.setDate(day.getDate() + weekOffset);
     const dayStr = day.toISOString().split("T")[0];
-    const dayPautas = pautas.filter((p) => p.dataPrevista === dayStr);
+    const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
     const label = day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
     return (
@@ -217,7 +236,7 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: PautaConteudo[]; m
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
         {days.map((day) => {
           const dayStr = day.toISOString().split("T")[0];
-          const dayPautas = pautas.filter((p) => p.dataPrevista === dayStr);
+          const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
           const isToday = dayStr === today.toISOString().split("T")[0];
           return (
             <div key={dayStr} className={cn("rounded-xl border overflow-hidden min-h-[180px]", isToday ? "border-letitia-gold bg-letitia-gold/5" : "border-border bg-card")}>
@@ -229,11 +248,11 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: PautaConteudo[]; m
                 {dayPautas.map((p) => (
                   <div key={p.id} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center gap-1 mb-1">
-                      <span className="text-xs">{formatoIcons[p.formato]}</span>
+                      <span className="text-xs">{formatoIcons[p.formato as keyof typeof formatoIcons]}</span>
                       <PlataformaBadge plataforma={p.plataforma} tiny />
                     </div>
                     <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
-                    <StatusBadge status={p.status} tiny />
+                    <StatusBadge status={p.status || "rascunho"} tiny />
                   </div>
                 ))}
               </div>
@@ -271,14 +290,14 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: PautaConteudo[]; m
         {cells.map((day, i) => {
           if (!day) return <div key={i} className="border-b border-r border-border min-h-[80px] bg-background/30" />;
           const dayStr = day.toISOString().split("T")[0];
-          const dayPautas = pautas.filter((p) => p.dataPrevista === dayStr);
+          const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
           const isToday = dayStr === today.toISOString().split("T")[0];
           return (
             <div key={i} className={cn("border-b border-r border-border min-h-[80px] p-1", isToday ? "bg-letitia-gold/5" : "")}>
               <p className={cn("text-xs font-medium mb-1 px-1", isToday ? "text-letitia-clay font-bold" : "text-muted")}>{day.getDate()}</p>
               {dayPautas.slice(0, 2).map((p) => (
                 <div key={p.id} className="rounded px-1.5 py-0.5 mb-0.5 bg-background/60 border border-border cursor-pointer hover:shadow-sm">
-                  <p className="text-[9px] font-medium text-foreground truncate">{formatoIcons[p.formato]} {p.titulo}</p>
+                  <p className="text-[9px] font-medium text-foreground truncate">{formatoIcons[p.formato as keyof typeof formatoIcons]} {p.titulo}</p>
                 </div>
               ))}
               {dayPautas.length > 2 && <p className="text-[9px] text-muted px-1">+{dayPautas.length - 2} mais</p>}
@@ -291,12 +310,12 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: PautaConteudo[]; m
 }
 
 /* ─── Shared Components ───────────────────────────────────── */
-function PautaCard({ pauta, wide }: { pauta: PautaConteudo; wide?: boolean }) {
-  const pilar = pilarColors[pauta.pilar];
+function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
+  const pilar = pilarColors[pauta.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
   return (
     <div className={cn("rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer", wide && "flex items-start gap-3")}>
       <div className="flex items-start gap-2 flex-1">
-        <span className="text-lg">{formatoIcons[pauta.formato] || "📄"}</span>
+        <span className="text-lg">{formatoIcons[pauta.formato as keyof typeof formatoIcons] || "📄"}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground leading-snug">{pauta.titulo}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -304,8 +323,7 @@ function PautaCard({ pauta, wide }: { pauta: PautaConteudo; wide?: boolean }) {
             <PlataformaBadge plataforma={pauta.plataforma} />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-muted">{pauta.responsavel}</span>
-            <span className="text-[10px] text-muted">{new Date(pauta.dataPrevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            <span className="text-[10px] text-muted uppercase tracking-tight">{new Date(pauta.data_prevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
           </div>
         </div>
       </div>
@@ -346,3 +364,4 @@ function StatusBadge({ status, tiny }: { status: string; tiny?: boolean }) {
     </span>
   );
 }
+
