@@ -1,32 +1,65 @@
 import { useState, useEffect } from "react";
-import { getEvents, type DBEvent } from "@/services/agendaService";
-import { Calendar as CalIcon, Video, Users, Mic, Loader2 } from "lucide-react";
+import { getEvents, createEvent, type DBEvent } from "@/services/agendaService";
+import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getProfiles, type DBProfile } from "@/services/profileService";
+import { UserSelector } from "@/components/UserSelector";
+import { useAuth } from "@/contexts/AuthContext";
 
-const dias = ["seg", "ter", "qua", "qui", "sex"];
+type ViewMode = "grid" | "lista";
+type RangeMode = "dia" | "semana" | "mes";
+
+const dias = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
 const diasLabel: Record<string, string> = { 
   seg: "Segunda", 
   ter: "Terça", 
   qua: "Quarta", 
   qui: "Quinta", 
-  sex: "Sexta" 
+  sex: "Sexta",
+  sab: "Sábado",
+  dom: "Domingo"
 };
 
-const tipoConfig: Record<string, { icon: React.ReactNode; color: string }> = {
-  reuniao: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-blue-400 bg-blue-500/5" },
-  call_theway: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-letitia-gold bg-letitia-gold/5" },
-  podcast: { icon: <Mic className="h-3.5 w-3.5" />, color: "border-l-pilar-profissional bg-pilar-profissional/5" },
-  one_on_one: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-pilar-pessoal bg-pilar-pessoal/5" },
-  live: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-pilar-interior bg-pilar-interior/5" },
+const tipoConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
+  reuniao: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-blue-400 bg-blue-500/5", label: "Reunião" },
+  call_theway: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-letitia-gold bg-letitia-gold/5", label: "Call THE WAY" },
+  podcast: { icon: <Mic className="h-3.5 w-3.5" />, color: "border-l-red-400 bg-red-500/5", label: "Podcast" },
+  one_on_one: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-purple-400 bg-purple-500/5", label: "1x1" },
+  live: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-green-400 bg-green-500/5", label: "Live" },
 };
 
 export function Agenda() {
+  const { user, loading: authLoading } = useAuth();
   const [eventos, setEventos] = useState<DBEvent[]>([]);
+  const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [rangeMode, setRangeMode] = useState<RangeMode>("semana");
+  const [busca, setBusca] = useState("");
+  const [offset, setOffset] = useState(0);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    if (!authLoading && user) {
+      fetchData();
+    }
+  }, [user, authLoading]);
+
+  async function fetchData() {
+    try {
+      const [eventsData, profilesData] = await Promise.all([
+        getEvents(), 
+        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+      ]);
+      setEventos(eventsData);
+      setProfiles(profilesData);
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function fetchEvents() {
     try {
@@ -34,10 +67,13 @@ export function Agenda() {
       setEventos(data);
     } catch (error) {
       console.error("Erro ao buscar eventos:", error);
-    } finally {
-      setLoading(false);
     }
   }
+
+  const filtrados = eventos.filter(e => 
+    e.titulo.toLowerCase().includes(busca.toLowerCase()) ||
+    e.participantes?.some(p => p.toLowerCase().includes(busca.toLowerCase()))
+  );
 
   const getWeekdayShort = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -55,40 +91,268 @@ export function Agenda() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Agenda</h2>
-        <p className="mt-1 text-sm text-muted">Acompanhe as reuniões e compromissos do time.</p>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-letitia-gold/10">
+            <CalIcon className="h-5 w-5 text-letitia-gold" />
+          </div>
+          <div>
+            <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Agenda</h2>
+            <p className="mt-0.5 text-sm text-muted">Acompanhe as reuniões e compromissos do time.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> Novo Evento
+          </button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {dias.map((dia) => {
-          const evts = eventos.filter((e) => getWeekdayShort(e.data_evento) === dia);
-          return (
-            <div key={dia} className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="px-4 py-3 border-b border-border bg-background/50">
-                <p className="text-sm font-semibold text-foreground capitalize">{diasLabel[dia]}</p>
-              </div>
-              <div className="p-2 space-y-2 min-h-[200px]">
-                {evts.length === 0 ? (
-                  <p className="text-[10px] text-muted italic text-center py-8">Sem eventos</p>
-                ) : (
-                  evts.map((evt) => {
-                    const tipo = tipoConfig[evt.tipo] || tipoConfig.reuniao;
-                    return (
-                      <div key={evt.id} className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-sm transition-shadow", tipo.color)}>
-                        <div className="flex items-center gap-1.5 text-muted mb-1">
-                          {tipo.icon}
-                          <span className="text-[10px] font-medium">{evt.hora_inicio.substring(0, 5)}</span>
-                        </div>
-                        <p className="text-xs font-medium text-foreground leading-snug">{evt.titulo}</p>
-                        <div className="flex gap-1 mt-2">
-                          {evt.participantes?.map((p) => (
-                            <span key={p} className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[8px] font-medium text-foreground">{p}</span>
-                          ))}
-                        </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full rounded-md border border-border bg-card pl-9 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              placeholder="Buscar evento..."
+            />
+          </div>
+
+          <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-0.5">
+            <button onClick={() => setViewMode("grid")} className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode("lista")} className={cn("p-1.5 rounded-md transition-all", viewMode === "lista" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-0.5">
+            {(["dia", "semana", "mes"] as RangeMode[]).map((m) => (
+              <button 
+                key={m} 
+                onClick={() => { setRangeMode(m); setOffset(0); }} 
+                className={cn("px-3 py-1 rounded-md text-xs font-medium transition-all capitalize", rangeMode === m ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}
+              >
+                {m === "dia" ? "Dia" : m === "semana" ? "Semana" : "Mês"}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button onClick={() => setOffset(o => o - 1)} className="p-1.5 rounded-md hover:bg-foreground/5 text-muted hover:text-foreground">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button onClick={() => setOffset(0)} className="text-xs font-medium px-2 py-1 hover:bg-foreground/5 rounded text-foreground">Hoje</button>
+            <button onClick={() => setOffset(o => o + 1)} className="p-1.5 rounded-md hover:bg-foreground/5 text-muted hover:text-foreground">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="min-h-[400px]">
+        {viewMode === "lista" ? (
+          <ListView eventos={filtrados} />
+        ) : (
+          <>
+            {rangeMode === "dia" && <DayView eventos={filtrados} offset={offset} />}
+            {rangeMode === "semana" && <WeekView eventos={filtrados} offset={offset} />}
+            {rangeMode === "mes" && <MonthView eventos={filtrados} offset={offset} />}
+          </>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <NovoEventoModal 
+          profiles={profiles}
+          onClose={() => setIsModalOpen(false)} 
+          onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} 
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Views ─────────────────────────────────────────────────── */
+
+function ListView({ eventos }: { eventos: DBEvent[] }) {
+  const sorted = [...eventos].sort((a, b) => {
+    const da = new Date(a.data_evento + 'T' + a.hora_inicio);
+    const db = new Date(b.data_evento + 'T' + b.hora_inicio);
+    return da.getTime() - db.getTime();
+  });
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-background/50">
+              <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Data/Hora</th>
+              <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Evento</th>
+              <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Tipo</th>
+              <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Participantes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.length === 0 ? (
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted italic">Nenhum evento encontrado.</td></tr>
+            ) : (
+              sorted.map((e) => {
+                const config = tipoConfig[e.tipo] || tipoConfig.reuniao;
+                return (
+                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-foreground">{new Date(e.data_evento + 'T00:00:00').toLocaleDateString("pt-BR")}</span>
+                        <span className="text-xs text-muted flex items-center gap-1"><Clock className="h-3 w-3" /> {e.hora_inicio.substring(0, 5)}</span>
                       </div>
-                    );
-                  })
-                )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-foreground">{e.titulo}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border border-transparent", config.color, "border-border/10")}>
+                        {config.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex -space-x-1">
+                        {e.participantes?.map((p, i) => (
+                          <div key={i} title={p} className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[8px] font-medium text-foreground ring-1 ring-background">
+                            {p}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function DayView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+  const day = new Date();
+  day.setDate(day.getDate() + offset);
+  const dayStr = day.toISOString().split("T")[0];
+  const dayEvents = eventos.filter(e => e.data_evento === dayStr);
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-background/50 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground capitalize">
+          {day.toLocaleDateString("pt-BR", { weekday: 'long', day: 'numeric', month: 'long' })}
+        </h3>
+        <span className="text-xs text-muted font-medium">{dayEvents.length} eventos</span>
+      </div>
+      <div className="p-6 space-y-3">
+        {dayEvents.length === 0 ? (
+          <div className="py-12 text-center text-muted italic text-sm">Nada agendado para este dia.</div>
+        ) : (
+          dayEvents.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map(e => <EventCard key={e.id} event={e} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WeekView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  const dayOfWeek = startOfWeek.getDay();
+  startOfWeek.setDate(startOfWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + offset * 7);
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfWeek);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
+      {days.map((day) => {
+        const dayStr = day.toISOString().split("T")[0];
+        const dayEvts = eventos.filter((e) => e.data_evento === dayStr);
+        const isToday = dayStr === today.toISOString().split("T")[0];
+        
+        return (
+          <div key={dayStr} className={cn("rounded-xl border overflow-hidden min-h-[300px] transition-all", isToday ? "border-letitia-gold bg-letitia-gold/5" : "border-border bg-card hover:border-border/80")}>
+            <div className={cn("px-4 py-3 border-b text-center", isToday ? "border-letitia-gold/30 bg-letitia-gold/10" : "border-border bg-background/50")}>
+              <p className="text-[10px] font-semibold text-muted uppercase tracking-wider">{day.toLocaleDateString("pt-BR", { weekday: "short" })}</p>
+              <p className={cn("text-xl font-bold mt-0.5", isToday ? "text-letitia-clay" : "text-foreground")}>{day.getDate()}</p>
+            </div>
+            <div className="p-2 space-y-2">
+              {dayEvts.length === 0 ? (
+                <p className="text-[10px] text-muted italic text-center py-10 opacity-50">Livre</p>
+              ) : (
+                dayEvts.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map((evt) => <EventCard key={evt.id} event={evt} compact />)
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MonthView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+  const today = new Date();
+  const monthDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+  const firstDayOfWeek = monthDate.getDay() === 0 ? 6 : monthDate.getDay() - 1;
+  const monthLabel = monthDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const cells = Array.from({ length: 42 }, (_, i) => {
+    const dayNum = i - firstDayOfWeek + 1;
+    if (dayNum < 1 || dayNum > daysInMonth) return null;
+    return new Date(monthDate.getFullYear(), monthDate.getMonth(), dayNum);
+  });
+
+  const weekdays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="px-6 py-4 border-b border-border bg-background/50 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground capitalize">{monthLabel}</h3>
+      </div>
+      <div className="grid grid-cols-7">
+        {weekdays.map((wd) => (
+          <div key={wd} className="px-2 py-3 text-center text-[10px] font-bold text-muted uppercase border-b border-border bg-background/10">{wd}</div>
+        ))}
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} className="border-b border-r border-border min-h-[100px] bg-background/5" />;
+          const dayStr = day.toISOString().split("T")[0];
+          const dayEvts = eventos.filter((e) => e.data_evento === dayStr);
+          const isToday = dayStr === today.toISOString().split("T")[0];
+          
+          return (
+            <div key={i} className={cn("border-b border-r border-border min-h-[100px] p-1.5 transition-colors", isToday ? "bg-letitia-gold/5" : "hover:bg-foreground/[0.02]")}>
+              <p className={cn("text-xs font-bold mb-1.5 px-1", isToday ? "text-letitia-clay" : "text-muted")}>{day.getDate()}</p>
+              <div className="space-y-1">
+                {dayEvts.slice(0, 3).map((e) => {
+                  const config = tipoConfig[e.tipo] || tipoConfig.reuniao;
+                  return (
+                    <div key={e.id} className={cn("rounded px-1.5 py-0.5 border-l-2 text-[9px] font-medium truncate bg-background/60", config.color)}>
+                      {e.hora_inicio.substring(0, 5)} {e.titulo}
+                    </div>
+                  );
+                })}
+                {dayEvts.length > 3 && <p className="text-[8px] text-muted px-1">+{dayEvts.length - 3} mais</p>}
               </div>
             </div>
           );
@@ -98,3 +362,149 @@ export function Agenda() {
   );
 }
 
+function EventCard({ event, compact }: { event: DBEvent; compact?: boolean }) {
+  const tipo = tipoConfig[event.tipo] || tipoConfig.reuniao;
+  return (
+    <div className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-md transition-all", tipo.color, !compact && "border border-border/20")}>
+      <div className="flex items-center gap-1.5 text-muted mb-1.5">
+        {tipo.icon}
+        <span className="text-[10px] font-bold tracking-tight">{event.hora_inicio.substring(0, 5)}</span>
+        {!compact && <span className="text-[10px] opacity-50 ml-1">• {tipo.label}</span>}
+      </div>
+      <p className={cn("font-medium text-foreground leading-snug", compact ? "text-[11px]" : "text-sm")}>{event.titulo}</p>
+      <div className="flex -space-x-1 mt-2.5">
+        {event.participantes?.map((p, i) => (
+          <div key={i} title={p} className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[8px] font-bold text-foreground ring-2 ring-background">
+            {p}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Modals ────────────────────────────────────────────────── */
+
+function NovoEventoModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[]; onClose: () => void; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    titulo: "",
+    data_evento: new Date().toISOString().split("T")[0],
+    hora_inicio: "09:00",
+    tipo: "reuniao",
+    participantes: [] as string[]
+  });
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await createEvent(formData);
+      onSuccess();
+    } catch (error) {
+      console.error("Erro ao criar evento:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-serif text-2xl font-medium text-foreground">Novo Compromisso</h3>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
+            <X className="h-5 w-5 text-muted" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título do Evento</label>
+            <input
+              required
+              value={formData.titulo}
+              onChange={e => setFormData({ ...formData, titulo: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              placeholder="Ex: Alinhamento de Vendas"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Data</label>
+              <input
+                required
+                type="date"
+                value={formData.data_evento}
+                onChange={e => setFormData({ ...formData, data_evento: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Horário</label>
+              <input
+                required
+                type="time"
+                value={formData.hora_inicio}
+                onChange={e => setFormData({ ...formData, hora_inicio: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Tipo de Compromisso</label>
+            <select
+              value={formData.tipo}
+              onChange={e => setFormData({ ...formData, tipo: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="reuniao">Reunião Interna</option>
+              <option value="call_theway">Call THE WAY</option>
+              <option value="podcast">Gravação Podcast</option>
+              <option value="one_on_one">Reunião 1x1</option>
+              <option value="live">Live / Masterclass</option>
+            </select>
+          </div>
+
+          <UserSelector
+            multiple
+            label="Participantes"
+            placeholder="Adicionar participantes..."
+            users={profiles}
+            selectedIds={selectedUserIds}
+            onSelect={(ids) => {
+              const idArray = ids as string[];
+              setSelectedUserIds(idArray);
+              const initials = profiles
+                .filter(p => idArray.includes(p.id))
+                .map(p => p.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase());
+              setFormData({ ...formData, participantes: initials });
+            }}
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Agendar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

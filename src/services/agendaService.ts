@@ -30,3 +30,21 @@ export async function createEvent(event: Partial<DBEvent>) {
   if (error) throw error;
   return data;
 }
+
+export async function updateEvent(eventId: string, updates: Partial<DBEvent>) {
+  const { error } = await supabase
+    .from('eventos')
+    .update(updates)
+    .eq('id', eventId);
+
+  if (error) throw error;
+}
+
+export async function deleteEvent(eventId: string) {
+  const { error } = await supabase
+    .from('eventos')
+    .delete()
+    .eq('id', eventId);
+
+  if (error) throw error;
+}

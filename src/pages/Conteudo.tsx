@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
-import { getContent, updateContentStatus, type DBContent } from "@/services/contentService";
+import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2 } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X } from "lucide-react";
+import { getProfiles, type DBProfile } from "@/services/profileService";
+import { UserSelector } from "@/components/UserSelector";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
@@ -23,16 +26,34 @@ const statusCols = [
 ];
 
 export function Conteudo() {
+  const { user } = useAuth();
   const [pautas, setPautas] = useState<DBContent[]>([]);
+  const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("kanban");
   const [calMode, setCalMode] = useState<CalMode>("semana");
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchPautas();
+    fetchData();
   }, []);
+
+  async function fetchData() {
+    try {
+      const [pautasData, profilesData] = await Promise.all([
+        getContent(), 
+        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+      ]);
+      setPautas(pautasData);
+      setProfiles(profilesData);
+    } catch (error) {
+      console.error("Erro ao buscar dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function fetchPautas() {
     try {
@@ -65,8 +86,14 @@ export function Conteudo() {
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Calendário Editorial</h2>
           <p className="mt-1 text-sm text-muted">{pautas.length} pautas neste ciclo</p>
         </div>
-        <div className="flex items-center gap-2">
-          {/* View Toggle */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> Nova Pauta
+          </button>
+          
           <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
             <button onClick={() => setView("kanban")} className={cn("p-1.5 rounded text-sm transition-all", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Kanban">
               <LayoutGrid className="h-4 w-4" />
@@ -126,6 +153,150 @@ export function Conteudo() {
       {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} />}
       {view === "lista" && <ListView pautas={filtradas} />}
       {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} />}
+
+      {isModalOpen && (
+        <NovoPautaModal 
+          profiles={profiles}
+          onClose={() => setIsModalOpen(false)} 
+          onSuccess={() => { setIsModalOpen(false); fetchPautas(); }} 
+        />
+      )}
+    </div>
+  );
+}
+
+function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[]; onClose: () => void; onSuccess: () => void }) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    titulo: "",
+    pilar: "pessoal",
+    formato: "reels",
+    plataforma: "Instagram",
+    data_prevista: new Date().toISOString().split("T")[0],
+    status: "rascunho",
+    responsavel_id: user?.id || ""
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await createContent(formData);
+      onSuccess();
+    } catch (error) {
+      console.error("Erro ao criar pauta:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-serif text-2xl font-medium text-foreground">Nova Pauta</h3>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
+            <X className="h-5 w-5 text-muted" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título da Pauta</label>
+            <input
+              required
+              value={formData.titulo}
+              onChange={e => setFormData({ ...formData, titulo: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              placeholder="Ex: Como lidar com crises"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Pilar</label>
+              <select
+                value={formData.pilar}
+                onChange={e => setFormData({ ...formData, pilar: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              >
+                <option value="pessoal">Pessoal</option>
+                <option value="profissional">Profissional</option>
+                <option value="interior">Interior</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Formato</label>
+              <select
+                value={formData.formato}
+                onChange={e => setFormData({ ...formData, formato: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              >
+                <option value="reels">Reels</option>
+                <option value="carrossel">Carrossel</option>
+                <option value="post">Post Único</option>
+                <option value="youtube">Vídeo YouTube</option>
+                <option value="podcast">Podcast</option>
+                <option value="newsletter">Newsletter</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Plataforma</label>
+              <select
+                value={formData.plataforma}
+                onChange={e => setFormData({ ...formData, plataforma: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              >
+                <option value="Instagram">@leticiacazarre</option>
+                <option value="@leticiacazarre.pessoal">@leti.pessoal</option>
+                <option value="@metodoleticia">@metodoleticia</option>
+                <option value="YouTube">YouTube</option>
+                <option value="Spotify">Podcast (Spotify)</option>
+                <option value="Substack">Newsletter (Substack)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Data Prevista</label>
+              <input
+                required
+                type="date"
+                value={formData.data_prevista}
+                onChange={e => setFormData({ ...formData, data_prevista: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <UserSelector
+            label="Responsável"
+            users={profiles}
+            selectedId={formData.responsavel_id}
+            onSelect={(id) => setFormData({ ...formData, responsavel_id: id })}
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Criar Pauta
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -152,7 +323,18 @@ function KanbanView({ pautas, onUpdate }: { pautas: DBContent[]; onUpdate: () =>
               <span className="text-[10px] font-medium text-muted bg-background px-1.5 py-0.5 rounded-full">{items.length}</span>
             </div>
             <div className="bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[180px]">
-              {items.map((p) => <PautaCard key={p.id} pauta={p} />)}
+              {items.map((p) => (
+                <div key={p.id} className="relative group">
+                  <PautaCard pauta={p} />
+                  <select 
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card border border-border rounded text-[8px] cursor-pointer"
+                    value={p.status}
+                    onChange={(e) => handleStatusChange(p.id, e.target.value)}
+                  >
+                    {statusCols.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
         );
@@ -183,7 +365,7 @@ function ListView({ pautas }: { pautas: DBContent[] }) {
                   <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
                   <td className="px-4 py-3"><StatusBadge status={p.status || "rascunho"} /></td>
-                  <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
+                  <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
                 </tr>
               );
             })}
@@ -323,7 +505,7 @@ function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
             <PlataformaBadge plataforma={pauta.plataforma} />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-muted uppercase tracking-tight">{new Date(pauta.data_prevista).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            <span className="text-[10px] text-muted uppercase tracking-tight">{new Date(pauta.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
           </div>
         </div>
       </div>
@@ -364,4 +546,3 @@ function StatusBadge({ status, tiny }: { status: string; tiny?: boolean }) {
     </span>
   );
 }
-

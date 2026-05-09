@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido';
+export type TaskStatus = 'a_fazer' | 'em_progresso' | 'revisao' | 'concluido';
 export type TaskPriority = 'baixa' | 'normal' | 'alta' | 'urgente';
 
 export interface DBTask {
@@ -39,6 +39,15 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
   const { error } = await supabase
     .from('tarefas')
     .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', taskId);
+
+  if (error) throw error;
+}
+
+export async function updateTask(taskId: string, updates: Partial<DBTask>) {
+  const { error } = await supabase
+    .from('tarefas')
+    .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', taskId);
 
   if (error) throw error;

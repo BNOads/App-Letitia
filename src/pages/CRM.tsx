@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { getContacts, type DBContact } from "@/services/crmService";
+import { getContacts, createContact, type DBContact } from "@/services/crmService";
 import { pilarColors } from "@/data/mockData";
-import { Search, Plus, Mail, Phone, Loader2 } from "lucide-react";
+import { Search, Plus, Mail, Phone, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function CRM() {
   const [contatos, setContatos] = useState<DBContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchContacts();
@@ -45,7 +46,10 @@ export function CRM() {
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">CRM de Contatos</h2>
           <p className="mt-1 text-sm text-muted">{contatos.length} contatos cadastrados</p>
         </div>
-        <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2 self-start">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2 self-start"
+        >
           <Plus className="h-4 w-4" />
           Novo Contato
         </button>
@@ -142,7 +146,130 @@ export function CRM() {
           </table>
         </div>
       </div>
+
+      {isModalOpen && (
+        <NovoContatoModal 
+          onClose={() => setIsModalOpen(false)} 
+          onSuccess={() => { setIsModalOpen(false); fetchContacts(); }} 
+        />
+      )}
     </div>
   );
 }
 
+function NovoContatoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    nome: "",
+    email: "",
+    telefone: "",
+    pilar: "pessoal",
+    origem: "manual",
+    tags: [] as string[],
+    produtos: [] as string[]
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await createContact(formData);
+      onSuccess();
+    } catch (error) {
+      console.error("Erro ao criar contato:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-serif text-2xl font-medium text-foreground">Novo Contato</h3>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
+            <X className="h-5 w-5 text-muted" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Nome Completo</label>
+            <input
+              required
+              value={formData.nome}
+              onChange={e => setFormData({ ...formData, nome: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              placeholder="Ex: Maria Oliveira"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">E-mail</label>
+              <input
+                required
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                placeholder="maria@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Telefone/WhatsApp</label>
+              <input
+                value={formData.telefone}
+                onChange={e => setFormData({ ...formData, telefone: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Pilar de Interesse</label>
+              <select
+                value={formData.pilar}
+                onChange={e => setFormData({ ...formData, pilar: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              >
+                <option value="pessoal">Pessoal</option>
+                <option value="profissional">Profissional</option>
+                <option value="interior">Interior</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Origem</label>
+              <input
+                value={formData.origem}
+                onChange={e => setFormData({ ...formData, origem: e.target.value })}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                placeholder="Ex: Instagram, Indicação"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Salvar Contato
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

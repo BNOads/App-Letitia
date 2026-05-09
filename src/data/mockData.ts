@@ -202,8 +202,10 @@ export const pilarColors = {
 };
 
 export const prioridadeColors = {
+  urgente: { bg: "bg-red-600/10", text: "text-red-700 dark:text-red-300", label: "Urgente" },
   alta: { bg: "bg-red-500/10", text: "text-red-600 dark:text-red-400", label: "Alta" },
   media: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", label: "Média" },
+  normal: { bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", label: "Normal" },
   baixa: { bg: "bg-green-500/10", text: "text-green-600 dark:text-green-400", label: "Baixa" },
 };
 

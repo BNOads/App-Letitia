@@ -56,24 +56,20 @@ export function Sidebar() {
       "hidden md:flex h-full flex-col border-r border-border bg-card transition-all duration-300",
       collapsed ? "w-16" : "w-64"
     )}>
-      {/* Logo + Toggle */}
-      <div className={cn("flex h-16 items-center border-b border-border", collapsed ? "justify-center px-0" : "justify-between px-4")}>
-        {!collapsed ? (
-          <h1 className="font-serif text-2xl font-semibold tracking-wide text-foreground">
-            LetitiAPP
-          </h1>
-        ) : (
-          <img src="/favicon.png" alt="L'app" className="h-8 w-8 object-contain rounded" />
-        )}
-        {!collapsed && (
-          <button
-            onClick={toggle}
-            className="p-1.5 rounded-md text-muted hover:text-foreground hover:bg-foreground/5 transition-colors"
-            title="Recolher menu"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
-        )}
+      {/* Logo */}
+      <div className={cn("flex h-16 items-center border-b border-border", collapsed ? "justify-center" : "px-4")}>
+        <button 
+          onClick={toggle}
+          className={cn("transition-transform hover:scale-105", collapsed ? "h-8 w-8" : "")}
+        >
+          {!collapsed ? (
+            <h1 className="font-serif text-2xl font-semibold tracking-wide text-foreground">
+              LetitiAPP
+            </h1>
+          ) : (
+            <img src="/favicon.png" alt="L'app" className="h-8 w-8 object-contain rounded" />
+          )}
+        </button>
       </div>
 
       {/* Nav */}
@@ -118,6 +114,27 @@ export function Sidebar() {
             </div>
           ))}
         </nav>
+
+        {/* Toggle Button Bottom */}
+        <div className="mt-auto pt-4 pb-2 px-2">
+          <button
+            onClick={toggle}
+            className={cn(
+              "w-full flex items-center rounded-md p-2 text-muted hover:text-foreground hover:bg-foreground/5 transition-colors",
+              collapsed ? "justify-center" : "px-3"
+            )}
+            title={collapsed ? "Expandir" : "Recolher"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <div className="flex items-center gap-3">
+                <PanelLeftClose className="h-4 w-4" />
+                <span className="text-xs font-medium">Recolher menu</span>
+              </div>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* User */}

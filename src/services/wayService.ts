@@ -27,3 +27,14 @@ export async function updateApplicationStatus(id: string, status: string) {
 
   if (error) throw error;
 }
+
+export async function createApplication(application: Partial<DBApplication>) {
+  const { data, error } = await supabase
+    .from('theway_aplicacoes')
+    .insert([application])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
