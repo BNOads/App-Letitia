@@ -51,7 +51,7 @@ export function Agenda() {
     try {
       const [eventsData, profilesData] = await Promise.all([
         getEvents(), 
-        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+        getProfiles()
       ]);
       setEventos(eventsData);
       setProfiles(profilesData);

@@ -13,6 +13,8 @@ import { Senhas } from "./pages/Senhas";
 import { Suporte } from "./pages/Suporte";
 import { LinksUteis } from "./pages/LinksUteis";
 import { PublicDocument } from "./pages/PublicDocument";
+import { Perfil } from "./pages/Perfil";
+import { Equipe } from "./pages/Equipe";
 import { Login } from "./pages/Login";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -35,12 +37,14 @@ function App() {
               <Route path="crm" element={<CRM />} />
               <Route path="pipeline" element={<PipelineTheWay />} />
               <Route path="vendas" element={<Vendas />} />
-              <Route path="conteudo" element={<Conteudo />} />
+              <Route path="editorial" element={<Conteudo />} />
               <Route path="documentos" element={<Documentos />} />
               <Route path="treinamentos" element={<Treinamentos />} />
               <Route path="senhas" element={<Senhas />} />
               <Route path="suporte" element={<Suporte />} />
               <Route path="links" element={<LinksUteis />} />
+              <Route path="perfil" element={<Perfil />} />
+              <Route path="equipe" element={<Equipe />} />
             </Route>
           </Route>
         </Routes>

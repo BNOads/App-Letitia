@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, LineChart, FileText,
@@ -7,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const sections = [
   {
@@ -31,7 +33,7 @@ const sections = [
   {
     label: "Conteúdo",
     items: [
-      { name: "Editorial", href: "/conteudo", icon: FileText },
+      { name: "Editorial", href: "/editorial", icon: FileText },
     ],
   },
   {
@@ -43,13 +45,55 @@ const sections = [
   },
 ];
 
+const adminSections = [
+  {
+    label: "Gestão",
+    items: [
+      { name: "Equipe", href: "/equipe", icon: Users },
+    ],
+  },
+];
+
 export function Sidebar() {
   const location = useLocation();
   const { collapsed, toggle } = useSidebar();
   const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+ 
+  useEffect(() => {
+    if (user) {
+      // Buscar perfil em tempo real para garantir sincronia da foto
+      const fetchSidebarProfile = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, role')
+          .eq('id', user.id)
+          .single();
+        if (data) setProfile(data);
+      };
+      fetchSidebarProfile();
 
-  // Se tiver um nome no metadado do supabase, pega as iniciais, se não 'LC'
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia Cazarré";
+      // Escutar mudanças no perfil para atualizar a foto na hora
+      const channel = supabase
+        .channel('sidebar-profile')
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        }, (payload) => {
+          setProfile(payload.new);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
+ 
+  const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Usuário";
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
   const initials = userName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
@@ -114,6 +158,45 @@ export function Sidebar() {
               </div>
             </div>
           ))}
+
+          {(profile?.role === "CEO" || profile?.role === "Diretoria") && adminSections.map((section) => (
+            <div key={section.label}>
+              {!collapsed && (
+                <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const isActive = location.pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      title={collapsed ? item.name : undefined}
+                      className={cn(
+                        isActive
+                          ? "bg-letitia-gold/10 text-foreground font-medium"
+                          : "text-muted hover:bg-foreground/5 hover:text-foreground",
+                        "group flex items-center rounded-md transition-colors",
+                        collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2 text-sm"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          isActive ? "text-letitia-clay" : "text-muted group-hover:text-foreground",
+                          "h-4 w-4 flex-shrink-0 transition-colors",
+                          collapsed ? "" : "mr-3"
+                        )}
+                        aria-hidden="true"
+                      />
+                      {!collapsed && item.name}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Toggle Button Bottom */}
@@ -141,17 +224,29 @@ export function Sidebar() {
       {/* User */}
       <div className="border-t border-border p-3">
         <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
-          <div className="flex items-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border text-sm font-medium text-foreground flex-shrink-0">
-              {initials}
+          <Link to="/perfil" className="flex items-center hover:opacity-80 transition-opacity">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border text-sm font-medium text-foreground flex-shrink-0 overflow-hidden">
+              {avatarUrl ? (
+                <img 
+                  key={avatarUrl}
+                  src={avatarUrl} 
+                  alt="" 
+                  className="h-full w-full object-cover" 
+                />
+              ) : initials}
             </div>
             {!collapsed && (
-              <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">{userName}</p>
+              <div className="ml-3 overflow-hidden flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-foreground truncate">{userName}</p>
+                  <span className="px-1.5 py-0.5 rounded-full bg-letitia-gold/10 text-letitia-gold text-[8px] font-bold uppercase tracking-wider border border-letitia-gold/20 flex-shrink-0">
+                    {profile?.role || "Suporte"}
+                  </span>
+                </div>
                 <p className="text-xs text-muted truncate">{user?.email || "Dona"}</p>
               </div>
             )}
-          </div>
+          </Link>
           
           {!collapsed && (
             <button 

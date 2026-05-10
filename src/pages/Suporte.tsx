@@ -7,7 +7,7 @@ import { getProfiles, type DBProfile } from "@/services/profileService";
 import { 
   Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
   RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera, User,
-  MessageSquare, Send, History, ChevronRight
+  MessageSquare, Send, History, ChevronRight, Edit2, Trash2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,7 +46,7 @@ export function Suporte() {
     try {
       const [ticketsData, profilesData] = await Promise.all([
         getTickets(), 
-        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+        getProfiles()
       ]);
       setTickets(ticketsData);
       setProfiles(profilesData);

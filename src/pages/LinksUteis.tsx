@@ -14,6 +14,9 @@ const categoryColors: Record<string, string> = {
   MARKETING: "bg-orange-100 text-orange-600",
   VENDAS: "bg-blue-100 text-blue-600",
   PRODUTO: "bg-purple-100 text-purple-600",
+  PLANILHAS: "bg-green-100 text-green-600",
+  FORMULÁRIOS: "bg-pink-100 text-pink-600",
+  CHECKOUTS: "bg-yellow-100 text-yellow-600",
 };
 
 export function LinksUteis() {
@@ -340,6 +343,9 @@ function NovoLinkModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               <option value="MARKETING">Marketing</option>
               <option value="VENDAS">Vendas</option>
               <option value="PRODUTO">Produto</option>
+              <option value="PLANILHAS">Planilhas</option>
+              <option value="FORMULÁRIOS">Formulários</option>
+              <option value="CHECKOUTS">Checkouts</option>
             </select>
           </div>
 

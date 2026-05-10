@@ -49,7 +49,7 @@ export function Tarefas() {
     try {
       const [tasksData, profilesData] = await Promise.all([
         getTasks(), 
-        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+        getProfiles()
       ]);
       setTarefas(tasksData);
       setProfiles(profilesData);

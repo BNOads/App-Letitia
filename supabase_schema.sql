@@ -3,7 +3,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   full_name TEXT,
   avatar_url TEXT,
-  departamento TEXT,
+  email TEXT,
+  phone TEXT,
+  role TEXT DEFAULT 'Suporte', -- CEO, Diretoria, Parceiro, Vendas, Suporte
+  metadata JSONB DEFAULT '{}'::jsonb,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -169,12 +172,24 @@ CREATE TABLE IF NOT EXISTS public.ticket_comments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.senhas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  servico TEXT NOT NULL,
+  usuario TEXT,
+  senha TEXT NOT NULL,
+  url TEXT,
+  categoria TEXT,
+  notas TEXT,
+  favorito BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 4. HABILITAR RLS E CRIAR POLÍTICAS
 DO $$
 DECLARE
     t TEXT;
 BEGIN
-    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos', 'links_uteis', 'ticket_comments')
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos', 'links_uteis', 'ticket_comments', 'senhas')
     LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
         IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Equipe acesso total' AND polrelid = ('public.' || t)::regclass) THEN

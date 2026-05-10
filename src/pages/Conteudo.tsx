@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { UserSelector } from "@/components/UserSelector";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,10 +12,12 @@ type CalMode = "dia" | "semana" | "mes";
 
 const plataformas = [
   { id: "todas", label: "Todas", icon: null },
-  { id: "Instagram", label: "@leticiacazarre", icon: Camera, color: "text-pink-500" },
-  { id: "@leticiacazarre.pessoal", label: "@leti.pessoal", icon: Camera, color: "text-purple-500" },
-  { id: "@metodoleticia", label: "@metodoleticia", icon: Camera, color: "text-orange-500" },
+  { id: "leticiacazarre", label: "@leticiacazarre", icon: Camera, color: "text-pink-500", logo: "https://unavatar.io/instagram/leticiacazarre" },
+  { id: "l__academia", label: "@l__academia", icon: Camera, color: "text-purple-500", logo: "https://unavatar.io/instagram/l__academia" },
+  { id: "vaipormim.podcast", label: "@vaipormim.podcast", icon: Camera, color: "text-red-500", logo: "https://unavatar.io/instagram/vaipormim.podcast" },
+  { id: "theway_mentoria", label: "@theway_mentoria", icon: Camera, color: "text-amber-500", logo: "https://unavatar.io/instagram/theway_mentoria" },
   { id: "YouTube", label: "YouTube", icon: Video, color: "text-red-500" },
+  { id: "TikTok", label: "TikTok", icon: Music, color: "text-black" },
 ];
 
 const statusCols = [
@@ -44,7 +46,7 @@ export function Conteudo() {
     try {
       const [pautasData, profilesData] = await Promise.all([
         getContent(), 
-        getProfiles({ id: user?.id || "", full_name: user?.user_metadata?.full_name })
+        getProfiles()
       ]);
       setPautas(pautasData);
       setProfiles(profilesData);
@@ -121,7 +123,11 @@ export function Conteudo() {
                 : "bg-card border-border text-muted hover:text-foreground hover:border-foreground/20"
             )}
           >
-            {p.icon && <p.icon className={cn("h-3.5 w-3.5", filtroPlataforma !== p.id ? p.color : "")} />}
+            {(p as any).logo ? (
+              <img src={(p as any).logo} alt="" className="h-4 w-4 rounded-full border border-border" />
+            ) : p.icon && (
+              <p.icon className={cn("h-3.5 w-3.5", filtroPlataforma !== p.id ? p.color : "")} />
+            )}
             {p.label}
           </button>
         ))}
@@ -251,10 +257,12 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
                 onChange={e => setFormData({ ...formData, plataforma: e.target.value })}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
               >
-                <option value="Instagram">@leticiacazarre</option>
-                <option value="@leticiacazarre.pessoal">@leti.pessoal</option>
-                <option value="@metodoleticia">@metodoleticia</option>
+                <option value="leticiacazarre">@leticiacazarre</option>
+                <option value="l__academia">@l__academia</option>
+                <option value="vaipormim.podcast">@vaipormim.podcast</option>
+                <option value="theway_mentoria">@theway_mentoria</option>
                 <option value="YouTube">YouTube</option>
+                <option value="TikTok">TikTok</option>
                 <option value="Spotify">Podcast (Spotify)</option>
                 <option value="Substack">Newsletter (Substack)</option>
               </select>
@@ -514,19 +522,29 @@ function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
 }
 
 function PlataformaBadge({ plataforma, tiny }: { plataforma: string; tiny?: boolean }) {
-  const isIG = plataforma.startsWith("@") || plataforma === "Instagram";
-  const isYT = plataforma === "YouTube";
-  const color = plataforma === "@metodoleticia" ? "text-orange-500" :
-    plataforma === "@leticiacazarre.pessoal" ? "text-purple-500" :
-    isIG ? "text-pink-500" :
-    isYT ? "text-red-500" : "text-muted";
+  const plat = plataformas.find(p => p.id === plataforma);
+  
+  if (plat?.logo) {
+    return (
+      <span className={cn("flex items-center gap-1 font-medium rounded", tiny ? "text-[8px]" : "text-[10px] bg-foreground/5 px-1.5 py-0.5")}>
+        <img src={plat.logo} alt="" className={cn("rounded-full border border-border", tiny ? "h-3 w-3" : "h-4 w-4")} />
+        <span className={cn("text-muted", tiny && "sr-only")}>{plat.label}</span>
+      </span>
+    );
+  }
 
-  const label = plataforma === "Instagram" ? "@leticiacazarre" : plataforma;
+  const isIG = plataforma === "leticiacazarre" || plataforma === "l__academia" || plataforma === "vaipormim.podcast" || plataforma === "theway_mentoria" || plataforma === "Instagram";
+  const isYT = plataforma === "YouTube";
+  const isTK = plataforma === "TikTok";
+
+  const color = plat?.color || "text-muted";
+  const label = plat?.label || plataforma;
 
   return (
     <span className={cn("flex items-center gap-1 font-medium rounded", tiny ? "text-[8px]" : "text-[10px] bg-foreground/5 px-1.5 py-0.5")}>
       {isIG && <Camera className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
       {isYT && <Video className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
+      {isTK && <Music className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
       <span className={cn("text-muted", tiny && "sr-only")}>{label}</span>
     </span>
   );
