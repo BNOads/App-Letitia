@@ -203,13 +203,13 @@ function LinkCard({ link, viewMode, onToggleFav, onCopy, copySuccess }: {
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium text-foreground truncate">{link.titulo}</h4>
-          <p className="text-[10px] text-muted truncate opacity-0 group-hover:opacity-100 transition-opacity">{link.url}</p>
+          <p className="text-[10px] text-muted truncate transition-opacity">{link.url}</p>
         </div>
         <div className="flex items-center gap-4">
           <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tight", badgeColor)}>
             {link.categoria}
           </span>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 transition-opacity">
             <button onClick={onToggleFav} className={cn("p-2 rounded-md hover:bg-foreground/5 transition-colors", link.favorito ? "text-letitia-gold" : "text-muted")}>
               <Star className={cn("h-4 w-4", link.favorito && "fill-letitia-gold")} />
             </button>

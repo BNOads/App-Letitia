@@ -12,16 +12,20 @@ import { Treinamentos } from "./pages/Treinamentos";
 import { Senhas } from "./pages/Senhas";
 import { Suporte } from "./pages/Suporte";
 import { LinksUteis } from "./pages/LinksUteis";
+import { PublicDocument } from "./pages/PublicDocument";
 import { Login } from "./pages/Login";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { Seeder } from "./components/Seeder";
 
 function App() {
   return (
     <AuthProvider>
+      <Seeder />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/publico/documento/:id" element={<PublicDocument />} />
           
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<AppLayout />}>

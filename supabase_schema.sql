@@ -151,16 +151,42 @@ CREATE TABLE IF NOT EXISTS public.eventos (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.links_uteis (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  titulo TEXT NOT NULL,
+  url TEXT NOT NULL,
+  categoria TEXT NOT NULL,
+  favorito BOOLEAN DEFAULT false,
+  ordem INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.ticket_comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  ticket_id UUID REFERENCES public.tickets(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.profiles(id),
+  conteudo TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 4. HABILITAR RLS E CRIAR POLÍTICAS
 DO $$
 DECLARE
     t TEXT;
 BEGIN
-    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos')
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos', 'links_uteis', 'ticket_comments')
     LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
         IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Equipe acesso total' AND polrelid = ('public.' || t)::regclass) THEN
             EXECUTE format('CREATE POLICY "Equipe acesso total" ON public.%I FOR ALL USING (auth.role() = ''authenticated'')', t);
         END IF;
     END LOOP;
+END $$;
+
+-- Política de Acesso Público para Documentos
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Acesso público a documentos' AND polrelid = 'public.documentos'::regclass) THEN
+        CREATE POLICY "Acesso público a documentos" ON public.documentos FOR SELECT USING (publico = true);
+    END IF;
 END $$;
