@@ -87,7 +87,7 @@ export function PublicDocument() {
               <FileText className="h-5 w-5 text-letitia-gold" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-foreground uppercase tracking-tight">LetitiAPP</h1>
+              <h1 className="text-sm font-bold text-foreground uppercase tracking-tight">LaetitiAPP</h1>
               <p className="text-[10px] text-muted font-medium uppercase tracking-widest">Documento Público</p>
             </div>
           </div>

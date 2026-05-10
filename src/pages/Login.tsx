@@ -44,7 +44,7 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4 sm:p-8">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
         <div className="text-center mb-8 flex flex-col items-center">
-          <h1 className="font-serif text-3xl font-semibold tracking-wide text-foreground">LetitiAPP</h1>
+          <h1 className="font-serif text-3xl font-semibold tracking-wide text-foreground">LaetitiAPP</h1>
           <p className="mt-2 text-sm text-muted">Acesse o sistema operacional</p>
         </div>
 

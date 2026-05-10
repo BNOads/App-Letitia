@@ -80,7 +80,7 @@ export function Equipe() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Gestão da Equipe</h2>
-          <p className="mt-1 text-sm text-muted">Gerencie permissões e membros do LetitiAPP.</p>
+          <p className="mt-1 text-sm text-muted">Gerencie permissões e membros do LaetitiAPP.</p>
         </div>
         {isAdmin && (
           <button 

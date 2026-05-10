@@ -239,7 +239,7 @@ export function Seeder() {
           { servico: "Meta Business Suite", categoria: "Ferramenta", usuario: "equipe@leticiacazarre.com.br", senha: "M3t@Bu$1n3ss!", url: "https://business.facebook.com" },
           { servico: "Instagram @leticiacazarre", categoria: "Rede Social", usuario: "equipe@leticiacazarre.com.br", senha: "Insta#2026Lc" },
           { servico: "Hotmart (Produtor)", categoria: "Ferramenta", usuario: "leticia@leticiacazarre.com.br", senha: "H0tm@rt!Pr0d", url: "https://app.hotmart.com" },
-          { servico: "Supabase LetitiAPP", categoria: "Ferramenta", usuario: "dev@leticiacazarre.com.br", senha: "Sup@b4s3!2026", url: "https://supabase.com" },
+          { servico: "Supabase LaetitiAPP", categoria: "Ferramenta", usuario: "dev@leticiacazarre.com.br", senha: "Sup@b4s3!2026", url: "https://supabase.com" },
           { servico: "Google Workspace", categoria: "E-mail", usuario: "admin@leticiacazarre.com.br", senha: "G00gl3#Ws!", url: "https://admin.google.com" },
           { servico: "Asaas (Cobranças)", categoria: "Financeiro", usuario: "financeiro@leticiacazarre.com.br", senha: "As@@s#F1n!", url: "https://www.asaas.com" },
           { servico: "Canva Pro", categoria: "Ferramenta", usuario: "equipe@leticiacazarre.com.br", senha: "C@nv4#Pr0!", url: "https://canva.com" },

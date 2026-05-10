@@ -109,7 +109,7 @@ export function Sidebar() {
         >
           {!collapsed ? (
             <h1 className="font-serif text-2xl font-semibold tracking-wide text-foreground">
-              LetitiAPP
+              LaetitiAPP
             </h1>
           ) : (
             <img src="/favicon.png" alt="L'app" className="h-8 w-8 object-contain rounded" />

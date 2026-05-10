@@ -6,7 +6,7 @@ export function Header() {
       {/* Mobile: App Name | Desktop: Search */}
       <div className="flex flex-1 items-center gap-3">
         <h1 className="font-serif text-xl font-semibold tracking-wide text-foreground md:hidden">
-          LetitiAPP
+          LaetitiAPP
         </h1>
         <div className="relative w-full max-w-md hidden md:block">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

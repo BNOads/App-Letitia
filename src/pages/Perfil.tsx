@@ -131,7 +131,7 @@ export function Perfil() {
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <header>
         <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Meu Perfil</h2>
-        <p className="mt-1 text-sm text-muted">Gerencie suas informações e permissões no LetitiAPP.</p>
+        <p className="mt-1 text-sm text-muted">Gerencie suas informações e permissões no LaetitiAPP.</p>
       </header>
 
       {message && (
