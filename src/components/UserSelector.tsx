@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Check, X, User } from "lucide-react";
+import { Search, ChevronDown, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type DBProfile } from "@/services/profileService";
 
@@ -21,7 +21,7 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
   const selectedUsers = users.filter((u) => selectedIdArray.includes(u.id));
 
   const filteredUsers = users.filter((u) =>
-    u.full_name.toLowerCase().includes(search.toLowerCase())
+    (u.full_name || "").toLowerCase().includes(search.toLowerCase())
   );
 
   useEffect(() => {
@@ -70,10 +70,10 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
                     <img src={u.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
                   ) : (
                     <div className="flex h-4 w-4 items-center justify-center rounded-full bg-letitia-gold/20 text-[8px] font-bold">
-                      {u.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      {(u.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </div>
                   )}
-                  <span className="truncate max-w-[120px]">{u.full_name}</span>
+                  <span className="truncate max-w-[120px]">{u.full_name || "Usuário"}</span>
                   {multiple && (
                     <X 
                       className="h-3 w-3 cursor-pointer hover:text-letitia-clay" 
@@ -111,7 +111,7 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
                 <p className="px-3 py-4 text-center text-xs text-muted italic">Nenhum usuário encontrado.</p>
               ) : (
                 filteredUsers.map((u) => {
-                  const initials = u.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                  const initials = (u.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                   const isSelected = selectedIdArray.includes(u.id);
                   
                   return (
@@ -139,8 +139,8 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
                           </div>
                         )}
                         <div className="flex flex-col items-start overflow-hidden text-left">
-                          <span className="truncate">{u.full_name}</span>
-                          {u.departamento && <span className="text-[9px] text-muted truncate">{u.departamento}</span>}
+                          <span className="truncate">{u.full_name || "Usuário"}</span>
+                          <span className="text-[9px] text-muted truncate uppercase tracking-tighter">{u.role}</span>
                         </div>
                       </div>
                       {isSelected && <Check className="h-4 w-4 text-letitia-gold" />}

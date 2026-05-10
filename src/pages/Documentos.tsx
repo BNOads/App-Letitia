@@ -3,14 +3,13 @@ import { getPastas, updateDocumento, createDocumento, createPasta, type DBPasta,
 import { cn } from "@/lib/utils";
 import { 
   Search, Plus, FolderOpen, Star, FileText, ChevronDown, ChevronRight, 
-  Bold, Italic, Underline, List, ListOrdered, Link2, Heading1, Heading2, 
-  Heading3, Loader2, X, Edit2, Trash2, Save, MoreVertical, Globe, Lock, Share2
+  Bold, Italic, Underline, Heading1, Heading2, 
+  Heading3, Loader2, X, Edit2, Trash2, Save, Globe, Lock, Share2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
 export function Documentos() {
-  const { user } = useAuth();
   const [pastas, setPastas] = useState<DBPasta[]>([]);
   const [loading, setLoading] = useState(true);
   const [docSelecionado, setDocSelecionado] = useState<DBDocumento | null>(null);

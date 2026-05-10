@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, CheckSquare, Users, LineChart, FileText,
-  GitBranch, DollarSign, Calendar
+  LayoutDashboard, CheckSquare, Users, LineChart, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -10,13 +10,13 @@ export interface DBTask {
   prioridade: TaskPriority;
   status: TaskStatus;
   responsavel_id: string | null;
-  prazo: string;
+  prazo: string | null;
   created_at: string;
   updated_at: string;
   profiles?: {
-    full_name: string;
-    avatar_url: string;
-  };
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 export async function getTasks() {

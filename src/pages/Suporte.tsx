@@ -5,9 +5,9 @@ import {
 } from "@/services/supportService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { 
-  Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
-  RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera, User,
-  MessageSquare, Send, History, ChevronRight, Edit2, Trash2, Save
+  Search, Plus, Clock, CheckCircle2, Ticket as TicketIcon, 
+  RefreshCw, Loader2, X, Phone, Mail, Camera,
+  MessageSquare, Send, ChevronRight, Edit2, Trash2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -600,7 +600,7 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
             <UserSelector
               label="Atribuir a"
               users={profiles}
-              selectedId={formData.responsavel_id}
+              selectedIds={formData.responsavel_id}
               onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })}
             />
           </div>
@@ -752,7 +752,7 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
             <UserSelector
               label="Atribuir a"
               users={profiles}
-              selectedId={formData.responsavel_id}
+              selectedIds={formData.responsavel_id}
               onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })}
             />
           </div>

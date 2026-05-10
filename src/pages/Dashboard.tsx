@@ -2,14 +2,16 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardStats } from "@/services/dashboardService";
 import { 
-  TrendingUp, CheckSquare, FileText, Clock, 
-  ArrowUpRight, Loader2, ChevronRight, Video, Camera,
+  FileText, Clock, 
+  Loader2, ChevronRight, Video, Camera,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays,
-  Circle, CheckCircle2, MoreHorizontal, Send
+  Circle, CheckCircle2, Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { createTask, updateTaskStatus } from "@/services/taskService";
+import { createTask, updateTaskStatus, type DBTask } from "@/services/taskService";
+import { getProfiles, type DBProfile } from "@/services/profileService";
+import { NovoTarefaModal } from "./Tarefas";
 
 type Stats = {
   totalVendas: number;
@@ -26,19 +28,24 @@ type Stats = {
 export function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [quickTask, setQuickTask] = useState("");
+  const [addingTask, setAddingTask] = useState(false);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia";
   const hour = new Date().getHours();
   const saudacao = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  const [quickTask, setQuickTask] = useState("");
-  const [addingTask, setAddingTask] = useState(false);
-
   const loadStats = async () => {
     try {
-      const data = await getDashboardStats();
-      setStats(data);
+      const [statsData, profilesData] = await Promise.all([
+        getDashboardStats(),
+        getProfiles()
+      ]);
+      setStats(statsData);
+      setProfiles(profilesData);
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error);
     } finally {
@@ -50,9 +57,9 @@ export function Dashboard() {
     loadStats();
   }, []);
 
-  const handleQuickTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickTask.trim() || !user) return;
+  const handleQuickTask = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!quickTask.trim() || !user || addingTask) return;
     
     setAddingTask(true);
     try {
@@ -64,9 +71,10 @@ export function Dashboard() {
         prazo: new Date().toISOString().split('T')[0]
       });
       setQuickTask("");
-      loadStats();
+      await loadStats();
     } catch (error) {
       console.error("Erro ao criar tarefa rápida:", error);
+      alert("Erro ao criar tarefa. Tente novamente.");
     } finally {
       setAddingTask(false);
     }
@@ -106,18 +114,21 @@ export function Dashboard() {
           <p className="mt-1.5 text-muted text-sm">Aqui está o panorama geral do seu ecossistema hoje.</p>
         </div>
         
-        {/* Ticket Counter Floating style */}
-        <motion.div 
+        {/* Ticket Counter Shortcut */}
+        <motion.a 
+          href="/suporte"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-4 bg-red-500/5 border border-red-500/20 px-6 py-3 rounded-2xl"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-4 bg-red-500/5 border border-red-500/20 px-6 py-3 rounded-2xl cursor-pointer hover:bg-red-500/10 transition-colors"
         >
           <Headset className="h-6 w-6 text-red-500" />
           <div className="flex flex-col">
             <span className="text-2xl font-bold text-red-600 leading-none">{stats?.ticketsAbertos}</span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-red-500/70">Tickets em Aberto</span>
           </div>
-        </motion.div>
+        </motion.a>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -204,7 +215,10 @@ export function Dashboard() {
                 <p className="text-xs text-muted mt-1">{stats?.tarefas.concluidas} de {stats?.tarefas.total} tarefas concluídas</p>
               </div>
               <div className="flex items-center gap-2">
-                <button className="bg-letitia-gold text-white px-4 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-all flex items-center gap-2">
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="bg-letitia-gold text-white px-4 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-all flex items-center gap-2"
+                >
                   <Plus className="h-4 w-4" /> Nova Tarefa
                 </button>
                 <button className="p-2 border border-border rounded-xl text-muted hover:text-foreground">
@@ -246,9 +260,10 @@ export function Dashboard() {
                   className="w-full bg-background border border-border rounded-2xl pl-5 pr-12 py-3 text-sm focus:ring-2 focus:ring-letitia-gold focus:outline-none transition-all placeholder:text-muted/50"
                 />
                 <button 
-                  type="submit"
+                  type="button"
+                  onClick={() => handleQuickTask()}
                   disabled={!quickTask.trim() || addingTask}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-letitia-gold text-white disabled:opacity-30 transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-letitia-gold text-white disabled:opacity-30 transition-all z-10"
                 >
                   {addingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
@@ -322,7 +337,7 @@ export function Dashboard() {
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {stats?.pautas.map((pauta, idx) => (
+                {stats?.pautas.map((pauta) => (
                   <motion.div 
                     key={pauta.id}
                     whileHover={{ y: -5 }}
@@ -351,7 +366,17 @@ export function Dashboard() {
         </div>
 
       </div>
+
+      {isModalOpen && (
+        <NovoTarefaModal 
+          profiles={profiles}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => {
+            setIsModalOpen(false);
+            loadStats();
+          }}
+        />
+      )}
     </div>
   );
 }
-

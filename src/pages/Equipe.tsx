@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { getProfiles, updateProfile } from "@/services/profileService";
 import { 
-  Users, UserPlus, Shield, Mail, Phone, 
-  MoreVertical, Trash2, Edit2, CheckCircle2, X,
-  Search, Loader2, AlertCircle, Camera
+  UserPlus, Shield, Mail, Phone, 
+  Trash2, Edit2, X,
+  Search, Loader2, Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";

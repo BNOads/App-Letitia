@@ -9,23 +9,12 @@ import { useAuth } from "@/contexts/AuthContext";
 type ViewMode = "grid" | "lista";
 type RangeMode = "dia" | "semana" | "mes";
 
-const dias = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
-const diasLabel: Record<string, string> = { 
-  seg: "Segunda", 
-  ter: "Terça", 
-  qua: "Quarta", 
-  qui: "Quinta", 
-  sex: "Sexta",
-  sab: "Sábado",
-  dom: "Domingo"
-};
-
-const tipoConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  reuniao: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-blue-400 bg-blue-500/5", label: "Reunião" },
-  call_theway: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-letitia-gold bg-letitia-gold/5", label: "Call THE WAY" },
-  podcast: { icon: <Mic className="h-3.5 w-3.5" />, color: "border-l-red-400 bg-red-500/5", label: "Podcast" },
-  one_on_one: { icon: <Users className="h-3.5 w-3.5" />, color: "border-l-purple-400 bg-purple-500/5", label: "1x1" },
-  live: { icon: <Video className="h-3.5 w-3.5" />, color: "border-l-green-400 bg-green-500/5", label: "Live" },
+const tipoConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  reuniao: { label: "Reunião", color: "text-blue-500 bg-blue-500/10 border-blue-500/20", icon: <Users className="h-3 w-3" /> },
+  call_theway: { label: "Call THE WAY", color: "text-letitia-gold bg-letitia-gold/10 border-letitia-gold/20", icon: <Video className="h-3 w-3" /> },
+  podcast: { label: "Podcast", color: "text-red-500 bg-red-500/10 border-red-500/20", icon: <Mic className="h-3 w-3" /> },
+  one_on_one: { label: "1x1", color: "text-green-500 bg-green-500/10 border-green-500/20", icon: <Users className="h-3 w-3" /> },
+  live: { label: "Live", color: "text-purple-500 bg-purple-500/10 border-purple-500/20", icon: <Video className="h-3 w-3" /> },
 };
 
 export function Agenda() {
@@ -174,7 +163,7 @@ export function Agenda() {
           <>
             {rangeMode === "dia" && <DayView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
             {rangeMode === "semana" && <WeekView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
-            {rangeMode === "mes" && <MonthView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
+            {rangeMode === "mes" && <MonthView eventos={filtrados} offset={offset} onEdit={setEditingEvent} />}
           </>
         )}
       </div>
@@ -327,7 +316,7 @@ function WeekView({ eventos, offset, onEdit, onDelete }: { eventos: DBEvent[]; o
   );
 }
 
-function MonthView({ eventos, offset, onEdit, onDelete }: { eventos: DBEvent[]; offset: number; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
+function MonthView({ eventos, offset, onEdit }: { eventos: DBEvent[]; offset: number; onEdit: (e: DBEvent) => void }) {
   const today = new Date();
   const monthDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
   const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
@@ -418,7 +407,6 @@ function NovoEventoModal({ profiles, onClose, onSuccess, evento }: {
   onSuccess: () => void;
   evento?: DBEvent | null;
 }) {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: evento?.titulo || "",
@@ -431,7 +419,7 @@ function NovoEventoModal({ profiles, onClose, onSuccess, evento }: {
   // Find initial user IDs from initials (imperfect but better than nothing if table was empty)
   const initialUserIds = profiles
     .filter(p => {
-      const initials = p.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const initials = (p.full_name || "").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
       return formData.participantes.includes(initials);
     })
     .map(p => p.id);
@@ -526,7 +514,7 @@ function NovoEventoModal({ profiles, onClose, onSuccess, evento }: {
               setSelectedUserIds(idArray);
               const initials = profiles
                 .filter(p => idArray.includes(p.id))
-                .map(p => p.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase());
+                .map(p => (p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase());
               setFormData({ ...formData, participantes: initials });
             }}
           />

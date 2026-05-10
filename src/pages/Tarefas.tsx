@@ -75,7 +75,7 @@ export function Tarefas() {
 
   const filtradas = tarefas.filter((t) => {
     const matchBusca = t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-                       t.profiles?.full_name.toLowerCase().includes(busca.toLowerCase());
+                       t.profiles?.full_name?.toLowerCase().includes(busca.toLowerCase()) || false;
     
     if (tab === "minhas") {
       return matchBusca && t.responsavel_id === user?.id;
@@ -493,7 +493,7 @@ function ActivityItem({ user, action, date }: { user: string; action: string; da
   );
 }
 
-function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: { 
+export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: { 
   profiles: DBProfile[]; 
   onClose: () => void; 
   onSuccess: () => void;
@@ -593,7 +593,7 @@ function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
           <UserSelector
             label="Responsável"
             users={profiles}
-            selectedIds={formData.responsavel_id}
+            selectedIds={formData.responsavel_id || ""}
             onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })}
           />
 

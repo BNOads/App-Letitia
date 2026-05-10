@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { getLinks, createLink, updateLink, deleteLink, type DBLink } from "@/services/linksService";
+import { getLinks, createLink, updateLink, type DBLink } from "@/services/linksService";
 import { 
   Search, Plus, LayoutGrid, List, Star, Copy, Share2, 
   ExternalLink, MoreVertical, GripVertical, Loader2, X, Link as LinkIcon, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, Reorder } from "framer-motion";
+import { motion } from "framer-motion";
 
 type ViewMode = "grid" | "lista";
 

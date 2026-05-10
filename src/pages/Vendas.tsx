@@ -80,7 +80,7 @@ export function Vendas() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "var(--muted)" }} />
               <YAxis tick={{ fontSize: 12, fill: "var(--muted)" }} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--foreground)", fontSize: "12px" }} formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR")}`, "Vendas"]} />
+              <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--foreground)", fontSize: "12px" }} formatter={(value: any) => [`R$ ${Number(value).toLocaleString("pt-BR")}`, "Vendas"]} />
               <Bar dataKey="valor" fill="#C4A47C" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

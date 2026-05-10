@@ -4,7 +4,7 @@ import {
   getProfile, updateProfile, uploadAvatar, changePassword, type DBProfile 
 } from "@/services/profileService";
 import { 
-  User, Mail, Phone, Shield, Info, Camera, 
+  User, Mail, Shield, Info, Camera, 
   Lock, Save, Loader2, CheckCircle2, AlertCircle, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";

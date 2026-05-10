@@ -11,7 +11,7 @@ export async function getDashboardStats() {
   const totalVendas = vendas?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
 
   // 2. Tarefas
-  const { data: allTarefas } = await supabase.from('tarefas').select('status, titulo, prazo, prioridade');
+  const { data: allTarefas } = await supabase.from('tarefas').select('id, status, titulo, prazo, prioridade');
   const totalTarefas = allTarefas?.length || 0;
   const concluidasTarefas = allTarefas?.filter(t => t.status === 'concluido').length || 0;
   const proximasTarefas = allTarefas

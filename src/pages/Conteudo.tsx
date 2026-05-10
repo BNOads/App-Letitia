@@ -28,7 +28,6 @@ const statusCols = [
 ];
 
 export function Conteudo() {
-  const { user } = useAuth();
   const [pautas, setPautas] = useState<DBContent[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,8 +281,8 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
           <UserSelector
             label="Responsável"
             users={profiles}
-            selectedId={formData.responsavel_id}
-            onSelect={(id) => setFormData({ ...formData, responsavel_id: id })}
+            selectedIds={formData.responsavel_id}
+            onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })}
           />
 
           <div className="flex justify-end gap-3 pt-4">

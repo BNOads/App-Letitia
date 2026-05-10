@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export function Login() {
   const { session, loading: authLoading } = useAuth();
