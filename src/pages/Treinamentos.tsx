@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Search, Plus, Play, Filter, BookOpen, Users } from "lucide-react";
+import { Search, Plus, Play, BookOpen, Users } from "lucide-react";
 
 type Categoria = "Analytics" | "Criativos" | "Ferramentas" | "Processos" | "Atendimento";
 type Nivel = "Iniciante" | "Intermediário" | "Avançado";
@@ -17,13 +17,7 @@ type Curso = {
   progresso: number;
 };
 
-const categoriaCores: Record<Categoria, string> = {
-  Analytics: "bg-blue-500",
-  Criativos: "bg-orange-500",
-  Ferramentas: "bg-amber-500",
-  Processos: "bg-purple-500",
-  Atendimento: "bg-green-500",
-};
+
 
 const cardGradients: Record<Categoria, string> = {
   Analytics: "from-blue-400 to-cyan-400",

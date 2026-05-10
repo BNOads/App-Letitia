@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { createTask, updateTaskStatus, type DBTask } from "@/services/taskService";
+import { createTask, updateTaskStatus } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { NovoTarefaModal } from "./Tarefas";
 
@@ -65,6 +65,7 @@ export function Dashboard() {
     try {
       await createTask({
         titulo: quickTask,
+        descricao: "",
         status: 'a_fazer',
         prioridade: 'normal',
         responsavel_id: user.id,

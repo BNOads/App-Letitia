@@ -5,8 +5,8 @@ import {
 } from "@/services/supportService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { 
-  Search, Plus, Clock, CheckCircle2, Ticket as TicketIcon, 
-  RefreshCw, Loader2, X, Phone, Mail, Camera,
+  Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
+  RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera,
   MessageSquare, Send, ChevronRight, Edit2, Trash2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";

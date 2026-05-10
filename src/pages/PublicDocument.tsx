@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { FileText, Globe, Loader2, Link2, AlertCircle } from "lucide-react";
+import { FileText, Globe, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Documento = {

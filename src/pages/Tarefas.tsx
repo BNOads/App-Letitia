@@ -291,7 +291,7 @@ export function Tarefas() {
 
 /* ─── Modals ────────────────────────────────────────────── */
 
-function TaskDetailModal({ tarefa, profiles, onClose, onEdit, onDelete, onStatusChange }: {
+function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelete, onStatusChange }: {
   tarefa: DBTask;
   profiles: DBProfile[];
   onClose: () => void;

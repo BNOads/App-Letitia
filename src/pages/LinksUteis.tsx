@@ -5,7 +5,6 @@ import {
   ExternalLink, MoreVertical, GripVertical, Loader2, X, Link as LinkIcon, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
 
 type ViewMode = "grid" | "lista";
 
