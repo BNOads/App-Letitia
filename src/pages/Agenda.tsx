@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getEvents, createEvent, type DBEvent } from "@/services/agendaService";
+import { getEvents, createEvent, updateEvent, deleteEvent, type DBEvent } from "@/services/agendaService";
 import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfiles, type DBProfile } from "@/services/profileService";
@@ -34,6 +34,7 @@ export function Agenda() {
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<DBEvent | null>(null);
   
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [rangeMode, setRangeMode] = useState<RangeMode>("semana");
@@ -70,16 +71,20 @@ export function Agenda() {
     }
   }
 
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este compromisso?")) return;
+    try {
+      await deleteEvent(id);
+      fetchEvents();
+    } catch (error) {
+      console.error("Erro ao excluir evento:", error);
+    }
+  };
+
   const filtrados = eventos.filter(e => 
     e.titulo.toLowerCase().includes(busca.toLowerCase()) ||
     e.participantes?.some(p => p.toLowerCase().includes(busca.toLowerCase()))
   );
-
-  const getWeekdayShort = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    const days = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-    return days[date.getDay()];
-  };
 
   if (loading) {
     return (
@@ -164,21 +169,22 @@ export function Agenda() {
       {/* Content */}
       <div className="min-h-[400px]">
         {viewMode === "lista" ? (
-          <ListView eventos={filtrados} />
+          <ListView eventos={filtrados} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />
         ) : (
           <>
-            {rangeMode === "dia" && <DayView eventos={filtrados} offset={offset} />}
-            {rangeMode === "semana" && <WeekView eventos={filtrados} offset={offset} />}
-            {rangeMode === "mes" && <MonthView eventos={filtrados} offset={offset} />}
+            {rangeMode === "dia" && <DayView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
+            {rangeMode === "semana" && <WeekView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
+            {rangeMode === "mes" && <MonthView eventos={filtrados} offset={offset} onEdit={setEditingEvent} onDelete={handleDeleteEvent} />}
           </>
         )}
       </div>
 
-      {isModalOpen && (
+      {(isModalOpen || editingEvent) && (
         <NovoEventoModal 
           profiles={profiles}
-          onClose={() => setIsModalOpen(false)} 
-          onSuccess={() => { setIsModalOpen(false); fetchEvents(); }} 
+          evento={editingEvent}
+          onClose={() => { setIsModalOpen(false); setEditingEvent(null); }} 
+          onSuccess={() => { setIsModalOpen(false); setEditingEvent(null); fetchEvents(); }} 
         />
       )}
     </div>
@@ -187,7 +193,7 @@ export function Agenda() {
 
 /* ─── Views ─────────────────────────────────────────────────── */
 
-function ListView({ eventos }: { eventos: DBEvent[] }) {
+function ListView({ eventos, onEdit, onDelete }: { eventos: DBEvent[]; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const sorted = [...eventos].sort((a, b) => {
     const da = new Date(a.data_evento + 'T' + a.hora_inicio);
     const db = new Date(b.data_evento + 'T' + b.hora_inicio);
@@ -204,16 +210,17 @@ function ListView({ eventos }: { eventos: DBEvent[] }) {
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Evento</th>
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Tipo</th>
               <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Participantes</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted italic">Nenhum evento encontrado.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted italic">Nenhum evento encontrado.</td></tr>
             ) : (
               sorted.map((e) => {
                 const config = tipoConfig[e.tipo] || tipoConfig.reuniao;
                 return (
-                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors">
+                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors group">
                     <td className="px-4 py-3">
                       <div className="flex flex-col">
                         <span className="text-sm font-medium text-foreground">{new Date(e.data_evento + 'T00:00:00').toLocaleDateString("pt-BR")}</span>
@@ -235,6 +242,16 @@ function ListView({ eventos }: { eventos: DBEvent[] }) {
                         ))}
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => onEdit(e)} className="p-1.5 rounded hover:bg-foreground/5 text-muted hover:text-foreground">
+                          <Plus className="h-4 w-4 rotate-45" />
+                        </button>
+                        <button onClick={() => onDelete(e.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })
@@ -246,7 +263,7 @@ function ListView({ eventos }: { eventos: DBEvent[] }) {
   );
 }
 
-function DayView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+function DayView({ eventos, offset, onEdit, onDelete }: { eventos: DBEvent[]; offset: number; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const day = new Date();
   day.setDate(day.getDate() + offset);
   const dayStr = day.toISOString().split("T")[0];
@@ -264,14 +281,14 @@ function DayView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
         {dayEvents.length === 0 ? (
           <div className="py-12 text-center text-muted italic text-sm">Nada agendado para este dia.</div>
         ) : (
-          dayEvents.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map(e => <EventCard key={e.id} event={e} />)
+          dayEvents.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map(e => <EventCard key={e.id} event={e} onEdit={onEdit} onDelete={onDelete} />)
         )}
       </div>
     </div>
   );
 }
 
-function WeekView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+function WeekView({ eventos, offset, onEdit, onDelete }: { eventos: DBEvent[]; offset: number; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const today = new Date();
   const startOfWeek = new Date(today);
   const dayOfWeek = startOfWeek.getDay();
@@ -300,7 +317,7 @@ function WeekView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
               {dayEvts.length === 0 ? (
                 <p className="text-[10px] text-muted italic text-center py-10 opacity-50">Livre</p>
               ) : (
-                dayEvts.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map((evt) => <EventCard key={evt.id} event={evt} compact />)
+                dayEvts.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio)).map((evt) => <EventCard key={evt.id} event={evt} compact onEdit={onEdit} onDelete={onDelete} />)
               )}
             </div>
           </div>
@@ -310,7 +327,7 @@ function WeekView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
   );
 }
 
-function MonthView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) {
+function MonthView({ eventos, offset, onEdit, onDelete }: { eventos: DBEvent[]; offset: number; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const today = new Date();
   const monthDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
   const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
@@ -341,13 +358,13 @@ function MonthView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) 
           const isToday = dayStr === today.toISOString().split("T")[0];
           
           return (
-            <div key={i} className={cn("border-b border-r border-border min-h-[100px] p-1.5 transition-colors", isToday ? "bg-letitia-gold/5" : "hover:bg-foreground/[0.02]")}>
+            <div key={i} className={cn("border-b border-r border-border min-h-[100px] p-1.5 transition-colors cursor-pointer", isToday ? "bg-letitia-gold/5" : "hover:bg-foreground/[0.02]")}>
               <p className={cn("text-xs font-bold mb-1.5 px-1", isToday ? "text-letitia-clay" : "text-muted")}>{day.getDate()}</p>
               <div className="space-y-1">
                 {dayEvts.slice(0, 3).map((e) => {
                   const config = tipoConfig[e.tipo] || tipoConfig.reuniao;
                   return (
-                    <div key={e.id} className={cn("rounded px-1.5 py-0.5 border-l-2 text-[9px] font-medium truncate bg-background/60", config.color)}>
+                    <div key={e.id} onClick={() => onEdit(e)} className={cn("rounded px-1.5 py-0.5 border-l-2 text-[9px] font-medium truncate bg-background/60 hover:brightness-95", config.color)}>
                       {e.hora_inicio.substring(0, 5)} {e.titulo}
                     </div>
                   );
@@ -362,14 +379,24 @@ function MonthView({ eventos, offset }: { eventos: DBEvent[]; offset: number }) 
   );
 }
 
-function EventCard({ event, compact }: { event: DBEvent; compact?: boolean }) {
+function EventCard({ event, compact, onEdit, onDelete }: { event: DBEvent; compact?: boolean; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const tipo = tipoConfig[event.tipo] || tipoConfig.reuniao;
   return (
-    <div className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-md transition-all", tipo.color, !compact && "border border-border/20")}>
-      <div className="flex items-center gap-1.5 text-muted mb-1.5">
-        {tipo.icon}
-        <span className="text-[10px] font-bold tracking-tight">{event.hora_inicio.substring(0, 5)}</span>
-        {!compact && <span className="text-[10px] opacity-50 ml-1">• {tipo.label}</span>}
+    <div className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-md transition-all group", tipo.color, !compact && "border border-border/20")}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5 text-muted">
+          {tipo.icon}
+          <span className="text-[10px] font-bold tracking-tight">{event.hora_inicio.substring(0, 5)}</span>
+          {!compact && <span className="text-[10px] opacity-50 ml-1">• {tipo.label}</span>}
+        </div>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={(e) => { e.stopPropagation(); onEdit(event); }} className="p-1 rounded hover:bg-foreground/5 text-muted hover:text-foreground">
+            <Plus className="h-3 w-3 rotate-45" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(event.id); }} className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
       </div>
       <p className={cn("font-medium text-foreground leading-snug", compact ? "text-[11px]" : "text-sm")}>{event.titulo}</p>
       <div className="flex -space-x-1 mt-2.5">
@@ -385,26 +412,44 @@ function EventCard({ event, compact }: { event: DBEvent; compact?: boolean }) {
 
 /* ─── Modals ────────────────────────────────────────────────── */
 
-function NovoEventoModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[]; onClose: () => void; onSuccess: () => void }) {
+function NovoEventoModal({ profiles, onClose, onSuccess, evento }: { 
+  profiles: DBProfile[]; 
+  onClose: () => void; 
+  onSuccess: () => void;
+  evento?: DBEvent | null;
+}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    titulo: "",
-    data_evento: new Date().toISOString().split("T")[0],
-    hora_inicio: "09:00",
-    tipo: "reuniao",
-    participantes: [] as string[]
+    titulo: evento?.titulo || "",
+    data_evento: evento?.data_evento || new Date().toISOString().split("T")[0],
+    hora_inicio: evento?.hora_inicio.substring(0, 5) || "09:00",
+    tipo: evento?.tipo || "reuniao",
+    participantes: evento?.participantes || [] as string[]
   });
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  
+  // Find initial user IDs from initials (imperfect but better than nothing if table was empty)
+  const initialUserIds = profiles
+    .filter(p => {
+      const initials = p.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      return formData.participantes.includes(initials);
+    })
+    .map(p => p.id);
+
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>(initialUserIds);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await createEvent(formData);
+      if (evento) {
+        await updateEvent(evento.id, formData);
+      } else {
+        await createEvent(formData);
+      }
       onSuccess();
     } catch (error) {
-      console.error("Erro ao criar evento:", error);
+      console.error("Erro ao salvar evento:", error);
     } finally {
       setLoading(false);
     }
@@ -414,7 +459,7 @@ function NovoEventoModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-serif text-2xl font-medium text-foreground">Novo Compromisso</h3>
+          <h3 className="font-serif text-2xl font-medium text-foreground">{evento ? "Editar Compromisso" : "Novo Compromisso"}</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
             <X className="h-5 w-5 text-muted" />
           </button>
@@ -500,7 +545,7 @@ function NovoEventoModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
               className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Agendar
+              {evento ? "Salvar Alterações" : "Agendar"}
             </button>
           </div>
         </form>

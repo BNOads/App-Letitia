@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, LineChart, FileText,
   GitBranch, Calendar, FileStack, GraduationCap, KeyRound,
-  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut
+  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
@@ -17,6 +17,7 @@ const sections = [
       { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
+      { name: "Links Úteis", href: "/links", icon: Link2 },
     ],
   },
   {

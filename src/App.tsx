@@ -11,6 +11,7 @@ import { Documentos } from "./pages/Documentos";
 import { Treinamentos } from "./pages/Treinamentos";
 import { Senhas } from "./pages/Senhas";
 import { Suporte } from "./pages/Suporte";
+import { LinksUteis } from "./pages/LinksUteis";
 import { Login } from "./pages/Login";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -35,6 +36,7 @@ function App() {
               <Route path="treinamentos" element={<Treinamentos />} />
               <Route path="senhas" element={<Senhas />} />
               <Route path="suporte" element={<Suporte />} />
+              <Route path="links" element={<LinksUteis />} />
             </Route>
           </Route>
         </Routes>

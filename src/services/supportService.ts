@@ -6,6 +6,7 @@ export interface DBTicket {
   cliente_nome: string;
   cliente_email: string;
   cliente_instagram: string | null;
+  cliente_telefone: string | null;
   categoria: string;
   prioridade: string;
   status: string;
