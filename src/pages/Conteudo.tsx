@@ -2,21 +2,24 @@ import { useState, useEffect } from "react";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music, Users2 } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Filter } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { GerenciarPerfisModal } from "@/components/GerenciarPerfisModal";
+import { ConteudoDetailModal } from "@/components/ConteudoDetailModal";
 
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
 
 const statusCols = [
-  { id: "rascunho" as const, label: "Rascunho", color: "border-t-gray-400" },
-  { id: "revisao_leticia" as const, label: "Revisão Letícia", color: "border-t-amber-400" },
-  { id: "aprovado" as const, label: "Aprovado", color: "border-t-green-400" },
-  { id: "publicado" as const, label: "Publicado", color: "border-t-letitia-gold" },
+  { id: "legenda" as const, label: "🟠 Escrever Legenda", color: "border-t-orange-400" },
+  { id: "ajuste" as const, label: "⚠️ Precisa de Ajuste", color: "border-t-yellow-400" },
+  { id: "pronto" as const, label: "🔵 Pronto para Postar", color: "border-t-blue-400" },
+  { id: "programado" as const, label: "⏰ Programado", color: "border-t-purple-400" },
+  { id: "postado" as const, label: "✅ Postado", color: "border-t-green-500" },
+  { id: "cancelado" as const, label: "❌ Cancelado", color: "border-t-red-400" },
 ];
 
 export function Conteudo() {
@@ -30,6 +33,11 @@ export function Conteudo() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPerfisModalOpen, setIsPerfisModalOpen] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroDataDe, setFiltroDataDe] = useState("");
+  const [filtroDataAte, setFiltroDataAte] = useState("");
+  const [selectedConteudo, setSelectedConteudo] = useState<DBContent | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -63,9 +71,14 @@ export function Conteudo() {
     }
   }
 
-  const filtradas = filtroPlataforma === "todas"
-    ? pautas
-    : pautas.filter((p) => p.plataforma === filtroPlataforma);
+  const filtradas = pautas.filter((p) => {
+    const matchPlataforma = filtroPlataforma === "todas" || p.plataforma === filtroPlataforma;
+    const matchBusca = !busca || p.titulo.toLowerCase().includes(busca.toLowerCase());
+    const matchStatus = filtroStatus === "todos" || p.status === filtroStatus;
+    const matchDataDe = !filtroDataDe || p.data_prevista >= filtroDataDe;
+    const matchDataAte = !filtroDataAte || p.data_prevista <= filtroDataAte;
+    return matchPlataforma && matchBusca && matchStatus && matchDataDe && matchDataAte;
+  });
 
   if (loading) {
     return (
@@ -111,14 +124,61 @@ export function Conteudo() {
         </div>
       </div>
 
+      {/* Search + Filters */}
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+        <div className="relative flex-1 w-full md:max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none placeholder:text-muted/60"
+            placeholder="Buscar conteúdo por título..."
+          />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filtroStatus}
+            onChange={(e) => setFiltroStatus(e.target.value)}
+            className="rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none appearance-none cursor-pointer"
+          >
+            <option value="todos">Todas as fases</option>
+            {statusCols.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+          <input
+            type="date"
+            value={filtroDataDe}
+            onChange={(e) => setFiltroDataDe(e.target.value)}
+            className="rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+            title="Data inicial"
+          />
+          <span className="text-xs text-muted">até</span>
+          <input
+            type="date"
+            value={filtroDataAte}
+            onChange={(e) => setFiltroDataAte(e.target.value)}
+            className="rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+            title="Data final"
+          />
+          {(filtroStatus !== "todos" || filtroDataDe || filtroDataAte) && (
+            <button
+              onClick={() => { setFiltroStatus("todos"); setFiltroDataDe(""); setFiltroDataAte(""); }}
+              className="text-[10px] font-bold text-letitia-clay hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-foreground/5"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Plataforma filter chips */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2.5 flex-wrap">
         <button
           onClick={() => setFiltroPlataforma("todas")}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+            "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-all",
             filtroPlataforma === "todas"
-              ? "bg-primary text-primary-foreground border-primary"
+              ? "bg-primary text-primary-foreground border-primary shadow-md"
               : "bg-card border-border text-muted hover:text-foreground hover:border-foreground/20"
           )}
         >
@@ -129,17 +189,17 @@ export function Conteudo() {
             key={sp.id}
             onClick={() => setFiltroPlataforma(sp.nome)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+              "flex items-center gap-2 pl-1.5 pr-4 py-1 rounded-full text-xs font-semibold border transition-all",
               filtroPlataforma === sp.nome
-                ? "text-white border-transparent"
+                ? "text-white border-transparent shadow-md"
                 : "bg-card border-border text-muted hover:text-foreground hover:border-foreground/20"
             )}
             style={filtroPlataforma === sp.nome ? { backgroundColor: sp.cor } : undefined}
           >
             {sp.avatar_url ? (
-              <img src={sp.avatar_url} alt="" className="h-4 w-4 rounded-full border border-border/30 object-cover" />
+              <img src={sp.avatar_url} alt="" className="h-7 w-7 rounded-full border-2 border-white/50 object-cover shadow-sm" />
             ) : (
-              <div className="h-4 w-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white" style={{ backgroundColor: sp.cor }}>
+              <div className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-white/20 shadow-sm" style={{ backgroundColor: sp.cor }}>
                 {sp.nome.charAt(0).toUpperCase()}
               </div>
             )}
@@ -171,9 +231,9 @@ export function Conteudo() {
       )}
 
       {/* Views */}
-      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} />}
-      {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} />}
-      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} />}
+      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
+      {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
+      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
 
       {isModalOpen && (
         <NovoPautaModal 
@@ -186,6 +246,16 @@ export function Conteudo() {
 
       {isPerfisModalOpen && (
         <GerenciarPerfisModal onClose={() => { setIsPerfisModalOpen(false); fetchData(); }} />
+      )}
+
+      {selectedConteudo && (
+        <ConteudoDetailModal
+          conteudo={selectedConteudo}
+          profiles={profiles}
+          socialProfiles={socialProfiles}
+          onClose={() => setSelectedConteudo(null)}
+          onUpdate={() => { setSelectedConteudo(null); fetchPautas(); }}
+        />
       )}
     </div>
   );
@@ -200,7 +270,7 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
     formato: "reels",
     plataforma: socialProfiles[0]?.nome || "",
     data_prevista: new Date().toISOString().split("T")[0],
-    status: "rascunho",
+    status: "legenda",
     responsavel_id: user?.id || ""
   });
 
@@ -325,7 +395,7 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
 }
 
 /* ─── Kanban ──────────────────────────────────────────────── */
-function KanbanView({ pautas, onUpdate, socialProfiles }: { pautas: DBContent[]; onUpdate: () => void; socialProfiles: SocialProfile[] }) {
+function KanbanView({ pautas, onUpdate, socialProfiles, onSelect }: { pautas: DBContent[]; onUpdate: () => void; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await updateContentStatus(id, status);
@@ -348,7 +418,7 @@ function KanbanView({ pautas, onUpdate, socialProfiles }: { pautas: DBContent[];
             <div className="bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[180px]">
               {items.map((p) => (
                 <div key={p.id} className="relative group">
-                  <PautaCard pauta={p} socialProfiles={socialProfiles} />
+                  <PautaCard pauta={p} socialProfiles={socialProfiles} onClick={() => onSelect(p)} />
                   <select 
                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card border border-border rounded text-[8px] cursor-pointer"
                     value={p.status}
@@ -367,27 +437,73 @@ function KanbanView({ pautas, onUpdate, socialProfiles }: { pautas: DBContent[];
 }
 
 /* ─── Lista ───────────────────────────────────────────────── */
-function ListView({ pautas, socialProfiles }: { pautas: DBContent[]; socialProfiles: SocialProfile[] }) {
+function ListView({ pautas, socialProfiles, onSelect }: { pautas: DBContent[]; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
+  const [sortKey, setSortKey] = useState<string>("data_prevista");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const toggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sorted = [...pautas].sort((a, b) => {
+    let valA = (a as any)[sortKey] || "";
+    let valB = (b as any)[sortKey] || "";
+    if (typeof valA === "string") valA = valA.toLowerCase();
+    if (typeof valB === "string") valB = valB.toLowerCase();
+    if (valA < valB) return sortDir === "asc" ? -1 : 1;
+    if (valA > valB) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const columns = [
+    { key: "titulo", label: "Conteúdo", hide: "" },
+    { key: "plataforma", label: "Plataforma", hide: "hidden md:table-cell" },
+    { key: "pilar", label: "Pilar", hide: "hidden md:table-cell" },
+    { key: "status", label: "Status", hide: "" },
+    { key: "data_prevista", label: "Data", hide: "" },
+  ];
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {["Conteúdo", "Plataforma", "Pilar", "Status", "Data"].map((h) => (
-                <th key={h} className={cn("text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted", ["Plataforma", "Pilar"].includes(h) && "hidden md:table-cell")}>{h}</th>
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => toggleSort(col.key)}
+                  className={cn(
+                    "text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted cursor-pointer hover:text-foreground select-none transition-colors",
+                    col.hide
+                  )}
+                >
+                  <div className="flex items-center">
+                    {col.label}
+                    {sortKey === col.key ? (
+                      sortDir === "asc" ? <ChevronUp className="h-3 w-3 ml-1 text-letitia-gold" /> : <ChevronDown className="h-3 w-3 ml-1 text-letitia-gold" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />
+                    )}
+                  </div>
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {pautas.map((p) => {
+            {sorted.map((p) => {
               const pilar = pilarColors[p.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
               return (
-                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer">
+                <tr key={p.id} onClick={() => onSelect(p)} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3"><div className="flex items-center gap-2"><span>{formatoIcons[p.formato as keyof typeof formatoIcons]}</span><span className="text-sm font-medium text-foreground">{p.titulo}</span></div></td>
                   <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} socialProfiles={socialProfiles} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status || "rascunho"} /></td>
+                  <td className="px-4 py-3"><StatusBadge status={p.status || "legenda"} /></td>
                   <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
                 </tr>
               );
@@ -400,7 +516,7 @@ function ListView({ pautas, socialProfiles }: { pautas: DBContent[]; socialProfi
 }
 
 /* ─── Calendário ──────────────────────────────────────────── */
-function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DBContent[]; mode: CalMode; weekOffset: number; socialProfiles: SocialProfile[] }) {
+function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { pautas: DBContent[]; mode: CalMode; weekOffset: number; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
   const today = new Date();
 
   if (mode === "dia") {
@@ -419,7 +535,7 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DB
           {dayPautas.length === 0 ? (
             <p className="text-sm text-muted italic py-8 text-center">Nenhum conteúdo para este dia.</p>
           ) : (
-            dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} />)
+            dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} onClick={() => onSelect(p)} />)
           )}
         </div>
       </div>
@@ -451,13 +567,13 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DB
               </div>
               <div className="p-1.5 space-y-1">
                 {dayPautas.map((p) => (
-                  <div key={p.id} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
+                  <div key={p.id} onClick={() => onSelect(p)} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center gap-1 mb-1">
                       <span className="text-xs">{formatoIcons[p.formato as keyof typeof formatoIcons]}</span>
                       <PlataformaBadge plataforma={p.plataforma} tiny socialProfiles={socialProfiles} />
                     </div>
                     <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
-                    <StatusBadge status={p.status || "rascunho"} tiny />
+                    <StatusBadge status={p.status || "legenda"} tiny />
                   </div>
                 ))}
               </div>
@@ -501,7 +617,7 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DB
             <div key={i} className={cn("border-b border-r border-border min-h-[80px] p-1", isToday ? "bg-letitia-gold/5" : "")}>
               <p className={cn("text-xs font-medium mb-1 px-1", isToday ? "text-letitia-clay font-bold" : "text-muted")}>{day.getDate()}</p>
               {dayPautas.slice(0, 2).map((p) => (
-                <div key={p.id} className="rounded px-1.5 py-0.5 mb-0.5 bg-background/60 border border-border cursor-pointer hover:shadow-sm">
+                <div key={p.id} onClick={() => onSelect(p)} className="rounded px-1.5 py-0.5 mb-0.5 bg-background/60 border border-border cursor-pointer hover:shadow-sm">
                   <p className="text-[9px] font-medium text-foreground truncate">{formatoIcons[p.formato as keyof typeof formatoIcons]} {p.titulo}</p>
                 </div>
               ))}
@@ -515,10 +631,10 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DB
 }
 
 /* ─── Shared Components ───────────────────────────────────── */
-function PautaCard({ pauta, wide, socialProfiles }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[] }) {
+function PautaCard({ pauta, wide, socialProfiles, onClick }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[]; onClick?: () => void }) {
   const pilar = pilarColors[pauta.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
   return (
-    <div className={cn("rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer", wide && "flex items-start gap-3")}>
+    <div onClick={onClick} className={cn("rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer", wide && "flex items-start gap-3")}>
       <div className="flex items-start gap-2 flex-1">
         <span className="text-lg">{formatoIcons[pauta.formato as keyof typeof formatoIcons] || "📄"}</span>
         <div className="flex-1 min-w-0">
@@ -564,16 +680,22 @@ function PlataformaBadge({ plataforma, tiny, socialProfiles }: { plataforma: str
 }
 
 function StatusBadge({ status, tiny }: { status: string; tiny?: boolean }) {
+  const statusMap: Record<string, { label: string; bg: string; text: string }> = {
+    legenda: { label: "🟠 Legenda", bg: "bg-orange-100", text: "text-orange-700" },
+    ajuste: { label: "⚠️ Ajuste", bg: "bg-yellow-100", text: "text-yellow-700" },
+    pronto: { label: "🔵 Pronto", bg: "bg-blue-100", text: "text-blue-700" },
+    programado: { label: "⏰ Programado", bg: "bg-purple-100", text: "text-purple-700" },
+    postado: { label: "✅ Postado", bg: "bg-green-100", text: "text-green-700" },
+    cancelado: { label: "❌ Cancelado", bg: "bg-red-100", text: "text-red-700" },
+  };
+  const s = statusMap[status] || { label: status, bg: "bg-gray-100", text: "text-gray-500" };
   return (
     <span className={cn(
       "font-medium rounded-full",
       tiny ? "text-[8px] px-1 py-0" : "text-[10px] px-2 py-0.5",
-      status === "publicado" ? "bg-letitia-gold/10 text-letitia-gold" :
-      status === "aprovado" ? "bg-green-500/10 text-green-600" :
-      status === "revisao_leticia" ? "bg-amber-500/10 text-amber-600" :
-      "bg-gray-500/10 text-gray-500"
+      s.bg, s.text
     )}>
-      {status === "revisao_leticia" ? "Revisão" : status.charAt(0).toUpperCase() + status.slice(1)}
+      {tiny ? s.label.replace(/^.+\s/, '') : s.label}
     </span>
   );
 }
