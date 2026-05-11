@@ -5,7 +5,7 @@ import {
   FileText, Clock, 
   Loader2, ChevronRight, Video, Camera,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays,
-  Circle, CheckCircle2, Send, AlertCircle, Ticket as TicketIcon
+  Circle, CheckCircle2, Send, AlertCircle, Ticket as TicketIcon, Repeat
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -206,6 +206,12 @@ export function Dashboard() {
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 uppercase">
                           {evento.tipo}
                         </span>
+                        {evento.recorrencia && (
+                          <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                            <Repeat className="h-2.5 w-2.5" />
+                            {evento.recorrencia === 'diario' ? 'Diário' : evento.recorrencia === 'semanal' ? 'Semanal' : evento.recorrencia === 'quinzenal' ? 'Quinzenal' : evento.recorrencia === 'mensal' ? 'Mensal' : evento.recorrencia === 'semestral' ? 'Semestral' : 'Anual'}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 mt-1">
                         <div className="flex items-center gap-1.5 text-muted">

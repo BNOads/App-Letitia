@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, getTaskComments, addTaskComment, deleteTaskComment, type DBTask, type TaskStatus, type TaskPriority, type TaskComment } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, deleteTaskComment, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
-  Share2, Trash2, History, MessageSquare, Send, User, Calendar, Edit3, Copy, Check
+  Share2, Trash2, History, MessageSquare, Send, User, Calendar, Edit3, Copy, Check, Repeat
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -105,6 +105,26 @@ export function Tarefas() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    const tarefa = tarefas.find(t => t.id === id);
+    if (!tarefa) return;
+
+    // If the task has recurrence, ask if they want to delete only this or the series
+    if (tarefa.recorrencia) {
+      const choice = confirm(
+        "Esta é uma tarefa recorrente.\n\nOK = Excluir TODA a série\nCancelar = Cancelar"
+      );
+      if (!choice) return;
+      try {
+        const parentId = tarefa.recorrencia_pai_id || tarefa.id;
+        await deleteRecurringTaskSeries(parentId);
+        setSelectedTarefa(null);
+        fetchTarefas();
+      } catch (error) {
+        console.error("Erro ao excluir série:", error);
+      }
+      return;
+    }
+
     if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
     try {
       await deleteTask(id);
@@ -573,7 +593,8 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
     prioridade: (tarefa?.prioridade as TaskPriority) || "normal",
     status: (tarefa?.status as TaskStatus) || "fazer",
     responsavel_id: tarefa?.responsavel_id || user?.id || "",
-    prazo: tarefa?.prazo || ""
+    prazo: tarefa?.prazo || "",
+    recorrencia: (tarefa?.recorrencia || null) as RecurrenceType | null
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -654,6 +675,37 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Recorrência</label>
+            <div className="relative">
+              <Repeat className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+              <select
+                value={formData.recorrencia || ''}
+                onChange={e => setFormData({ ...formData, recorrencia: (e.target.value || null) as RecurrenceType | null })}
+                className="w-full rounded-md border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none appearance-none"
+              >
+                <option value="">Sem recorrência</option>
+                <option value="diario">📅 Diário</option>
+                <option value="semanal">📆 Semanal</option>
+                <option value="quinzenal">🗓️ Quinzenal</option>
+                <option value="mensal">📅 Mensal</option>
+                <option value="semestral">🗓️ Semestral</option>
+                <option value="anual">📆 Anual</option>
+              </select>
+            </div>
+            {formData.recorrencia && !formData.prazo && (
+              <p className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1 bg-amber-500/5 px-2 py-1 rounded">
+                ⚠️ Defina um prazo para gerar as recorrências
+              </p>
+            )}
+            {formData.recorrencia && formData.prazo && (
+              <p className="mt-1.5 text-[11px] text-violet-600 flex items-center gap-1.5 bg-violet-500/5 px-2.5 py-1.5 rounded-md border border-violet-500/10">
+                <Repeat className="h-3 w-3" />
+                Esta tarefa será repetida automaticamente ({recurrenceLabels[formData.recorrencia]}) a partir de {new Date(formData.prazo + 'T00:00:00').toLocaleDateString('pt-BR')}
+              </p>
+            )}
           </div>
 
           <UserSelector
@@ -758,6 +810,12 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
             <Clock className="h-3 w-3" />
             {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "Sem prazo"}
           </span>
+          {tarefa.recorrencia && (
+            <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+              <Repeat className="h-2.5 w-2.5" />
+              {recurrenceLabels[tarefa.recorrencia as RecurrenceType]}
+            </span>
+          )}
           {tarefa.prioridade !== "baixa" && (
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>
               {prior.label}
@@ -814,6 +872,12 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onC
           {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "---"}
         </span>
       </div>
+      {tarefa.recorrencia && (
+        <div className="mt-2 flex items-center gap-1">
+          <Repeat className="h-2.5 w-2.5 text-violet-500" />
+          <span className="text-[9px] font-medium text-violet-600">{recurrenceLabels[tarefa.recorrencia as RecurrenceType]}</span>
+        </div>
+      )}
     </div>
   );
 }

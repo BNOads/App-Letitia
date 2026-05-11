@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido';
 export type TaskPriority = 'baixa' | 'normal' | 'alta' | 'urgente';
+export type RecurrenceType = 'diario' | 'semanal' | 'quinzenal' | 'mensal' | 'semestral' | 'anual';
 
 export interface DBTask {
   id: string;
@@ -13,6 +14,8 @@ export interface DBTask {
   prazo: string | null;
   created_at: string;
   updated_at: string;
+  recorrencia?: RecurrenceType | null;
+  recorrencia_pai_id?: string | null;
   profiles?: {
     full_name: string | null;
     avatar_url: string | null;
@@ -30,6 +33,59 @@ export interface TaskComment {
     avatar_url: string | null;
   } | null;
 }
+
+// ─── Recurrence helpers ────────────────────────────────────
+
+export const recurrenceLabels: Record<RecurrenceType, string> = {
+  diario: 'Diário',
+  semanal: 'Semanal',
+  quinzenal: 'Quinzenal',
+  mensal: 'Mensal',
+  semestral: 'Semestral',
+  anual: 'Anual',
+};
+
+function generateRecurringDates(baseDate: string, type: RecurrenceType, count: number): string[] {
+  const dates: string[] = [];
+  const base = new Date(baseDate + 'T00:00:00');
+
+  for (let i = 1; i <= count; i++) {
+    const d = new Date(base);
+    switch (type) {
+      case 'diario':
+        d.setDate(d.getDate() + i);
+        break;
+      case 'semanal':
+        d.setDate(d.getDate() + i * 7);
+        break;
+      case 'quinzenal':
+        d.setDate(d.getDate() + i * 14);
+        break;
+      case 'mensal':
+        d.setMonth(d.getMonth() + i);
+        break;
+      case 'semestral':
+        d.setMonth(d.getMonth() + i * 6);
+        break;
+      case 'anual':
+        d.setFullYear(d.getFullYear() + i);
+        break;
+    }
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+const RECURRENCE_COUNT: Record<RecurrenceType, number> = {
+  diario: 30,
+  semanal: 12,
+  quinzenal: 12,
+  mensal: 12,
+  semestral: 4,
+  anual: 3,
+};
+
+// ─── CRUD ──────────────────────────────────────────────────
 
 export async function getTasks() {
   const { data, error } = await supabase
@@ -73,6 +129,28 @@ export async function createTask(task: Partial<DBTask>) {
     .single();
 
   if (error) throw error;
+
+  // If the task has recurrence and a deadline, generate future occurrences
+  if (data.recorrencia && data.prazo) {
+    const count = RECURRENCE_COUNT[data.recorrencia as RecurrenceType] || 4;
+    const futureDates = generateRecurringDates(data.prazo, data.recorrencia as RecurrenceType, count);
+
+    const recurringTasks = futureDates.map(date => ({
+      titulo: task.titulo,
+      descricao: task.descricao,
+      prioridade: task.prioridade,
+      status: 'fazer' as TaskStatus,
+      responsavel_id: task.responsavel_id,
+      recorrencia: task.recorrencia,
+      recorrencia_pai_id: data.id,
+      prazo: date,
+    }));
+
+    if (recurringTasks.length > 0) {
+      await supabase.from('tarefas').insert(recurringTasks);
+    }
+  }
+
   return data;
 }
 
@@ -81,6 +159,25 @@ export async function deleteTask(taskId: string) {
     .from('tarefas')
     .delete()
     .eq('id', taskId);
+
+  if (error) throw error;
+}
+
+/**
+ * Deletar todas as tarefas futuras de uma recorrência
+ */
+export async function deleteRecurringTaskSeries(parentId: string) {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Delete the parent
+  await supabase.from('tarefas').delete().eq('id', parentId);
+
+  // Delete all future children
+  const { error } = await supabase
+    .from('tarefas')
+    .delete()
+    .eq('recorrencia_pai_id', parentId)
+    .gte('prazo', today);
 
   if (error) throw error;
 }
@@ -133,4 +230,3 @@ export async function deleteTaskComment(commentId: string) {
 
   if (error) throw error;
 }
-

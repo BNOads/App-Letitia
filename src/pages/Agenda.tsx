@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getEvents, createEvent, updateEvent, deleteEvent, type DBEvent } from "@/services/agendaService";
-import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { getEvents, createEvent, updateEvent, deleteEvent, deleteRecurringSeries, recurrenceLabels, type DBEvent, type RecurrenceType } from "@/services/agendaService";
+import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { UserSelector } from "@/components/UserSelector";
@@ -61,6 +61,25 @@ export function Agenda() {
   }
 
   const handleDeleteEvent = async (id: string) => {
+    const evento = eventos.find(e => e.id === id);
+    if (!evento) return;
+
+    // If the event has recurrence, ask if they want to delete only this or all
+    if (evento.recorrencia) {
+      const choice = confirm(
+        "Este é um evento recorrente.\n\nOK = Excluir TODA a série\nCancelar = Cancelar"
+      );
+      if (!choice) return;
+      try {
+        const parentId = evento.recorrencia_pai_id || evento.id;
+        await deleteRecurringSeries(parentId);
+        fetchEvents();
+      } catch (error) {
+        console.error("Erro ao excluir série:", error);
+      }
+      return;
+    }
+
     if (!confirm("Tem certeza que deseja excluir este compromisso?")) return;
     try {
       await deleteEvent(id);
@@ -216,7 +235,17 @@ function ListView({ eventos, onEdit, onDelete }: { eventos: DBEvent[]; onEdit: (
                         <span className="text-xs text-muted flex items-center gap-1"><Clock className="h-3 w-3" /> {e.hora_inicio.substring(0, 5)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-foreground">{e.titulo}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">{e.titulo}</span>
+                        {e.recorrencia && (
+                          <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
+                            <Repeat className="h-2.5 w-2.5" />
+                            {recurrenceLabels[e.recorrencia as RecurrenceType]}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border border-transparent", config.color, "border-border/10")}>
                         {config.label}
@@ -388,6 +417,12 @@ function EventCard({ event, compact, onEdit, onDelete }: { event: DBEvent; compa
         </div>
       </div>
       <p className={cn("font-medium text-foreground leading-snug", compact ? "text-[11px]" : "text-sm")}>{event.titulo}</p>
+      {event.recorrencia && (
+        <div className="flex items-center gap-1 mt-1">
+          <Repeat className="h-2.5 w-2.5 text-violet-500" />
+          <span className="text-[9px] font-medium text-violet-600">{recurrenceLabels[event.recorrencia as RecurrenceType]}</span>
+        </div>
+      )}
       <div className="flex -space-x-1 mt-2.5">
         {event.participantes?.map((p, i) => (
           <div key={i} title={p} className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[8px] font-bold text-foreground ring-2 ring-background">
@@ -413,7 +448,8 @@ function NovoEventoModal({ profiles, onClose, onSuccess, evento }: {
     data_evento: evento?.data_evento || new Date().toISOString().split("T")[0],
     hora_inicio: evento?.hora_inicio.substring(0, 5) || "09:00",
     tipo: evento?.tipo || "reuniao",
-    participantes: evento?.participantes || [] as string[]
+    participantes: evento?.participantes || [] as string[],
+    recorrencia: (evento?.recorrencia || null) as RecurrenceType | null
   });
   
   // Find initial user IDs from initials (imperfect but better than nothing if table was empty)
@@ -501,6 +537,32 @@ function NovoEventoModal({ profiles, onClose, onSuccess, evento }: {
               <option value="one_on_one">Reunião 1x1</option>
               <option value="live">Live / Masterclass</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Recorrência</label>
+            <div className="relative">
+              <Repeat className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+              <select
+                value={formData.recorrencia || ''}
+                onChange={e => setFormData({ ...formData, recorrencia: (e.target.value || null) as RecurrenceType | null })}
+                className="w-full rounded-md border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none appearance-none"
+              >
+                <option value="">Sem recorrência</option>
+                <option value="diario">📅 Diário</option>
+                <option value="semanal">📆 Semanal</option>
+                <option value="quinzenal">🗓️ Quinzenal</option>
+                <option value="mensal">📅 Mensal</option>
+                <option value="semestral">🗓️ Semestral</option>
+                <option value="anual">📆 Anual</option>
+              </select>
+            </div>
+            {formData.recorrencia && (
+              <p className="mt-1.5 text-[11px] text-violet-600 flex items-center gap-1.5 bg-violet-500/5 px-2.5 py-1.5 rounded-md border border-violet-500/10">
+                <Repeat className="h-3 w-3" />
+                Este evento será repetido automaticamente ({recurrenceLabels[formData.recorrencia]}) a partir de {new Date(formData.data_evento + 'T00:00:00').toLocaleDateString('pt-BR')}
+              </p>
+            )}
           </div>
 
           <UserSelector
