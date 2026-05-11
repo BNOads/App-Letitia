@@ -27,7 +27,7 @@ export function Conteudo() {
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>("kanban");
+  const [view, setView] = useState<ViewMode>("calendario");
   const [calMode, setCalMode] = useState<CalMode>("semana");
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  updateContent, updateContentStatus,
+  updateContent,
   getConteudoComentarios, addConteudoComentario,
   type DBContent, type DBConteudoComentario
 } from "@/services/contentService";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   X, Save, Loader2, Send, MessageSquare, AlertTriangle,
   Calendar, Clock, Link2, Trash2, Plus, Lightbulb, FileText,
-  ChevronRight
+  ArrowRight, User, RefreshCw
 } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -32,6 +32,10 @@ const FORMATO_OPTIONS = [
   { id: "newsletter", label: "Newsletter" },
 ];
 
+function statusLabel(id: string) {
+  return STATUS_OPTIONS.find(s => s.id === id)?.label || id;
+}
+
 interface ConteudoDetailModalProps {
   conteudo: DBContent;
   profiles: DBProfile[];
@@ -42,12 +46,12 @@ interface ConteudoDetailModalProps {
 
 export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClose, onUpdate }: ConteudoDetailModalProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"feedbacks" | "rastros">("feedbacks");
   const [saving, setSaving] = useState(false);
-  const [comentarios, setComentarios] = useState<DBConteudoComentario[]>([]);
+  const [historico, setHistorico] = useState<DBConteudoComentario[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
   const [tipoComentario, setTipoComentario] = useState<"comentario" | "ajuste">("comentario");
-  const [loadingComentarios, setLoadingComentarios] = useState(true);
+  const [loadingHistorico, setLoadingHistorico] = useState(true);
+  const historicoEndRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     titulo: conteudo.titulo,
@@ -66,23 +70,62 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
   const [newLink, setNewLink] = useState("");
 
   useEffect(() => {
-    fetchComentarios();
+    fetchHistorico();
   }, []);
 
-  async function fetchComentarios() {
+  useEffect(() => {
+    historicoEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [historico]);
+
+  async function fetchHistorico() {
     try {
       const data = await getConteudoComentarios(conteudo.id);
-      setComentarios(data);
+      setHistorico(data);
     } catch (error) {
-      console.error("Erro ao buscar comentários:", error);
+      console.error("Erro ao buscar histórico:", error);
     } finally {
-      setLoadingComentarios(false);
+      setLoadingHistorico(false);
+    }
+  }
+
+  // Log a trail entry automatically
+  async function logRastro(mensagem: string) {
+    if (!user) return;
+    try {
+      const entry = await addConteudoComentario(conteudo.id, user.id, mensagem, "rastro");
+      setHistorico(prev => [...prev, entry]);
+    } catch (e) {
+      console.error("Erro ao registrar rastro:", e);
     }
   }
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Detect changes and log trail entries
+      const trails: string[] = [];
+
+      if (form.status !== conteudo.status) {
+        trails.push(`Mudou etapa: ${statusLabel(conteudo.status)} → ${statusLabel(form.status)}`);
+      }
+      if (form.responsavel_id !== (conteudo.responsavel_id || "")) {
+        const oldName = profiles.find(p => p.id === conteudo.responsavel_id)?.full_name || "Nenhum";
+        const newName = profiles.find(p => p.id === form.responsavel_id)?.full_name || "Nenhum";
+        trails.push(`Mudou responsável: ${oldName} → ${newName}`);
+      }
+      if (form.plataforma !== conteudo.plataforma) {
+        trails.push(`Mudou perfil: ${conteudo.plataforma} → ${form.plataforma}`);
+      }
+      if (form.data_prevista !== conteudo.data_prevista) {
+        trails.push(`Mudou data prevista: ${conteudo.data_prevista} → ${form.data_prevista}`);
+      }
+      if (form.titulo !== conteudo.titulo) {
+        trails.push(`Editou título: "${conteudo.titulo}" → "${form.titulo}"`);
+      }
+      if (form.formato !== conteudo.formato) {
+        trails.push(`Mudou formato: ${conteudo.formato} → ${form.formato}`);
+      }
+
       await updateContent(conteudo.id, {
         titulo: form.titulo,
         status: form.status,
@@ -96,6 +139,12 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
         descricao: form.descricao || null,
         links: form.links.length > 0 ? form.links : null,
       });
+
+      // Log all trails
+      for (const trail of trails) {
+        await logRastro(trail);
+      }
+
       onUpdate();
     } catch (error) {
       console.error("Erro ao salvar:", error);
@@ -108,8 +157,9 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
     if (!novoComentario.trim() || !user) return;
     try {
       const comment = await addConteudoComentario(conteudo.id, user.id, novoComentario.trim(), tipoComentario);
-      setComentarios(prev => [...prev, comment]);
+      setHistorico(prev => [...prev, comment]);
       setNovoComentario("");
+      setTipoComentario("comentario");
     } catch (error) {
       console.error("Erro ao adicionar comentário:", error);
     }
@@ -125,11 +175,14 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
     setForm(prev => ({ ...prev, links: prev.links.filter((_, i) => i !== idx) }));
   };
 
-  const statusInfo = STATUS_OPTIONS.find(s => s.id === form.status) || STATUS_OPTIONS[0];
   const sp = socialProfiles.find(p => p.nome === form.plataforma);
 
-  const feedbacks = comentarios.filter(c => c.tipo === "comentario" || c.tipo === "ajuste");
-  const rastros = comentarios.filter(c => c.tipo === "rastro");
+  // Icons for different entry types
+  function EntryIcon({ tipo }: { tipo: string }) {
+    if (tipo === "ajuste") return <AlertTriangle className="h-3 w-3 text-amber-500" />;
+    if (tipo === "rastro") return <RefreshCw className="h-3 w-3 text-purple-400" />;
+    return <MessageSquare className="h-3 w-3 text-blue-400" />;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -337,75 +390,83 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
           </div>
         </div>
 
-        {/* Right: Comments Sidebar */}
+        {/* Right: Unified History Sidebar */}
         <div className="w-80 border-l border-border bg-background flex flex-col">
-          {/* Tabs */}
-          <div className="flex items-center border-b border-border">
-            <button
-              onClick={() => setActiveTab("feedbacks")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-4 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors",
-                activeTab === "feedbacks" ? "text-foreground border-b-2 border-letitia-gold" : "text-muted hover:text-foreground"
-              )}
-            >
-              <MessageSquare className="h-3.5 w-3.5" /> Feedbacks
-            </button>
-            <button
-              onClick={() => setActiveTab("rastros")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 px-4 py-3.5 text-xs font-bold uppercase tracking-wider transition-colors",
-                activeTab === "rastros" ? "text-foreground border-b-2 border-letitia-gold" : "text-muted hover:text-foreground"
-              )}
-            >
-              <ChevronRight className="h-3.5 w-3.5" /> Rastros
-            </button>
-            <button onClick={onClose} className="p-3 text-muted hover:text-foreground transition-colors">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
+              <MessageSquare className="h-3.5 w-3.5 text-letitia-gold" /> Histórico
+            </h3>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-foreground/5 transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Comments list */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {loadingComentarios ? (
+          {/* Timeline */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {loadingHistorico ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-letitia-gold" />
               </div>
+            ) : historico.length === 0 ? (
+              <p className="text-xs text-muted text-center py-8 italic">Nenhuma atividade registrada ainda.</p>
             ) : (
-              <>
-                {(activeTab === "feedbacks" ? feedbacks : rastros).length === 0 ? (
-                  <p className="text-xs text-muted text-center py-8 italic">Nenhum {activeTab === "feedbacks" ? "feedback" : "rastro"} ainda.</p>
-                ) : (
-                  (activeTab === "feedbacks" ? feedbacks : rastros).map(c => (
-                    <div key={c.id} className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-letitia-gold/10 border border-letitia-gold/20 flex items-center justify-center overflow-hidden">
-                          {c.profiles?.avatar_url ? (
-                            <img src={c.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-[8px] font-bold text-letitia-gold">{c.profiles?.full_name?.charAt(0) || "?"}</span>
-                          )}
-                        </div>
-                        <span className="text-xs font-semibold text-foreground">{c.profiles?.full_name || "Membro"}</span>
-                        <span className="text-[10px] text-muted ml-auto">
-                          {new Date(c.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                        </span>
-                      </div>
-                      <div className={cn(
-                        "rounded-lg p-3 text-xs leading-relaxed",
-                        c.tipo === "ajuste" ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-card border border-border text-foreground"
-                      )}>
-                        {c.tipo === "ajuste" && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 mb-1">
-                            <AlertTriangle className="h-3 w-3" /> AJUSTE
-                          </span>
+              historico.map(entry => (
+                <div key={entry.id} className="relative pl-6">
+                  {/* Timeline dot */}
+                  <div className={cn(
+                    "absolute left-0 top-1 h-4 w-4 rounded-full flex items-center justify-center border-2",
+                    entry.tipo === "ajuste" ? "border-amber-300 bg-amber-50" :
+                    entry.tipo === "rastro" ? "border-purple-300 bg-purple-50" :
+                    "border-blue-300 bg-blue-50"
+                  )}>
+                    <EntryIcon tipo={entry.tipo} />
+                  </div>
+                  {/* Timeline line */}
+                  <div className="absolute left-[7px] top-5 bottom-0 w-[2px] bg-border" />
+
+                  <div className="space-y-1">
+                    {/* Author + time */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-5 w-5 rounded-full bg-letitia-gold/10 border border-letitia-gold/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {entry.profiles?.avatar_url ? (
+                          <img src={entry.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-[7px] font-bold text-letitia-gold">{entry.profiles?.full_name?.charAt(0) || "?"}</span>
                         )}
-                        {c.conteudo}
                       </div>
+                      <span className="text-[11px] font-semibold text-foreground truncate">{entry.profiles?.full_name || "Membro"}</span>
+                      <span className="text-[9px] text-muted ml-auto flex-shrink-0">
+                        {new Date(entry.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                        {" "}
+                        {new Date(entry.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
-                  ))
-                )}
-              </>
+
+                    {/* Content */}
+                    <div className={cn(
+                      "rounded-lg px-3 py-2 text-xs leading-relaxed",
+                      entry.tipo === "ajuste" ? "bg-amber-50 border border-amber-200 text-amber-800" :
+                      entry.tipo === "rastro" ? "bg-purple-50/50 border border-purple-100 text-purple-700 italic" :
+                      "bg-card border border-border text-foreground"
+                    )}>
+                      {entry.tipo === "ajuste" && (
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 mb-0.5 uppercase tracking-wider">
+                          <AlertTriangle className="h-2.5 w-2.5" /> Pedido de Ajuste
+                        </span>
+                      )}
+                      {entry.tipo === "rastro" && (
+                        <span className="flex items-center gap-1 text-[9px] font-bold text-purple-500 mb-0.5 uppercase tracking-wider">
+                          <ArrowRight className="h-2.5 w-2.5" /> Ação
+                        </span>
+                      )}
+                      {entry.conteudo}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
+            <div ref={historicoEndRef} />
           </div>
 
           {/* Comment input */}
