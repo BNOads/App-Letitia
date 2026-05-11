@@ -19,6 +19,18 @@ export interface DBTask {
   } | null;
 }
 
+export interface TaskComment {
+  id: string;
+  tarefa_id: string;
+  user_id: string;
+  conteudo: string;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
 export async function getTasks() {
   const { data, error } = await supabase
     .from('tarefas')
@@ -72,3 +84,53 @@ export async function deleteTask(taskId: string) {
 
   if (error) throw error;
 }
+
+// ─── Comments ──────────────────────────────────────────────
+
+export async function getTaskComments(taskId: string) {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('tarefa_id', taskId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    // Table may not exist yet — return empty array gracefully
+    console.warn('Erro ao buscar comentários:', error.message);
+    return [] as TaskComment[];
+  }
+  return data as TaskComment[];
+}
+
+export async function addTaskComment(taskId: string, userId: string, conteudo: string) {
+  const { data, error } = await supabase
+    .from('task_comments')
+    .insert([{ tarefa_id: taskId, user_id: userId, conteudo }])
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `)
+    .single();
+
+  if (error) throw error;
+  return data as TaskComment;
+}
+
+export async function deleteTaskComment(commentId: string) {
+  const { error } = await supabase
+    .from('task_comments')
+    .delete()
+    .eq('id', commentId);
+
+  if (error) throw error;
+}
+

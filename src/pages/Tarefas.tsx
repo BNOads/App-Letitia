@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, type DBTask, type TaskStatus, type TaskPriority } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, getTaskComments, addTaskComment, deleteTaskComment, type DBTask, type TaskStatus, type TaskPriority, type TaskComment } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
-  Share2, Trash2, History, MessageSquare, Send, User, Calendar
+  Share2, Trash2, History, MessageSquare, Send, User, Calendar, Edit3, Copy, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -178,7 +178,22 @@ export function Tarefas() {
         <KPIBox icon={<CalendarClock className="h-4 w-4 text-amber-500" />} label="Alta prioridade" value={altaPrioridade.length} />
       </div>
 
-      {view === "lista" ? (
+      {tab === "time" ? (
+        <TeamView
+          tarefas={filtradas}
+          profiles={profiles}
+          view={view}
+          hoje={hoje}
+          onTaskClick={setSelectedTarefa}
+          onTaskEdit={setEditingTarefa}
+          onTaskDelete={handleDeleteTask}
+          onToggle={toggleConcluida}
+          onNewTask={(profileId) => {
+            setIsModalOpen(true);
+          }}
+          busca={busca}
+        />
+      ) : view === "lista" ? (
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-2">
@@ -283,6 +298,10 @@ export function Tarefas() {
             await updateTaskStatus(selectedTarefa.id, status);
             fetchTarefas();
           }}
+          onUpdate={async (updates) => {
+            await updateTask(selectedTarefa.id, updates);
+            fetchTarefas();
+          }}
         />
       )}
     </div>
@@ -302,14 +321,23 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
   const prior = prioridadeColors[tarefa.prioridade] || prioridadeColors.normal;
   
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-8">
-      <div className="w-full max-w-6xl h-full max-h-[90vh] bg-background border border-border rounded-2xl shadow-2xl flex overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 md:p-8" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-300">
         
+        {/* Botão Fixo de Fechar — sempre visível */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-foreground/10 hover:bg-foreground/20 backdrop-blur-md border border-border/50 transition-all shadow-lg"
+          title="Fechar"
+        >
+          <X className="h-5 w-5 text-foreground" />
+        </button>
+
         {/* Coluna Esquerda: Informações Principais */}
-        <div className="flex-1 flex flex-col overflow-y-auto border-r border-border bg-card/30">
-          <div className="p-8 space-y-8">
+        <div className="flex-1 flex flex-col overflow-y-auto md:border-r border-border bg-card/30 min-h-0">
+          <div className="p-5 sm:p-6 md:p-8 space-y-6 md:space-y-8 pr-14 md:pr-8">
             {/* Header com breadcrumb e ações */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
                 <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                 <span>Administrativo</span>
@@ -317,24 +345,21 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
                 <span>Tarefa</span>
                 <span className="bg-foreground/5 px-1.5 py-0.5 rounded text-[8px]">{tarefa.id.substring(0, 8)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
-                  <Share2 className="h-3.5 w-3.5" /> Compartilhar
+              <div className="flex items-center gap-1 sm:gap-2">
+                <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
+                  <Share2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Compartilhar</span>
                 </button>
-                <button onClick={() => onDelete(tarefa.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-red-500/10 text-xs font-medium text-red-500 transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" /> Excluir
-                </button>
-                <button onClick={onClose} className="ml-2 h-8 w-8 flex items-center justify-center rounded-full bg-foreground/5 hover:bg-foreground/10 transition-colors">
-                  <X className="h-4 w-4" />
+                <button onClick={() => onDelete(tarefa.id)} className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md hover:bg-red-500/10 text-xs font-medium text-red-500 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Excluir</span>
                 </button>
               </div>
             </div>
 
             {/* Título */}
-            <h1 className="text-3xl font-serif font-medium leading-tight text-foreground">{tarefa.titulo}</h1>
+            <h1 className="text-2xl sm:text-3xl font-serif font-medium leading-tight text-foreground">{tarefa.titulo}</h1>
 
             {/* Grid de Propriedades */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-12">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 md:gap-x-12 md:gap-y-6">
               <Property label="Status">
                 <select 
                   value={tarefa.status} 
@@ -353,8 +378,8 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
                   <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold text-letitia-gold border border-letitia-gold/30">
                     {tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??"}
                   </div>
-                  <span className="text-xs font-medium">{tarefa.profiles?.full_name || "Sem atribuição"}</span>
-                  <ChevronDown className="h-3 w-3 text-muted" />
+                  <span className="text-xs font-medium truncate max-w-[100px] sm:max-w-none">{tarefa.profiles?.full_name || "Sem atribuição"}</span>
+                  <ChevronDown className="h-3 w-3 text-muted flex-shrink-0" />
                 </div>
               </Property>
 
@@ -366,8 +391,8 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
 
               <Property label="Datas">
                 <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                  <Calendar className="h-3.5 w-3.5 text-muted" />
-                  {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: 'numeric', month: 'long', year: 'numeric' }) : "Sem prazo definido"}
+                  <Calendar className="h-3.5 w-3.5 text-muted flex-shrink-0" />
+                  <span className="truncate">{tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: 'numeric', month: 'long', year: 'numeric' }) : "Sem prazo definido"}</span>
                 </div>
               </Property>
 
@@ -383,7 +408,7 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
                 <List className="h-3.5 w-3.5" /> Descrição
               </div>
-              <div className="min-h-[120px] p-6 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed">
+              <div className="min-h-[80px] md:min-h-[120px] p-4 md:p-6 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed">
                 {tarefa.descricao || <span className="italic opacity-50">Nenhuma descrição anexada. Clique para adicionar.</span>}
               </div>
             </div>
@@ -403,16 +428,16 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
         </div>
 
         {/* Coluna Direita: Atividade e Comentários */}
-        <div className="w-80 md:w-96 flex flex-col bg-background">
+        <div className="w-full md:w-80 lg:w-96 flex flex-col bg-background border-t md:border-t-0 border-border min-h-0 max-h-[50vh] md:max-h-none">
           {/* Tabs Atividade/Comentários */}
-          <div className="flex border-b border-border">
-            <button className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-primary text-foreground">Atividade</button>
-            <button className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-foreground transition-colors">Comentários</button>
+          <div className="flex border-b border-border flex-shrink-0">
+            <button className="flex-1 py-3 md:py-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-primary text-foreground">Atividade</button>
+            <button className="flex-1 py-3 md:py-4 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-foreground transition-colors">Comentários</button>
           </div>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Histórico */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-6">
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-6">
               <section>
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
                   <History className="h-3 w-3" /> Histórico de Atividades
@@ -437,7 +462,7 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
                   <MessageSquare className="h-3 w-3" /> Comentários
                 </h4>
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center">
                   <div className="h-12 w-12 rounded-full bg-foreground/5 flex items-center justify-center mb-3">
                     <MessageSquare className="h-6 w-6 text-muted/30" />
                   </div>
@@ -447,11 +472,11 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
             </div>
 
             {/* Input de Comentário */}
-            <div className="p-4 border-t border-border bg-card/20">
+            <div className="p-3 md:p-4 border-t border-border bg-card/20 flex-shrink-0">
               <div className="relative">
                 <textarea 
                   placeholder="Escreva um comentário..."
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-primary focus:outline-none min-h-[100px] resize-none pr-12"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-primary focus:outline-none min-h-[80px] md:min-h-[100px] resize-none pr-12"
                 />
                 <button className="absolute bottom-3 right-3 h-8 w-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
                   <Send className="h-4 w-4" />
@@ -748,6 +773,330 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onC
           {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "---"}
         </span>
       </div>
+    </div>
+  );
+}
+
+/* ─── Team View ──────────────────────────────────────────── */
+
+function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTaskDelete, onToggle, onNewTask, busca }: {
+  tarefas: DBTask[];
+  profiles: DBProfile[];
+  view: ViewMode;
+  hoje: string;
+  onTaskClick: (t: DBTask) => void;
+  onTaskEdit: (t: DBTask) => void;
+  onTaskDelete: (id: string) => void;
+  onToggle: (id: string, status: TaskStatus) => void;
+  onNewTask: (profileId: string) => void;
+  busca: string;
+}) {
+  const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({});
+  const [showConcluidasMap, setShowConcluidasMap] = useState<Record<string, boolean>>({});
+
+  // Group tasks by responsible
+  const grouped = new Map<string, { profile: DBProfile | null; tasks: DBTask[] }>();
+  
+  // Add all profiles first
+  profiles.forEach(p => {
+    grouped.set(p.id, { profile: p, tasks: [] });
+  });
+  // Add "unassigned" group
+  grouped.set("__none__", { profile: null, tasks: [] });
+
+  tarefas.forEach(t => {
+    const key = t.responsavel_id || "__none__";
+    if (!grouped.has(key)) {
+      grouped.set(key, { profile: t.profiles || null, tasks: [] });
+    }
+    grouped.get(key)!.tasks.push(t);
+  });
+
+  // Filter out profiles with no tasks (unless searching)
+  const entries = Array.from(grouped.entries())
+    .filter(([, v]) => v.tasks.length > 0 || busca)
+    .filter(([, v]) => {
+      if (!busca) return v.tasks.length > 0;
+      const nameMatch = v.profile?.full_name?.toLowerCase().includes(busca.toLowerCase());
+      return nameMatch || v.tasks.length > 0;
+    })
+    .sort((a, b) => b[1].tasks.length - a[1].tasks.length);
+
+  const toggleUser = (id: string) => {
+    setExpandedUsers(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleConcluidas = (id: string) => {
+    setShowConcluidasMap(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-muted mb-2">
+        <User className="h-4 w-4" />
+        <span className="text-sm font-semibold">Tarefas por Responsável</span>
+        <span className="text-xs bg-card border border-border px-2 py-0.5 rounded-full">{entries.length} membros</span>
+      </div>
+
+      {view === "kanban" ? (
+        /* ── Kanban Cards View ── */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {entries.map(([id, { profile, tasks }]) => {
+            const pendentes = tasks.filter(t => t.status !== "concluido");
+            const concluidas = tasks.filter(t => t.status === "concluido");
+            const atrasadas = pendentes.filter(t => t.prazo && t.prazo < hoje);
+            const alta = pendentes.filter(t => t.prioridade === "alta" || t.prioridade === "urgente");
+            const taxa = tasks.length > 0 ? Math.round((concluidas.length / tasks.length) * 100) : 0;
+            const iniciais = profile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
+            const isExpanded = expandedUsers[id] !== false; // default expanded
+            const showDone = showConcluidasMap[id] || false;
+
+            return (
+              <div key={id} className="rounded-xl border border-border bg-card overflow-hidden">
+                {/* Header */}
+                <div className="p-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-letitia-gold/10 border-2 border-letitia-gold/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {profile?.avatar_url ? (
+                          <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-bold text-letitia-gold">{iniciais}</span>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">{profile?.full_name || "Sem atribuição"}</h4>
+                        <p className="text-[11px] text-muted">{pendentes.length} pendentes · {concluidas.length} concluídas</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onNewTask(id)}
+                        className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-border hover:bg-foreground/5 transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="h-3 w-3" /> Nova Tarefa
+                      </button>
+                      <span className="text-2xl font-serif font-medium text-letitia-gold">{tasks.length}</span>
+                      <span className="text-[10px] text-muted">tarefas</span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 mt-3 text-[11px]">
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 text-red-500" />
+                      <span className="text-muted">Atrasadas:</span>
+                      <span className={cn("font-semibold", atrasadas.length > 0 ? "text-red-500" : "text-foreground")}>{atrasadas.length}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 text-amber-500" />
+                      <span className="text-muted">Alta:</span>
+                      <span className="font-semibold text-foreground">{alta.length}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                      <span className="text-muted">Taxa:</span>
+                      <span className="font-semibold text-green-600">{taxa}%</span>
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden mt-3">
+                    <div className="h-full bg-letitia-gold rounded-full transition-all duration-500" style={{ width: `${taxa}%` }} />
+                  </div>
+                </div>
+
+                {/* Tasks */}
+                <div className="border-t border-border">
+                  <button onClick={() => toggleUser(id)} className="w-full flex items-center justify-between px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-foreground/5 transition-colors">
+                    <span>Tarefas pendentes ({pendentes.length})</span>
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-3 pb-3 space-y-1 max-h-[300px] overflow-y-auto">
+                      {pendentes.length === 0 ? (
+                        <p className="text-xs text-muted italic text-center py-4">Nenhuma tarefa pendente 🎉</p>
+                      ) : (
+                        pendentes.map(t => {
+                          const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
+                          const isOverdue = t.prazo && t.prazo < hoje;
+                          return (
+                            <div
+                              key={t.id}
+                              onClick={() => onTaskClick(t)}
+                              className={cn(
+                                "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-foreground/5 transition-colors group",
+                                isOverdue && "bg-red-500/5"
+                              )}
+                            >
+                              <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }} className="flex-shrink-0">
+                                <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                              </div>
+                              <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                              <span className={cn("text-[10px] flex items-center gap-0.5", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
+                                <Clock className="h-2.5 w-2.5" />
+                                {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"}
+                              </span>
+                            </div>
+                          );
+                        })
+                      )}
+
+                      {concluidas.length > 0 && (
+                        <button onClick={() => toggleConcluidas(id)} className="w-full text-center text-[11px] text-muted hover:text-foreground py-2 flex items-center justify-center gap-1 transition-colors">
+                          <Clock className="h-3 w-3" />
+                          {showDone ? "Ocultar" : `+ ${concluidas.length} tarefas concluídas`}
+                        </button>
+                      )}
+
+                      {showDone && concluidas.map(t => (
+                        <div
+                          key={t.id}
+                          onClick={() => onTaskClick(t)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-foreground/5 transition-colors opacity-60"
+                        >
+                          <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }} className="flex-shrink-0">
+                            <CheckSquare2 className="h-4 w-4 text-green-500" />
+                          </button>
+                          <p className="text-xs font-medium text-muted line-through truncate flex-1">{t.titulo}</p>
+                          <span className="text-[10px] text-muted">
+                            {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── List View ── */
+        <div className="space-y-6">
+          {entries.map(([id, { profile, tasks }]) => {
+            const pendentes = tasks.filter(t => t.status !== "concluido");
+            const concluidas = tasks.filter(t => t.status === "concluido");
+            const iniciais = profile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
+            const showDone = showConcluidasMap[id] || false;
+
+            return (
+              <div key={id} className="rounded-xl border border-border bg-card overflow-hidden">
+                {/* Person Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-letitia-gold/10 border-2 border-letitia-gold/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-letitia-gold">{iniciais}</span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">{profile?.full_name || "Sem atribuição"}</span>
+                    <button onClick={() => onNewTask(id)} className="h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center hover:bg-green-600 transition-colors">
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted">
+                    <span>{tasks.length} tarefas</span>
+                    <span className="flex items-center gap-1"><Square className="h-3 w-3" />{pendentes.length}</span>
+                    <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" />{concluidas.length}</span>
+                  </div>
+                </div>
+
+                {/* Table header */}
+                <div className="grid grid-cols-12 gap-2 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted border-b border-border/50 bg-background/30">
+                  <div className="col-span-1"></div>
+                  <div className="col-span-5">Tarefa</div>
+                  <div className="col-span-2 text-center">Prioridade</div>
+                  <div className="col-span-2 text-center">Prazo</div>
+                  <div className="col-span-2 text-center">Status</div>
+                </div>
+
+                {/* Pending tasks */}
+                {pendentes.length === 0 && !showDone ? (
+                  <p className="text-xs text-muted italic text-center py-6">Nenhuma tarefa pendente 🎉</p>
+                ) : (
+                  pendentes.map(t => {
+                    const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
+                    const isOverdue = t.prazo && t.prazo < hoje;
+                    const statusLabels: Record<string, string> = { fazer: "Pendente", progresso: "Em andamento", revisao: "Revisão", concluido: "Concluído" };
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => onTaskClick(t)}
+                        className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", isOverdue && "bg-red-500/5")}
+                      >
+                        <div className="col-span-1">
+                          <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
+                            <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
+                          </button>
+                        </div>
+                        <div className="col-span-5">
+                          <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <span className={cn("text-[11px]", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
+                            {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
+                          </span>
+                        </div>
+                        <div className="col-span-2 text-center">
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-foreground/5 text-foreground">{statusLabels[t.status] || t.status}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+
+                {/* Concluidas toggle */}
+                {concluidas.length > 0 && (
+                  <>
+                    <button onClick={() => toggleConcluidas(id)} className="w-full text-center text-[11px] text-muted hover:text-foreground py-2.5 flex items-center justify-center gap-1 border-b border-border/30 transition-colors hover:bg-foreground/5">
+                      <Clock className="h-3 w-3" />
+                      {showDone ? "Ocultar concluídas" : `+ ${concluidas.length} tarefas concluídas`}
+                    </button>
+                    {showDone && concluidas.map(t => {
+                      const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => onTaskClick(t)}
+                          className="grid grid-cols-12 gap-2 items-center px-5 py-2.5 border-b border-border/20 cursor-pointer hover:bg-foreground/5 transition-colors opacity-50"
+                        >
+                          <div className="col-span-1">
+                            <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
+                              <CheckSquare2 className="h-4 w-4 text-green-500" />
+                            </button>
+                          </div>
+                          <div className="col-span-5">
+                            <p className="text-xs font-medium text-muted line-through truncate">{t.titulo}</p>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className="text-[11px] text-muted">{t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}</span>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-green-500/10 text-green-600">Concluído</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
