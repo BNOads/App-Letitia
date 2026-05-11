@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, LineChart, FileText,
-  GitBranch, Calendar, FileStack, GraduationCap, KeyRound,
+  Calendar, FileStack, GraduationCap, KeyRound,
   PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,8 +25,6 @@ const sections = [
   {
     label: "Comercial",
     items: [
-      { name: "CRM", href: "/crm", icon: Users },
-      { name: "Pipeline THE WAY", href: "/pipeline", icon: GitBranch },
       { name: "Vendas", href: "/vendas", icon: LineChart },
     ],
   },

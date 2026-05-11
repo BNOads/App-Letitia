@@ -1,15 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, CheckSquare, Users, LineChart, FileText
+  LayoutDashboard, CheckSquare, LineChart, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
-  { name: "CRM", href: "/crm", icon: Users },
   { name: "Vendas", href: "/vendas", icon: LineChart },
-  { name: "Editorial", href: "/conteudo", icon: FileText },
+  { name: "Editorial", href: "/editorial", icon: FileText },
 ];
 
 export function BottomNav() {
