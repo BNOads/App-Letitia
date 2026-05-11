@@ -27,6 +27,8 @@ const statusColors: Record<string, string> = {
   Fechado: "bg-gray-500/10 text-gray-500",
 };
 
+type StatusFilter = "todos" | "abertos" | "atrasados" | "resolvidos";
+
 export function Suporte() {
   const { user } = useAuth();
   const [busca, setBusca] = useState("");
@@ -34,6 +36,7 @@ export function Suporte() {
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [meusTickets, setMeusTickets] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<DBTicket | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -79,6 +82,15 @@ export function Suporte() {
     }
   };
 
+  const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    try {
+      await updateTicket(id, { [field]: value || null } as Partial<DBTicket>);
+      fetchTickets();
+    } catch (error) {
+      console.error(`Erro ao atualizar ${field}:`, error);
+    }
+  };
+
   const handleDeleteTicket = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este ticket?")) return;
     try {
@@ -90,21 +102,26 @@ export function Suporte() {
     }
   };
 
+  const abertos = tickets.filter(t => t.status === "Aberto" || t.status === "Em atendimento").length;
+  const atrasados = tickets.filter(t => t.prazo_sla && new Date(t.prazo_sla) < new Date()).length;
+  const resolvidos = tickets.filter(t => t.status === "Resolvido").length;
+  const total = tickets.length;
+
   const filtrados = tickets.filter(t => {
     const matchBusca = t.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || 
                        t.cliente_email.toLowerCase().includes(busca.toLowerCase()) ||
                        t.cliente_telefone?.includes(busca);
     
-    if (meusTickets) {
-      return matchBusca && t.responsavel_id === user?.id;
-    }
-    return matchBusca;
-  });
+    if (meusTickets && t.responsavel_id !== user?.id) return false;
+    if (!matchBusca) return false;
 
-  const abertos = tickets.filter(t => t.status === "Aberto" || t.status === "Em atendimento").length;
-  const atrasados = tickets.filter(t => t.prazo_sla && new Date(t.prazo_sla) < new Date()).length;
-  const resolvidos = tickets.filter(t => t.status === "Resolvido").length;
-  const total = tickets.length;
+    switch (statusFilter) {
+      case "abertos": return t.status === "Aberto" || t.status === "Em atendimento";
+      case "atrasados": return t.prazo_sla ? new Date(t.prazo_sla) < new Date() : false;
+      case "resolvidos": return t.status === "Resolvido";
+      default: return true;
+    }
+  });
 
   if (loading) {
     return (
@@ -136,10 +153,10 @@ export function Suporte() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard icon={<TicketIcon className="h-4 w-4 text-foreground" />} label="Total" value={String(total)} color="border-foreground border-l-4" />
-          <KPICard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Em aberto" value={String(abertos)} color="border-blue-500 border-l-4" />
-          <KPICard icon={<AlertCircle className="h-4 w-4 text-red-500" />} label="Atrasados" value={String(atrasados)} color="border-red-500 border-l-4" />
-          <KPICard icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Resolvidos" value={String(resolvidos)} color="border-green-500 border-l-4" />
+          <KPICard icon={<TicketIcon className="h-4 w-4 text-foreground" />} label="Total" value={String(total)} color="border-foreground border-l-4" active={statusFilter === "todos"} onClick={() => setStatusFilter(statusFilter === "todos" ? "todos" : "todos")} />
+          <KPICard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Em aberto" value={String(abertos)} color="border-blue-500 border-l-4" active={statusFilter === "abertos"} onClick={() => setStatusFilter(statusFilter === "abertos" ? "todos" : "abertos")} />
+          <KPICard icon={<AlertCircle className="h-4 w-4 text-red-500" />} label="Atrasados" value={String(atrasados)} color="border-red-500 border-l-4" active={statusFilter === "atrasados"} onClick={() => setStatusFilter(statusFilter === "atrasados" ? "todos" : "atrasados")} />
+          <KPICard icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Resolvidos" value={String(resolvidos)} color="border-green-500 border-l-4" active={statusFilter === "resolvidos"} onClick={() => setStatusFilter(statusFilter === "resolvidos" ? "todos" : "resolvidos")} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -215,25 +232,54 @@ export function Suporte() {
                             {t.cliente_telefone && <span className="flex items-center gap-1 text-[11px] text-muted"><Phone className="h-3 w-3" /> {t.cliente_telefone}</span>}
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-foreground capitalize">{t.categoria}</td>
-                        <td className="px-4 py-4">
-                          <span className={cn("text-[11px] bg-background/50 px-2 py-1 rounded", prioridadeColors[t.prioridade] || "text-muted")}>
-                            {t.prioridade}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">{iniciais}</span>
-                            <span className="text-xs text-foreground font-medium">{t.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div 
-                            onClick={(e) => e.stopPropagation()}
-                            className={cn("inline-block text-[10px] font-bold uppercase tracking-tight px-2 py-1 rounded", statusColors[t.status] || "bg-gray-100")}
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={t.categoria}
+                            onChange={(e) => handleInlineUpdate(t.id, "categoria", e.target.value)}
+                            className="text-sm text-foreground capitalize bg-transparent border-none focus:ring-2 focus:ring-letitia-gold rounded-md px-1 py-0.5 cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none"
                           >
-                            {t.status}
-                          </div>
+                            <option value="Dúvida">Dúvida</option>
+                            <option value="Acesso">Acesso</option>
+                            <option value="Pagamento">Pagamento</option>
+                            <option value="Reclamação">Reclamação</option>
+                            <option value="Outros">Outros</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={t.prioridade}
+                            onChange={(e) => handleInlineUpdate(t.id, "prioridade", e.target.value)}
+                            className={cn("text-[11px] bg-background/50 px-2 py-1 rounded border-none focus:ring-2 focus:ring-letitia-gold cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none", prioridadeColors[t.prioridade] || "text-muted")}
+                          >
+                            <option value="Baixa">Baixa</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Urgente">Urgente</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={t.responsavel_id || ""}
+                            onChange={(e) => handleInlineUpdate(t.id, "responsavel_id", e.target.value)}
+                            className="text-xs text-foreground font-medium bg-transparent border-none focus:ring-2 focus:ring-letitia-gold rounded-md px-1 py-0.5 cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none max-w-[120px]"
+                          >
+                            <option value="">Sem atribuição</option>
+                            {profiles.map(p => (
+                              <option key={p.id} value={p.id}>{p.full_name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={t.status}
+                            onChange={(e) => handleStatusUpdate(t.id, e.target.value)}
+                            className={cn("text-[10px] font-bold uppercase tracking-tight px-2 py-1 rounded border-none focus:ring-2 focus:ring-letitia-gold cursor-pointer transition-colors outline-none appearance-none", statusColors[t.status] || "bg-gray-100")}
+                          >
+                            <option value="Aberto">Aberto</option>
+                            <option value="Em atendimento">Em atendimento</option>
+                            <option value="Resolvido">Resolvido</option>
+                            <option value="Fechado">Fechado</option>
+                          </select>
                         </td>
                       </tr>
                     );
@@ -628,11 +674,20 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
   );
 }
 
-function KPICard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+function KPICard({ icon, label, value, color, active, onClick }: { icon: React.ReactNode; label: string; value: string; color: string; active?: boolean; onClick?: () => void }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md", color)}>
+    <div 
+      onClick={onClick}
+      className={cn(
+        "rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md cursor-pointer select-none",
+        color,
+        active && "ring-2 ring-letitia-gold ring-offset-2 ring-offset-card scale-[1.02] shadow-lg",
+        !active && "opacity-80 hover:opacity-100"
+      )}
+    >
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted">{label}</span>
+        {active && <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-letitia-gold bg-letitia-gold/10 px-1.5 py-0.5 rounded">filtro ativo</span>}
       </div>
       <div className="flex items-center gap-3">
         {icon}
