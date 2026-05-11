@@ -310,62 +310,97 @@ export function Tarefas() {
 
 /* ─── Modals ────────────────────────────────────────────── */
 
-function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelete, onStatusChange }: {
+export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onStatusChange, onUpdate }: {
   tarefa: DBTask;
   profiles: DBProfile[];
   onClose: () => void;
   onEdit: (t: DBTask) => void;
   onDelete: (id: string) => void;
   onStatusChange: (status: TaskStatus) => Promise<void>;
+  onUpdate: (updates: Partial<DBTask>) => Promise<void>;
 }) {
+  const { user } = useAuth();
   const prior = prioridadeColors[tarefa.prioridade] || prioridadeColors.normal;
-  
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [sending, setSending] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState(tarefa.descricao || "");
+  const [showResponsavelPicker, setShowResponsavelPicker] = useState(false);
+  const [respSearch, setRespSearch] = useState("");
+  const feedEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
+
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !user || sending) return;
+    setSending(true);
+    try {
+      const c = await addTaskComment(tarefa.id, user.id, newComment.trim());
+      setComments(prev => [...prev, c]);
+      setNewComment("");
+      setTimeout(() => feedEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch (e) { console.error("Erro ao enviar comentário:", e); }
+    finally { setSending(false); }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(tarefa.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSaveDesc = async () => {
+    await onUpdate({ descricao: descDraft } as any);
+    setEditingDesc(false);
+  };
+
+  // Build unified timeline
+  type TimelineEntry = { type: "activity" | "comment"; date: string; data: any };
+  const timeline: TimelineEntry[] = [
+    { type: "activity", date: tarefa.created_at, data: { user: tarefa.profiles?.full_name || "Sistema", action: "criou a tarefa" } },
+    ...(tarefa.updated_at !== tarefa.created_at ? [{ type: "activity" as const, date: tarefa.updated_at, data: { user: tarefa.profiles?.full_name || "Sistema", action: "atualizou a tarefa" } }] : []),
+    ...comments.map(c => ({ type: "comment" as const, date: c.created_at, data: c })),
+  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 md:p-8" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-300">
         
-        {/* Botão Fixo de Fechar — sempre visível */}
-        <button 
-          onClick={onClose} 
-          className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-foreground/10 hover:bg-foreground/20 backdrop-blur-md border border-border/50 transition-all shadow-lg"
-          title="Fechar"
-        >
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-foreground/10 hover:bg-foreground/20 backdrop-blur-md border border-border/50 transition-all shadow-lg" title="Fechar">
           <X className="h-5 w-5 text-foreground" />
         </button>
 
-        {/* Coluna Esquerda: Informações Principais */}
+        {/* Left Column */}
         <div className="flex-1 flex flex-col overflow-y-auto md:border-r border-border bg-card/30 min-h-0">
           <div className="p-5 sm:p-6 md:p-8 space-y-6 md:space-y-8 pr-14 md:pr-8">
-            {/* Header com breadcrumb e ações */}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
-                <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                <span>Administrativo</span>
-                <span className="opacity-30">/</span>
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
                 <span>Tarefa</span>
                 <span className="bg-foreground/5 px-1.5 py-0.5 rounded text-[8px]">{tarefa.id.substring(0, 8)}</span>
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
-                <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
-                  <Share2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Compartilhar</span>
+                <button onClick={handleCopy} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
+                  {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{copied ? "Copiado!" : "Copiar ID"}</span>
                 </button>
-                <button onClick={() => onDelete(tarefa.id)} className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md hover:bg-red-500/10 text-xs font-medium text-red-500 transition-colors">
+                <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
+                  <Edit3 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
+                </button>
+                <button onClick={() => onDelete(tarefa.id)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-red-500/10 text-xs font-medium text-red-500 transition-colors">
                   <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Excluir</span>
                 </button>
               </div>
             </div>
 
-            {/* Título */}
             <h1 className="text-2xl sm:text-3xl font-serif font-medium leading-tight text-foreground">{tarefa.titulo}</h1>
 
-            {/* Grid de Propriedades */}
+            {/* Editable Properties */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 md:gap-x-12 md:gap-y-6">
               <Property label="Status">
-                <select 
-                  value={tarefa.status} 
-                  onChange={(e) => onStatusChange(e.target.value as TaskStatus)}
-                  className="bg-foreground/5 hover:bg-foreground/10 px-3 py-1 rounded text-xs font-bold uppercase tracking-tight focus:outline-none transition-colors border-none cursor-pointer"
-                >
+                <select value={tarefa.status} onChange={(e) => onStatusChange(e.target.value as TaskStatus)} className="bg-foreground/5 hover:bg-foreground/10 px-3 py-1 rounded text-xs font-bold uppercase tracking-tight focus:outline-none transition-colors border-none cursor-pointer">
                   <option value="fazer">A Fazer</option>
                   <option value="progresso">Em Progresso</option>
                   <option value="revisao">Revisão</option>
@@ -374,112 +409,118 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
               </Property>
               
               <Property label="Responsável">
-                <div className="flex items-center gap-2 bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded cursor-pointer transition-colors">
-                  <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold text-letitia-gold border border-letitia-gold/30">
-                    {tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??"}
-                  </div>
-                  <span className="text-xs font-medium truncate max-w-[100px] sm:max-w-none">{tarefa.profiles?.full_name || "Sem atribuição"}</span>
-                  <ChevronDown className="h-3 w-3 text-muted flex-shrink-0" />
+                <div className="relative">
+                  <button onClick={() => setShowResponsavelPicker(!showResponsavelPicker)} className="flex items-center gap-2 bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded cursor-pointer transition-colors">
+                    <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold text-letitia-gold border border-letitia-gold/30">
+                      {tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??"}
+                    </div>
+                    <span className="text-xs font-medium truncate max-w-[100px]">{tarefa.profiles?.full_name || "Sem atribuição"}</span>
+                    <ChevronDown className="h-3 w-3 text-muted" />
+                  </button>
+                  {showResponsavelPicker && (
+                    <div className="absolute top-full left-0 mt-1 z-50 w-56 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+                      <div className="relative p-1.5 border-b border-border">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted" />
+                        <input autoFocus type="text" value={respSearch} onChange={e => setRespSearch(e.target.value)} placeholder="Buscar..." className="w-full bg-background border border-border rounded-md pl-7 pr-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div className="max-h-40 overflow-y-auto p-1">
+                        <button onClick={() => { onUpdate({ responsavel_id: null } as any); setShowResponsavelPicker(false); setRespSearch(""); }} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/5 transition-colors text-muted">
+                          <X className="h-3.5 w-3.5" /> Sem atribuição
+                        </button>
+                        {allProfiles.filter(p => (p.full_name || "").toLowerCase().includes(respSearch.toLowerCase())).map(p => (
+                          <button key={p.id} onClick={() => { onUpdate({ responsavel_id: p.id } as any); setShowResponsavelPicker(false); setRespSearch(""); }} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/5 transition-colors">
+                            <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[7px] font-bold text-letitia-gold">{(p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}</div>
+                            <span>{p.full_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Property>
 
               <Property label="Prioridade">
-                <span className={cn("text-[10px] font-bold uppercase px-3 py-1 rounded transition-colors", prior.bg, prior.text)}>
-                  {prior.label}
-                </span>
+                <select value={tarefa.prioridade} onChange={(e) => onUpdate({ prioridade: e.target.value } as any)} className={cn("text-[10px] font-bold uppercase px-3 py-1 rounded border-none cursor-pointer focus:outline-none", prior.bg, prior.text)}>
+                  <option value="baixa">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
               </Property>
 
-              <Property label="Datas">
-                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-                  <Calendar className="h-3.5 w-3.5 text-muted flex-shrink-0" />
-                  <span className="truncate">{tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: 'numeric', month: 'long', year: 'numeric' }) : "Sem prazo definido"}</span>
-                </div>
+              <Property label="Prazo">
+                <input type="date" value={tarefa.prazo || ""} onChange={(e) => onUpdate({ prazo: e.target.value || null } as any)} className="bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded text-xs font-medium focus:outline-none border-none cursor-pointer" />
               </Property>
 
               <Property label="Criado em">
-                <span className="text-xs font-medium text-muted">
-                  {new Date(tarefa.created_at).toLocaleDateString("pt-BR", { day: 'numeric', month: 'long' })}
-                </span>
+                <span className="text-xs font-medium text-muted">{new Date(tarefa.created_at).toLocaleDateString("pt-BR", { day: 'numeric', month: 'long' })}</span>
               </Property>
             </div>
 
-            {/* Descrição */}
+            {/* Editable Description */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
-                <List className="h-3.5 w-3.5" /> Descrição
-              </div>
-              <div className="min-h-[80px] md:min-h-[120px] p-4 md:p-6 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed">
-                {tarefa.descricao || <span className="italic opacity-50">Nenhuma descrição anexada. Clique para adicionar.</span>}
-              </div>
-            </div>
-
-            {/* Subtarefas (Placeholder) */}
-            <div className="space-y-4 pt-4 border-t border-border/50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
-                  Subtarefas <span className="bg-foreground/5 px-1.5 rounded ml-1">0</span>
+                  <List className="h-3.5 w-3.5" /> Descrição
                 </div>
+                {!editingDesc && <button onClick={() => setEditingDesc(true)} className="text-[10px] text-muted hover:text-foreground transition-colors"><Edit3 className="h-3 w-3" /></button>}
               </div>
-              <button className="flex items-center gap-2 text-xs font-medium text-muted hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-foreground/5">
-                <Plus className="h-3.5 w-3.5" /> Adicionar Subtarefa
-              </button>
+              {editingDesc ? (
+                <div className="space-y-2">
+                  <textarea value={descDraft} onChange={e => setDescDraft(e.target.value)} className="w-full min-h-[100px] p-4 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-primary focus:outline-none resize-none" autoFocus />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setEditingDesc(false); setDescDraft(tarefa.descricao || ""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
+                    <button onClick={handleSaveDesc} className="px-3 py-1 rounded bg-primary text-primary-foreground text-xs font-medium">Salvar</button>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => setEditingDesc(true)} className="min-h-[60px] p-4 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed cursor-pointer hover:border-primary/30 transition-colors">
+                  {tarefa.descricao || <span className="italic opacity-50">Clique para adicionar descrição...</span>}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Coluna Direita: Atividade e Comentários */}
+        {/* Right Column: Unified Timeline */}
         <div className="w-full md:w-80 lg:w-96 flex flex-col bg-background border-t md:border-t-0 border-border min-h-0 max-h-[50vh] md:max-h-none">
-          {/* Tabs Atividade/Comentários */}
-          <div className="flex border-b border-border flex-shrink-0">
-            <button className="flex-1 py-3 md:py-4 text-[10px] font-bold uppercase tracking-widest border-b-2 border-primary text-foreground">Atividade</button>
-            <button className="flex-1 py-3 md:py-4 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-foreground transition-colors">Comentários</button>
+          <div className="px-4 md:px-6 py-3 md:py-4 border-b border-border flex-shrink-0">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-foreground flex items-center gap-2">
+              <History className="h-3 w-3" /> Atividade & Comentários
+            </h3>
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-            {/* Histórico */}
-            <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-6">
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
-                  <History className="h-3 w-3" /> Histórico de Atividades
-                </h4>
-                <div className="space-y-4">
-                  <ActivityItem 
-                    user={tarefa.profiles?.full_name || "Sistema"} 
-                    action="criou a tarefa" 
-                    date={new Date(tarefa.created_at).toLocaleString("pt-BR", { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })} 
-                  />
-                  {tarefa.updated_at !== tarefa.created_at && (
-                    <ActivityItem 
-                      user={tarefa.profiles?.full_name || "Sistema"} 
-                      action="atualizou a tarefa" 
-                      date={new Date(tarefa.updated_at).toLocaleString("pt-BR", { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })} 
-                    />
-                  )}
-                </div>
-              </section>
-
-              <section>
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
-                  <MessageSquare className="h-3 w-3" /> Comentários
-                </h4>
-                <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center">
-                  <div className="h-12 w-12 rounded-full bg-foreground/5 flex items-center justify-center mb-3">
-                    <MessageSquare className="h-6 w-6 text-muted/30" />
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4">
+              {timeline.map((entry, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className={cn("flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center", entry.type === "comment" ? "bg-primary/10" : "bg-foreground/5")}>
+                    {entry.type === "comment" ? <MessageSquare className="h-3 w-3 text-primary" /> : <User className="h-3 w-3 text-muted" />}
                   </div>
-                  <p className="text-xs text-muted">Nenhum comentário ainda.</p>
+                  <div className="flex-1 min-w-0">
+                    {entry.type === "activity" ? (
+                      <>
+                        <p className="text-xs"><span className="font-semibold">{entry.data.user}</span> {entry.data.action}</p>
+                        <p className="text-[10px] text-muted mt-0.5">{new Date(entry.date).toLocaleString("pt-BR", { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs"><span className="font-semibold">{entry.data.profiles?.full_name || "Usuário"}</span> comentou</p>
+                        <div className="mt-1 p-2.5 rounded-lg bg-foreground/[0.03] border border-border/50 text-xs text-foreground/80">{entry.data.conteudo}</div>
+                        <p className="text-[10px] text-muted mt-1">{new Date(entry.date).toLocaleString("pt-BR", { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </section>
+              ))}
+              <div ref={feedEndRef} />
             </div>
 
-            {/* Input de Comentário */}
             <div className="p-3 md:p-4 border-t border-border bg-card/20 flex-shrink-0">
               <div className="relative">
-                <textarea 
-                  placeholder="Escreva um comentário..."
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-primary focus:outline-none min-h-[80px] md:min-h-[100px] resize-none pr-12"
-                />
-                <button className="absolute bottom-3 right-3 h-8 w-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
-                  <Send className="h-4 w-4" />
+                <textarea value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }} placeholder="Escreva um comentário..." className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-primary focus:outline-none min-h-[70px] resize-none pr-12" />
+                <button onClick={handleSendComment} disabled={!newComment.trim() || sending} className="absolute bottom-3 right-3 h-8 w-8 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-30">
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -830,18 +871,31 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTa
     setShowConcluidasMap(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const [memberSearch, setMemberSearch] = useState("");
+
+  const filteredEntries = entries.filter(([, v]) => {
+    if (!memberSearch) return true;
+    return (v.profile?.full_name || "Sem atribuição").toLowerCase().includes(memberSearch.toLowerCase());
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-muted mb-2">
-        <User className="h-4 w-4" />
-        <span className="text-sm font-semibold">Tarefas por Responsável</span>
-        <span className="text-xs bg-card border border-border px-2 py-0.5 rounded-full">{entries.length} membros</span>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+        <div className="flex items-center gap-2 text-muted">
+          <User className="h-4 w-4" />
+          <span className="text-sm font-semibold">Tarefas por Responsável</span>
+          <span className="text-xs bg-card border border-border px-2 py-0.5 rounded-full">{filteredEntries.length} membros</span>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+          <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Buscar membro..." className="rounded-md border border-border bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none w-44" />
+        </div>
       </div>
 
       {view === "kanban" ? (
         /* ── Kanban Cards View ── */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {entries.map(([id, { profile, tasks }]) => {
+                    {filteredEntries.map(([id, { profile, tasks }]) => {
             const pendentes = tasks.filter(t => t.status !== "concluido");
             const concluidas = tasks.filter(t => t.status === "concluido");
             const atrasadas = pendentes.filter(t => t.prazo && t.prazo < hoje);
@@ -978,7 +1032,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTa
       ) : (
         /* ── List View ── */
         <div className="space-y-6">
-          {entries.map(([id, { profile, tasks }]) => {
+                    {filteredEntries.map(([id, { profile, tasks }]) => {
             const pendentes = tasks.filter(t => t.status !== "concluido");
             const concluidas = tasks.filter(t => t.status === "concluido");
             const iniciais = profile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";

@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { createTask, updateTaskStatus } from "@/services/taskService";
+import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask, type TaskStatus } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
-import { NovoTarefaModal } from "./Tarefas";
+import { NovoTarefaModal, TaskDetailModal } from "./Tarefas";
+import { useNavigate } from "react-router-dom";
 
 type Stats = {
   totalVendas: number;
@@ -36,6 +37,9 @@ export function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [quickTask, setQuickTask] = useState("");
   const [addingTask, setAddingTask] = useState(false);
+  const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
+  const [allTasks, setAllTasks] = useState<DBTask[]>([]);
+  const navigate = useNavigate();
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia";
   const hour = new Date().getHours();
@@ -43,12 +47,14 @@ export function Dashboard() {
 
   const loadStats = async () => {
     try {
-      const [statsData, profilesData] = await Promise.all([
-        getDashboardStats(),
-        getProfiles()
+      const [statsData, profilesData, tasksData] = await Promise.all([
+        getDashboardStats(user?.id),
+        getProfiles(),
+        getTasks()
       ]);
       setStats(statsData);
       setProfiles(profilesData);
+      setAllTasks(tasksData);
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error);
     } finally {
@@ -300,10 +306,14 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-background/50 hover:border-letitia-gold/20 transition-all group"
+                    onClick={() => {
+                      const fullTask = allTasks.find(t => t.id === tarefa.id);
+                      if (fullTask) setSelectedTarefa(fullTask);
+                    }}
+                    className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-background/50 hover:border-letitia-gold/20 transition-all group cursor-pointer"
                   >
                     <button 
-                      onClick={() => handleToggleTask(tarefa.id, tarefa.status)}
+                      onClick={(e) => { e.stopPropagation(); handleToggleTask(tarefa.id, tarefa.status); }}
                       className="p-1 hover:bg-foreground/5 rounded-full transition-colors"
                     >
                       {tarefa.status === 'concluido' ? (
@@ -396,6 +406,27 @@ export function Dashboard() {
           onClose={() => setIsModalOpen(false)}
           onSuccess={() => {
             setIsModalOpen(false);
+            loadStats();
+          }}
+        />
+      )}
+
+      {selectedTarefa && (
+        <TaskDetailModal
+          tarefa={selectedTarefa}
+          profiles={profiles}
+          onClose={() => setSelectedTarefa(null)}
+          onEdit={() => { setSelectedTarefa(null); setIsModalOpen(true); }}
+          onDelete={async (id) => {
+            const { deleteTask } = await import("@/services/taskService");
+            if (confirm("Excluir tarefa?")) { await deleteTask(id); setSelectedTarefa(null); loadStats(); }
+          }}
+          onStatusChange={async (status) => {
+            await updateTaskStatus(selectedTarefa.id, status);
+            loadStats();
+          }}
+          onUpdate={async (updates) => {
+            await updateTask(selectedTarefa.id, updates);
             loadStats();
           }}
         />

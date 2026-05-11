@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export async function getDashboardStats() {
+export async function getDashboardStats(userId?: string) {
   const today = new Date().toISOString().split('T')[0];
 
   // 1. Vendas do mês
@@ -10,14 +10,16 @@ export async function getDashboardStats() {
   const { data: vendas } = await supabase.from('vendas').select('valor').gte('data_venda', startOfMonthStr);
   const totalVendas = vendas?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
 
-  // 2. Tarefas
-  const { data: allTarefas } = await supabase.from('tarefas').select('id, status, titulo, prazo, prioridade');
+  // 2. Tarefas (filtradas pelo usuário logado)
+  let tarefasQuery = supabase.from('tarefas').select('id, status, titulo, prazo, prioridade, responsavel_id');
+  if (userId) tarefasQuery = tarefasQuery.eq('responsavel_id', userId);
+  const { data: allTarefas } = await tarefasQuery;
   const totalTarefas = allTarefas?.length || 0;
   const concluidasTarefas = allTarefas?.filter(t => t.status === 'concluido').length || 0;
   const proximasTarefas = allTarefas
     ?.filter(t => t.status !== 'concluido')
     .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''))
-    .slice(0, 3) || [];
+    .slice(0, 5) || [];
 
   // 3. Agenda (Eventos)
   const { data: eventos } = await supabase
