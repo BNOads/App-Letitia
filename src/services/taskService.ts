@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type TaskStatus = 'a_fazer' | 'em_progresso' | 'revisao' | 'concluido';
+export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido';
 export type TaskPriority = 'baixa' | 'normal' | 'alta' | 'urgente';
 
 export interface DBTask {

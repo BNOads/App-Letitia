@@ -9,7 +9,7 @@ export type Tarefa = {
   responsavel: { nome: string; iniciais: string };
   prioridade: "alta" | "media" | "baixa";
   prazo: string;
-  status: "a_fazer" | "em_progresso" | "revisao" | "concluido";
+  status: "fazer" | "progresso" | "revisao" | "concluido";
   subtarefas?: { titulo: string; concluida: boolean }[];
 };
 
@@ -67,7 +67,7 @@ export const tarefasMock: Tarefa[] = [
     responsavel: { nome: "Ana Beatriz", iniciais: "AB" },
     prioridade: "alta",
     prazo: "2026-05-10",
-    status: "a_fazer",
+    status: "fazer",
     subtarefas: [
       { titulo: "Escrever rascunho", concluida: true },
       { titulo: "Revisão de tom de voz", concluida: false },
@@ -80,7 +80,7 @@ export const tarefasMock: Tarefa[] = [
     responsavel: { nome: "Letícia Cazarré", iniciais: "LC" },
     prioridade: "alta",
     prazo: "2026-05-11",
-    status: "a_fazer",
+    status: "fazer",
   },
   {
     id: "t3",
@@ -88,7 +88,7 @@ export const tarefasMock: Tarefa[] = [
     responsavel: { nome: "Mariana Costa", iniciais: "MC" },
     prioridade: "media",
     prazo: "2026-05-12",
-    status: "em_progresso",
+    status: "progresso",
   },
   {
     id: "t4",
@@ -96,7 +96,7 @@ export const tarefasMock: Tarefa[] = [
     responsavel: { nome: "Juliana Reis", iniciais: "JR" },
     prioridade: "media",
     prazo: "2026-05-09",
-    status: "em_progresso",
+    status: "progresso",
   },
   {
     id: "t5",
@@ -128,7 +128,7 @@ export const tarefasMock: Tarefa[] = [
     responsavel: { nome: "Letícia Cazarré", iniciais: "LC" },
     prioridade: "media",
     prazo: "2026-05-13",
-    status: "a_fazer",
+    status: "fazer",
   },
 ];
 

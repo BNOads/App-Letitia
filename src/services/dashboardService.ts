@@ -28,11 +28,20 @@ export async function getDashboardStats() {
     .order('hora_inicio', { ascending: true })
     .limit(3);
 
-  // 4. Tickets (Suporte)
-  const { count: ticketsAbertos } = await supabase
-    .from('tickets')
-    .select('*', { count: 'exact', head: true })
-    .in('status', ['Aberto', 'Em atendimento']);
+  // 4. Tickets (Suporte) - fetch all counts in parallel
+  const [
+    { count: ticketsAbertos },
+    { count: ticketsEmAtendimento },
+    { count: ticketsResolvidos },
+    { data: ticketsComSLA }
+  ] = await Promise.all([
+    supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'Aberto'),
+    supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'Em atendimento'),
+    supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', 'Resolvido'),
+    supabase.from('tickets').select('prazo_sla').in('status', ['Aberto', 'Em atendimento']).not('prazo_sla', 'is', null)
+  ]);
+
+  const ticketsAtrasados = ticketsComSLA?.filter(t => t.prazo_sla && new Date(t.prazo_sla) < new Date()).length || 0;
 
   // 5. Editorial (Pautas)
   const { data: pautas } = await supabase
@@ -51,6 +60,9 @@ export async function getDashboardStats() {
     },
     eventos: eventos || [],
     ticketsAbertos: ticketsAbertos || 0,
+    ticketsEmAtendimento: ticketsEmAtendimento || 0,
+    ticketsAtrasados,
+    ticketsResolvidos: ticketsResolvidos || 0,
     pautas: pautas || []
   };
 }

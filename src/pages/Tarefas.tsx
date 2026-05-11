@@ -15,8 +15,8 @@ type ViewMode = "lista" | "kanban";
 type TabFilter = "minhas" | "time";
 
 const kanbanColumns = [
-  { id: "a_fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
-  { id: "em_progresso" as const, label: "Em Progresso", color: "border-t-blue-400" },
+  { id: "fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
+  { id: "progresso" as const, label: "Em Progresso", color: "border-t-blue-400" },
   { id: "revisao" as const, label: "Revisão", color: "border-t-amber-400" },
   { id: "concluido" as const, label: "Concluído", color: "border-t-green-400" },
 ];
@@ -94,7 +94,7 @@ export function Tarefas() {
   const progresso = totalTarefas > 0 ? Math.round((concluidas.length / totalTarefas) * 100) : 0;
 
   const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
-    const newStatus: TaskStatus = currentStatus === "concluido" ? "a_fazer" : "concluido";
+    const newStatus: TaskStatus = currentStatus === "concluido" ? "fazer" : "concluido";
     setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
     try {
       await updateTaskStatus(id, newStatus);
@@ -341,8 +341,8 @@ function TaskDetailModal({ tarefa, profiles: _profiles, onClose, onEdit, onDelet
                   onChange={(e) => onStatusChange(e.target.value as TaskStatus)}
                   className="bg-foreground/5 hover:bg-foreground/10 px-3 py-1 rounded text-xs font-bold uppercase tracking-tight focus:outline-none transition-colors border-none cursor-pointer"
                 >
-                  <option value="a_fazer">A Fazer</option>
-                  <option value="em_progresso">Em Progresso</option>
+                  <option value="fazer">A Fazer</option>
+                  <option value="progresso">Em Progresso</option>
                   <option value="revisao">Revisão</option>
                   <option value="concluido">Concluído</option>
                 </select>
@@ -505,7 +505,7 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
     titulo: tarefa?.titulo || "",
     descricao: tarefa?.descricao || "",
     prioridade: (tarefa?.prioridade as TaskPriority) || "normal",
-    status: (tarefa?.status as TaskStatus) || "a_fazer",
+    status: (tarefa?.status as TaskStatus) || "fazer",
     responsavel_id: tarefa?.responsavel_id || user?.id || "",
     prazo: tarefa?.prazo || ""
   });

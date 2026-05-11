@@ -5,7 +5,7 @@ import {
   FileText, Clock, 
   Loader2, ChevronRight, Video, Camera,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays,
-  Circle, CheckCircle2, Send
+  Circle, CheckCircle2, Send, AlertCircle, Ticket as TicketIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +22,9 @@ type Stats = {
   };
   eventos: any[];
   ticketsAbertos: number;
+  ticketsEmAtendimento: number;
+  ticketsAtrasados: number;
+  ticketsResolvidos: number;
   pautas: any[];
 };
 
@@ -64,17 +67,17 @@ export function Dashboard() {
     setAddingTask(true);
     try {
       await createTask({
-        titulo: quickTask,
-        descricao: "",
-        status: 'a_fazer',
+        titulo: quickTask.trim(),
+        descricao: null as any,
+        status: 'fazer',
         prioridade: 'normal',
         responsavel_id: user.id,
-        prazo: new Date().toISOString().split('T')[0]
+        prazo: null as any
       });
       setQuickTask("");
       await loadStats();
-    } catch (error) {
-      console.error("Erro ao criar tarefa rápida:", error);
+    } catch (error: any) {
+      console.error("Erro ao criar tarefa rápida:", error?.message || error);
       alert("Erro ao criar tarefa. Tente novamente.");
     } finally {
       setAddingTask(false);
@@ -82,7 +85,7 @@ export function Dashboard() {
   };
 
   const handleToggleTask = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'concluido' ? 'a_fazer' : 'concluido';
+    const newStatus = currentStatus === 'concluido' ? 'fazer' : 'concluido';
     try {
       await updateTaskStatus(id, newStatus as any);
       loadStats();
@@ -115,20 +118,39 @@ export function Dashboard() {
           <p className="mt-1.5 text-muted text-sm">Aqui está o panorama geral do seu ecossistema hoje.</p>
         </div>
         
-        {/* Ticket Counter Shortcut */}
+        {/* Ticket Summary */}
         <motion.a 
           href="/suporte"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="flex items-center gap-4 bg-red-500/5 border border-red-500/20 px-6 py-3 rounded-2xl cursor-pointer hover:bg-red-500/10 transition-colors"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-5 bg-card border border-border px-6 py-4 rounded-2xl cursor-pointer hover:border-letitia-gold/30 transition-all shadow-sm"
         >
-          <Headset className="h-6 w-6 text-red-500" />
-          <div className="flex flex-col">
-            <span className="text-2xl font-bold text-red-600 leading-none">{stats?.ticketsAbertos}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-red-500/70">Tickets em Aberto</span>
+          <div className="h-11 w-11 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+            <Headset className="h-5 w-5 text-red-500" />
           </div>
+          <div className="flex items-center gap-4 divide-x divide-border">
+            <div className="flex flex-col items-center pr-4">
+              <span className="text-xl font-bold text-blue-600 leading-none">{stats?.ticketsAbertos || 0}</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-blue-500/70 mt-0.5">Abertos</span>
+            </div>
+            <div className="flex flex-col items-center px-4">
+              <span className="text-xl font-bold text-amber-600 leading-none">{stats?.ticketsEmAtendimento || 0}</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500/70 mt-0.5">Atendendo</span>
+            </div>
+            {(stats?.ticketsAtrasados || 0) > 0 && (
+              <div className="flex flex-col items-center px-4">
+                <span className="text-xl font-bold text-red-600 leading-none">{stats?.ticketsAtrasados}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-red-500/70 mt-0.5">Atrasados</span>
+              </div>
+            )}
+            <div className="flex flex-col items-center pl-4">
+              <span className="text-xl font-bold text-green-600 leading-none">{stats?.ticketsResolvidos || 0}</span>
+              <span className="text-[9px] font-bold uppercase tracking-widest text-green-500/70 mt-0.5">Resolvidos</span>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted ml-auto" />
         </motion.a>
       </header>
 

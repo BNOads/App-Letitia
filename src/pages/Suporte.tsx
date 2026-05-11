@@ -7,7 +7,7 @@ import { getProfiles, type DBProfile } from "@/services/profileService";
 import { 
   Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
   RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera,
-  MessageSquare, Send, ChevronRight, Edit2, Trash2, Save
+  MessageSquare, Send, ChevronRight, ChevronDown, Edit2, Trash2, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,31 +74,43 @@ export function Suporte() {
   }
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
+    // Optimistic update
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    if (selectedTicket?.id === id) {
+      setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
+    }
     try {
       await updateTicketStatus(id, newStatus);
-      fetchTickets();
     } catch (error) {
       console.error("Erro ao atualizar status do ticket:", error);
+      fetchTickets(); // Revert on error
     }
   };
 
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    // Optimistic update
+    setTickets(prev => prev.map(t => t.id === id ? { ...t, [field]: value || null } : t));
+    if (selectedTicket?.id === id) {
+      setSelectedTicket(prev => prev ? { ...prev, [field]: value || null } : null);
+    }
     try {
       await updateTicket(id, { [field]: value || null } as Partial<DBTicket>);
-      fetchTickets();
     } catch (error) {
       console.error(`Erro ao atualizar ${field}:`, error);
+      fetchTickets(); // Revert on error
     }
   };
 
   const handleDeleteTicket = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir este ticket?")) return;
+    // Optimistic update
+    setTickets(prev => prev.filter(t => t.id !== id));
+    setSelectedTicket(null);
     try {
       await deleteTicket(id);
-      setSelectedTicket(null);
-      fetchTickets();
     } catch (error) {
       console.error("Erro ao excluir ticket:", error);
+      fetchTickets(); // Revert on error
     }
   };
 
@@ -233,53 +245,65 @@ export function Suporte() {
                           </div>
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={t.categoria}
-                            onChange={(e) => handleInlineUpdate(t.id, "categoria", e.target.value)}
-                            className="text-sm text-foreground capitalize bg-transparent border-none focus:ring-2 focus:ring-letitia-gold rounded-md px-1 py-0.5 cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none"
-                          >
-                            <option value="Dúvida">Dúvida</option>
-                            <option value="Acesso">Acesso</option>
-                            <option value="Pagamento">Pagamento</option>
-                            <option value="Reclamação">Reclamação</option>
-                            <option value="Outros">Outros</option>
-                          </select>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={t.categoria}
+                              onChange={(e) => handleInlineUpdate(t.id, "categoria", e.target.value)}
+                              className="text-sm text-foreground capitalize bg-transparent border border-border/50 focus:ring-2 focus:ring-letitia-gold rounded-lg px-2.5 py-1.5 pr-7 cursor-pointer hover:bg-background/80 hover:border-letitia-gold/30 transition-colors outline-none appearance-none"
+                            >
+                              <option value="Dúvida">Dúvida</option>
+                              <option value="Acesso">Acesso</option>
+                              <option value="Pagamento">Pagamento</option>
+                              <option value="Reclamação">Reclamação</option>
+                              <option value="Outros">Outros</option>
+                            </select>
+                            <ChevronDown className="absolute right-1.5 h-3.5 w-3.5 text-muted pointer-events-none" />
+                          </div>
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={t.prioridade}
-                            onChange={(e) => handleInlineUpdate(t.id, "prioridade", e.target.value)}
-                            className={cn("text-[11px] bg-background/50 px-2 py-1 rounded border-none focus:ring-2 focus:ring-letitia-gold cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none", prioridadeColors[t.prioridade] || "text-muted")}
-                          >
-                            <option value="Baixa">Baixa</option>
-                            <option value="Normal">Normal</option>
-                            <option value="Alta">Alta</option>
-                            <option value="Urgente">Urgente</option>
-                          </select>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={t.prioridade}
+                              onChange={(e) => handleInlineUpdate(t.id, "prioridade", e.target.value)}
+                              className={cn("text-[11px] bg-background/50 px-2.5 py-1.5 pr-7 rounded-lg border border-border/50 focus:ring-2 focus:ring-letitia-gold cursor-pointer hover:bg-background/80 hover:border-letitia-gold/30 transition-colors outline-none appearance-none", prioridadeColors[t.prioridade] || "text-muted")}
+                            >
+                              <option value="Baixa">Baixa</option>
+                              <option value="Normal">Normal</option>
+                              <option value="Alta">Alta</option>
+                              <option value="Urgente">Urgente</option>
+                            </select>
+                            <ChevronDown className="absolute right-1.5 h-3.5 w-3.5 text-muted pointer-events-none" />
+                          </div>
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={t.responsavel_id || ""}
-                            onChange={(e) => handleInlineUpdate(t.id, "responsavel_id", e.target.value)}
-                            className="text-xs text-foreground font-medium bg-transparent border-none focus:ring-2 focus:ring-letitia-gold rounded-md px-1 py-0.5 cursor-pointer hover:bg-background/80 transition-colors outline-none appearance-none max-w-[120px]"
-                          >
-                            <option value="">Sem atribuição</option>
-                            {profiles.map(p => (
-                              <option key={p.id} value={p.id}>{p.full_name}</option>
-                            ))}
-                          </select>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={t.responsavel_id || ""}
+                              onChange={(e) => handleInlineUpdate(t.id, "responsavel_id", e.target.value)}
+                              className="text-xs text-foreground font-medium bg-transparent border border-border/50 focus:ring-2 focus:ring-letitia-gold rounded-lg px-2.5 py-1.5 pr-7 cursor-pointer hover:bg-background/80 hover:border-letitia-gold/30 transition-colors outline-none appearance-none max-w-[150px]"
+                            >
+                              <option value="">Sem atribuição</option>
+                              {profiles.map(p => (
+                                <option key={p.id} value={p.id}>{p.full_name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-1.5 h-3.5 w-3.5 text-muted pointer-events-none" />
+                          </div>
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <select
-                            value={t.status}
-                            onChange={(e) => handleStatusUpdate(t.id, e.target.value)}
-                            className={cn("text-[10px] font-bold uppercase tracking-tight px-2 py-1 rounded border-none focus:ring-2 focus:ring-letitia-gold cursor-pointer transition-colors outline-none appearance-none", statusColors[t.status] || "bg-gray-100")}
-                          >
-                            <option value="Aberto">Aberto</option>
-                            <option value="Em atendimento">Em atendimento</option>
-                            <option value="Resolvido">Resolvido</option>
-                            <option value="Fechado">Fechado</option>
-                          </select>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={t.status}
+                              onChange={(e) => handleStatusUpdate(t.id, e.target.value)}
+                              className={cn("text-[10px] font-bold uppercase tracking-tight px-2.5 py-1.5 pr-7 rounded-lg border border-transparent focus:ring-2 focus:ring-letitia-gold cursor-pointer transition-colors outline-none appearance-none hover:border-border/50", statusColors[t.status] || "bg-gray-100")}
+                            >
+                              <option value="Aberto">Aberto</option>
+                              <option value="Em atendimento">Em atendimento</option>
+                              <option value="Resolvido">Resolvido</option>
+                              <option value="Fechado">Fechado</option>
+                            </select>
+                            <ChevronDown className="absolute right-1.5 h-3.5 w-3.5 text-muted/50 pointer-events-none" />
+                          </div>
                         </td>
                       </tr>
                     );
