@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import notionDocuments from '@/data/notion_documents.json';
 
 export function Seeder() {
   const { user } = useAuth();
@@ -247,8 +248,70 @@ export function Seeder() {
         await supabase.from('senhas').insert(initialSenhas);
       }
 
-      // 5. Seeding desativado para evitar retorno de itens apagados
+      // 5. Seeding de tarefas e eventos desativado para evitar retorno de itens apagados
       console.log("Seeding de tarefas e eventos desativado.");
+
+      // 6. Seeding Notion Documents (Materiais LC)
+      try {
+        const { data: existingDocs } = await supabase.from('documentos').select('titulo');
+        const existingDocTitles = new Set(existingDocs?.map(d => d.titulo) || []);
+
+        // Get unique categories from notion documents
+        const categories = [...new Set(notionDocuments.map((d: { categoria: string }) => d.categoria))];
+
+        // Create or get pasta IDs for each category
+        const pastaMap: Record<string, string> = {};
+        for (const cat of categories) {
+          const { data: existingPasta } = await supabase
+            .from('pastas')
+            .select('id')
+            .eq('nome', cat)
+            .single();
+          
+          if (existingPasta) {
+            pastaMap[cat] = existingPasta.id;
+          } else {
+            const { data: newPasta } = await supabase
+              .from('pastas')
+              .insert({ nome: cat, favorita: false })
+              .select('id')
+              .single();
+            if (newPasta) {
+              pastaMap[cat] = newPasta.id;
+            }
+          }
+        }
+
+        // Insert documents that don't exist yet
+        const notionDocsToInsert = notionDocuments
+          .filter((d: { titulo: string }) => !existingDocTitles.has(d.titulo))
+          .map((d: { titulo: string; conteudo: string; categoria: string; favorito: boolean; publico: boolean }) => ({
+            titulo: d.titulo,
+            conteudo: d.conteudo,
+            pasta_id: pastaMap[d.categoria],
+            favorito: d.favorito,
+            publico: d.publico,
+          }))
+          .filter((d: { pasta_id?: string }) => d.pasta_id);
+
+        if (notionDocsToInsert.length > 0) {
+          console.log(`Seeding ${notionDocsToInsert.length} Notion documents...`);
+          // Insert in batches to avoid payload limits
+          const batchSize = 5;
+          for (let i = 0; i < notionDocsToInsert.length; i += batchSize) {
+            const batch = notionDocsToInsert.slice(i, i + batchSize);
+            const { error } = await supabase.from('documentos').insert(batch);
+            if (error) {
+              console.error(`Error inserting batch ${i / batchSize + 1}:`, error);
+            }
+          }
+          console.log(`✅ Notion documents seeded successfully!`);
+        } else {
+          console.log("Notion documents already seeded, skipping.");
+        }
+      } catch (notionErr) {
+        console.error("Notion documents seeding error:", notionErr);
+      }
     } catch (e) {
       console.error("Seeding error:", e);
     }
