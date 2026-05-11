@@ -184,12 +184,20 @@ CREATE TABLE IF NOT EXISTS public.senhas (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS public.perfis_sociais (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  nome TEXT NOT NULL,
+  cor TEXT DEFAULT '#C4A47C',
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 4. HABILITAR RLS E CRIAR POLÍTICAS
 DO $$
 DECLARE
     t TEXT;
 BEGIN
-    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos', 'links_uteis', 'ticket_comments', 'senhas')
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('tarefas', 'vendas', 'conteudo_pautas', 'theway_aplicacoes', 'tickets', 'contatos', 'pastas', 'documentos', 'eventos', 'links_uteis', 'ticket_comments', 'senhas', 'perfis_sociais')
     LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
         IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Equipe acesso total' AND polrelid = ('public.' || t)::regclass) THEN

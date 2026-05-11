@@ -2,23 +2,15 @@ import { useState, useEffect } from "react";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music, Users2 } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
+import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";
 import { useAuth } from "@/contexts/AuthContext";
+import { GerenciarPerfisModal } from "@/components/GerenciarPerfisModal";
 
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
-
-const plataformas = [
-  { id: "todas", label: "Todas", icon: null },
-  { id: "leticiacazarre", label: "@leticiacazarre", icon: Camera, color: "text-pink-500", logo: "https://unavatar.io/instagram/leticiacazarre" },
-  { id: "l__academia", label: "@l__academia", icon: Camera, color: "text-purple-500", logo: "https://unavatar.io/instagram/l__academia" },
-  { id: "vaipormim.podcast", label: "@vaipormim.podcast", icon: Camera, color: "text-red-500", logo: "https://unavatar.io/instagram/vaipormim.podcast" },
-  { id: "theway_mentoria", label: "@theway_mentoria", icon: Camera, color: "text-amber-500", logo: "https://unavatar.io/instagram/theway_mentoria" },
-  { id: "YouTube", label: "YouTube", icon: Video, color: "text-red-500" },
-  { id: "TikTok", label: "TikTok", icon: Music, color: "text-black" },
-];
 
 const statusCols = [
   { id: "rascunho" as const, label: "Rascunho", color: "border-t-gray-400" },
@@ -30,12 +22,14 @@ const statusCols = [
 export function Conteudo() {
   const [pautas, setPautas] = useState<DBContent[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
+  const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("kanban");
   const [calMode, setCalMode] = useState<CalMode>("semana");
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPerfisModalOpen, setIsPerfisModalOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -43,12 +37,14 @@ export function Conteudo() {
 
   async function fetchData() {
     try {
-      const [pautasData, profilesData] = await Promise.all([
+      const [pautasData, profilesData, socialProfilesData] = await Promise.all([
         getContent(), 
-        getProfiles()
+        getProfiles(),
+        getSocialProfiles()
       ]);
       setPautas(pautasData);
       setProfiles(profilesData);
+      setSocialProfiles(socialProfilesData);
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
     } finally {
@@ -85,14 +81,20 @@ export function Conteudo() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Calendário Editorial</h2>
-          <p className="mt-1 text-sm text-muted">{pautas.length} pautas neste ciclo</p>
+          <p className="mt-1 text-sm text-muted">{pautas.length} conteúdos neste ciclo</p>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsPerfisModalOpen(true)}
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 transition-all flex items-center gap-2"
+          >
+            <Users2 className="h-4 w-4 text-letitia-gold" /> Perfis
+          </button>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
           >
-            <Plus className="h-4 w-4" /> Nova Pauta
+            <Plus className="h-4 w-4" /> Novo Conteúdo
           </button>
           
           <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
@@ -111,23 +113,37 @@ export function Conteudo() {
 
       {/* Plataforma filter chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        {plataformas.map((p) => (
+        <button
+          onClick={() => setFiltroPlataforma("todas")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+            filtroPlataforma === "todas"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card border-border text-muted hover:text-foreground hover:border-foreground/20"
+          )}
+        >
+          Todas
+        </button>
+        {socialProfiles.map((sp) => (
           <button
-            key={p.id}
-            onClick={() => setFiltroPlataforma(p.id)}
+            key={sp.id}
+            onClick={() => setFiltroPlataforma(sp.nome)}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-              filtroPlataforma === p.id
-                ? "bg-primary text-primary-foreground border-primary"
+              filtroPlataforma === sp.nome
+                ? "text-white border-transparent"
                 : "bg-card border-border text-muted hover:text-foreground hover:border-foreground/20"
             )}
+            style={filtroPlataforma === sp.nome ? { backgroundColor: sp.cor } : undefined}
           >
-            {(p as any).logo ? (
-              <img src={(p as any).logo} alt="" className="h-4 w-4 rounded-full border border-border" />
-            ) : p.icon && (
-              <p.icon className={cn("h-3.5 w-3.5", filtroPlataforma !== p.id ? p.color : "")} />
+            {sp.avatar_url ? (
+              <img src={sp.avatar_url} alt="" className="h-4 w-4 rounded-full border border-border/30 object-cover" />
+            ) : (
+              <div className="h-4 w-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white" style={{ backgroundColor: sp.cor }}>
+                {sp.nome.charAt(0).toUpperCase()}
+              </div>
             )}
-            {p.label}
+            {sp.nome}
           </button>
         ))}
       </div>
@@ -155,29 +171,34 @@ export function Conteudo() {
       )}
 
       {/* Views */}
-      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} />}
-      {view === "lista" && <ListView pautas={filtradas} />}
-      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} />}
+      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} />}
+      {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} />}
+      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} />}
 
       {isModalOpen && (
         <NovoPautaModal 
           profiles={profiles}
+          socialProfiles={socialProfiles}
           onClose={() => setIsModalOpen(false)} 
           onSuccess={() => { setIsModalOpen(false); fetchPautas(); }} 
         />
+      )}
+
+      {isPerfisModalOpen && (
+        <GerenciarPerfisModal onClose={() => { setIsPerfisModalOpen(false); fetchData(); }} />
       )}
     </div>
   );
 }
 
-function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[]; onClose: () => void; onSuccess: () => void }) {
+function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { profiles: DBProfile[]; socialProfiles: SocialProfile[]; onClose: () => void; onSuccess: () => void }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: "",
     pilar: "pessoal",
     formato: "reels",
-    plataforma: "Instagram",
+    plataforma: socialProfiles[0]?.nome || "",
     data_prevista: new Date().toISOString().split("T")[0],
     status: "rascunho",
     responsavel_id: user?.id || ""
@@ -200,7 +221,7 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-serif text-2xl font-medium text-foreground">Nova Pauta</h3>
+          <h3 className="font-serif text-2xl font-medium text-foreground">Novo Conteúdo</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
             <X className="h-5 w-5 text-muted" />
           </button>
@@ -208,7 +229,7 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título da Pauta</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título do Conteúdo</label>
             <input
               required
               value={formData.titulo}
@@ -250,20 +271,15 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Plataforma</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Perfil / Plataforma</label>
               <select
                 value={formData.plataforma}
                 onChange={e => setFormData({ ...formData, plataforma: e.target.value })}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
               >
-                <option value="leticiacazarre">@leticiacazarre</option>
-                <option value="l__academia">@l__academia</option>
-                <option value="vaipormim.podcast">@vaipormim.podcast</option>
-                <option value="theway_mentoria">@theway_mentoria</option>
-                <option value="YouTube">YouTube</option>
-                <option value="TikTok">TikTok</option>
-                <option value="Spotify">Podcast (Spotify)</option>
-                <option value="Substack">Newsletter (Substack)</option>
+                {socialProfiles.map(sp => (
+                  <option key={sp.id} value={sp.nome}>{sp.nome}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -299,7 +315,7 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
               className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Criar Pauta
+              Criar Conteúdo
             </button>
           </div>
         </form>
@@ -309,7 +325,7 @@ function NovoPautaModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[
 }
 
 /* ─── Kanban ──────────────────────────────────────────────── */
-function KanbanView({ pautas, onUpdate }: { pautas: DBContent[]; onUpdate: () => void }) {
+function KanbanView({ pautas, onUpdate, socialProfiles }: { pautas: DBContent[]; onUpdate: () => void; socialProfiles: SocialProfile[] }) {
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await updateContentStatus(id, status);
@@ -332,7 +348,7 @@ function KanbanView({ pautas, onUpdate }: { pautas: DBContent[]; onUpdate: () =>
             <div className="bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[180px]">
               {items.map((p) => (
                 <div key={p.id} className="relative group">
-                  <PautaCard pauta={p} />
+                  <PautaCard pauta={p} socialProfiles={socialProfiles} />
                   <select 
                     className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-card border border-border rounded text-[8px] cursor-pointer"
                     value={p.status}
@@ -351,14 +367,14 @@ function KanbanView({ pautas, onUpdate }: { pautas: DBContent[]; onUpdate: () =>
 }
 
 /* ─── Lista ───────────────────────────────────────────────── */
-function ListView({ pautas }: { pautas: DBContent[] }) {
+function ListView({ pautas, socialProfiles }: { pautas: DBContent[]; socialProfiles: SocialProfile[] }) {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              {["Pauta", "Plataforma", "Pilar", "Status", "Data"].map((h) => (
+              {["Conteúdo", "Plataforma", "Pilar", "Status", "Data"].map((h) => (
                 <th key={h} className={cn("text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted", ["Plataforma", "Pilar"].includes(h) && "hidden md:table-cell")}>{h}</th>
               ))}
             </tr>
@@ -369,7 +385,7 @@ function ListView({ pautas }: { pautas: DBContent[] }) {
               return (
                 <tr key={p.id} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer">
                   <td className="px-4 py-3"><div className="flex items-center gap-2"><span>{formatoIcons[p.formato as keyof typeof formatoIcons]}</span><span className="text-sm font-medium text-foreground">{p.titulo}</span></div></td>
-                  <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} /></td>
+                  <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} socialProfiles={socialProfiles} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
                   <td className="px-4 py-3"><StatusBadge status={p.status || "rascunho"} /></td>
                   <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
@@ -384,7 +400,7 @@ function ListView({ pautas }: { pautas: DBContent[] }) {
 }
 
 /* ─── Calendário ──────────────────────────────────────────── */
-function CalendarView({ pautas, mode, weekOffset }: { pautas: DBContent[]; mode: CalMode; weekOffset: number }) {
+function CalendarView({ pautas, mode, weekOffset, socialProfiles }: { pautas: DBContent[]; mode: CalMode; weekOffset: number; socialProfiles: SocialProfile[] }) {
   const today = new Date();
 
   if (mode === "dia") {
@@ -401,9 +417,9 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: DBContent[]; mode:
         </div>
         <div className="p-4 space-y-2 min-h-[200px]">
           {dayPautas.length === 0 ? (
-            <p className="text-sm text-muted italic py-8 text-center">Nenhuma pauta para este dia.</p>
+            <p className="text-sm text-muted italic py-8 text-center">Nenhum conteúdo para este dia.</p>
           ) : (
-            dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide />)
+            dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} />)
           )}
         </div>
       </div>
@@ -438,7 +454,7 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: DBContent[]; mode:
                   <div key={p.id} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center gap-1 mb-1">
                       <span className="text-xs">{formatoIcons[p.formato as keyof typeof formatoIcons]}</span>
-                      <PlataformaBadge plataforma={p.plataforma} tiny />
+                      <PlataformaBadge plataforma={p.plataforma} tiny socialProfiles={socialProfiles} />
                     </div>
                     <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
                     <StatusBadge status={p.status || "rascunho"} tiny />
@@ -499,7 +515,7 @@ function CalendarView({ pautas, mode, weekOffset }: { pautas: DBContent[]; mode:
 }
 
 /* ─── Shared Components ───────────────────────────────────── */
-function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
+function PautaCard({ pauta, wide, socialProfiles }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[] }) {
   const pilar = pilarColors[pauta.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
   return (
     <div className={cn("rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer", wide && "flex items-start gap-3")}>
@@ -509,7 +525,7 @@ function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
           <p className="text-sm font-medium text-foreground leading-snug">{pauta.titulo}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", pilar.bg, pilar.text)}>{pilar.label}</span>
-            <PlataformaBadge plataforma={pauta.plataforma} />
+            <PlataformaBadge plataforma={pauta.plataforma} socialProfiles={socialProfiles} />
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-[10px] text-muted uppercase tracking-tight">{new Date(pauta.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
@@ -520,31 +536,29 @@ function PautaCard({ pauta, wide }: { pauta: DBContent; wide?: boolean }) {
   );
 }
 
-function PlataformaBadge({ plataforma, tiny }: { plataforma: string; tiny?: boolean }) {
-  const plat = plataformas.find(p => p.id === plataforma);
-  
-  if (plat?.logo) {
+function PlataformaBadge({ plataforma, tiny, socialProfiles }: { plataforma: string; tiny?: boolean; socialProfiles?: SocialProfile[] }) {
+  const sp = socialProfiles?.find(p => p.nome === plataforma);
+
+  if (sp) {
     return (
       <span className={cn("flex items-center gap-1 font-medium rounded", tiny ? "text-[8px]" : "text-[10px] bg-foreground/5 px-1.5 py-0.5")}>
-        <img src={plat.logo} alt="" className={cn("rounded-full border border-border", tiny ? "h-3 w-3" : "h-4 w-4")} />
-        <span className={cn("text-muted", tiny && "sr-only")}>{plat.label}</span>
+        {sp.avatar_url ? (
+          <img src={sp.avatar_url} alt="" className={cn("rounded-full border border-border/30 object-cover", tiny ? "h-3 w-3" : "h-4 w-4")} />
+        ) : (
+          <div className={cn("rounded-full flex items-center justify-center text-white font-bold", tiny ? "h-3 w-3 text-[5px]" : "h-4 w-4 text-[7px]")} style={{ backgroundColor: sp.cor }}>
+            {sp.nome.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className={cn("text-muted", tiny && "sr-only")}>{sp.nome}</span>
       </span>
     );
   }
 
-  const isIG = plataforma === "leticiacazarre" || plataforma === "l__academia" || plataforma === "vaipormim.podcast" || plataforma === "theway_mentoria" || plataforma === "Instagram";
-  const isYT = plataforma === "YouTube";
-  const isTK = plataforma === "TikTok";
-
-  const color = plat?.color || "text-muted";
-  const label = plat?.label || plataforma;
-
+  // Fallback for unmatched platforms
   return (
     <span className={cn("flex items-center gap-1 font-medium rounded", tiny ? "text-[8px]" : "text-[10px] bg-foreground/5 px-1.5 py-0.5")}>
-      {isIG && <Camera className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
-      {isYT && <Video className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
-      {isTK && <Music className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", color)} />}
-      <span className={cn("text-muted", tiny && "sr-only")}>{label}</span>
+      <Camera className={cn(tiny ? "h-2.5 w-2.5" : "h-3 w-3", "text-muted")} />
+      <span className={cn("text-muted", tiny && "sr-only")}>{plataforma}</span>
     </span>
   );
 }
