@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
-  Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat, Layers
+  Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
+  Download, Calendar, FileText, Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -351,27 +352,15 @@ export function Tarefas() {
       )}
 
       {isBulkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl font-medium text-foreground">Criar Tarefas em Massa</h3>
-              <button onClick={() => setIsBulkModalOpen(false)} className="rounded-full p-1 hover:bg-foreground/10"><X className="h-5 w-5 text-muted" /></button>
-            </div>
-            <p className="text-sm text-muted">Em breve: criação de tarefas em massa.</p>
-          </div>
-        </div>
+        <BulkTaskModal
+          profiles={profiles}
+          onClose={() => setIsBulkModalOpen(false)}
+          onSuccess={() => { setIsBulkModalOpen(false); fetchTarefas(); }}
+        />
       )}
 
       {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl font-medium text-foreground">Histórico de Tarefas</h3>
-              <button onClick={() => setIsHistoryOpen(false)} className="rounded-full p-1 hover:bg-foreground/10"><X className="h-5 w-5 text-muted" /></button>
-            </div>
-            <p className="text-sm text-muted">Em breve: histórico completo de tarefas.</p>
-          </div>
-        </div>
+        <TaskHistoryModal onClose={() => setIsHistoryOpen(false)} />
       )}
 
       {selectedTarefa && (
