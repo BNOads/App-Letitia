@@ -7,7 +7,7 @@ import {
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
-  Download, Calendar, FileText, Layers
+  Download, Calendar, FileText, Layers, Filter, Flag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -30,6 +30,10 @@ export function Tarefas() {
   const [view, setView] = useState<ViewMode>("lista");
   const [tab, setTab] = useState<TabFilter>("minhas");
   const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<string>("Todas");
+  const [filtroPrioridade, setFiltroPrioridade] = useState<string>("Todas");
+  const [filtroPessoa, setFiltroPessoa] = useState<string>("Todas");
+  const [filtroData, setFiltroData] = useState<string>("Todas as datas");
   const [showConcluidas, setShowConcluidas] = useState(true);
   const [showAtrasadas, setShowAtrasadas] = useState(true);
   const [showHoje, setShowHoje] = useState(true);
@@ -80,10 +84,43 @@ export function Tarefas() {
     const matchBusca = t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
                        t.profiles?.full_name?.toLowerCase().includes(busca.toLowerCase()) || false;
     
-    if (tab === "minhas") {
-      return matchBusca && t.responsavel_id === user?.id;
+    if (tab === "minhas" && t.responsavel_id !== user?.id) return false;
+    if (!matchBusca) return false;
+
+    // Filtro de status
+    if (filtroStatus !== "Todas") {
+      if (filtroStatus === "fazer" && t.status !== "fazer") return false;
+      if (filtroStatus === "progresso" && t.status !== "progresso") return false;
+      if (filtroStatus === "revisao" && t.status !== "revisao") return false;
+      if (filtroStatus === "concluido" && t.status !== "concluido") return false;
     }
-    return matchBusca;
+
+    // Filtro de prioridade
+    if (filtroPrioridade !== "Todas" && t.prioridade !== filtroPrioridade) return false;
+
+    // Filtro de pessoa
+    if (filtroPessoa !== "Todas" && t.responsavel_id !== filtroPessoa) return false;
+
+    // Filtro de data
+    if (filtroData !== "Todas as datas") {
+      if (filtroData === "hoje" && t.prazo !== hoje) return false;
+      if (filtroData === "atrasadas" && (!t.prazo || t.prazo >= hoje)) return false;
+      if (filtroData === "semana") {
+        const semana = new Date();
+        semana.setDate(semana.getDate() + 7);
+        const semanaStr = semana.toISOString().split('T')[0];
+        if (!t.prazo || t.prazo > semanaStr || t.prazo < hoje) return false;
+      }
+      if (filtroData === "mes") {
+        const mes = new Date();
+        mes.setDate(mes.getDate() + 30);
+        const mesStr = mes.toISOString().split('T')[0];
+        if (!t.prazo || t.prazo > mesStr || t.prazo < hoje) return false;
+      }
+      if (filtroData === "sem_prazo" && t.prazo) return false;
+    }
+
+    return true;
   });
 
   const pendentes = filtradas.filter((t) => t.status !== "concluido");
@@ -202,36 +239,110 @@ export function Tarefas() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1">
-          <button onClick={() => setTab("minhas")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "minhas" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
-            Minhas Tarefas
-          </button>
-          <button onClick={() => setTab("time")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "time" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
-            Time
-          </button>
+      {/* Barra de busca */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full rounded-md border border-border bg-card pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+            placeholder="Buscar tarefas..."
+          />
         </div>
 
+        {/* Filtro Status */}
+        <div className="relative">
+          <Flag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+          <select
+            value={filtroStatus}
+            onChange={e => setFiltroStatus(e.target.value)}
+            className="appearance-none rounded-md border border-border bg-card pl-8 pr-7 py-2 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none cursor-pointer"
+          >
+            <option value="Todas">Todas</option>
+            <option value="fazer">A fazer</option>
+            <option value="progresso">Em progresso</option>
+            <option value="revisao">Em revisão</option>
+            <option value="concluido">Concluídas</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+        </div>
+
+        {/* Filtro Prioridade */}
+        <div className="relative">
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+          <select
+            value={filtroPrioridade}
+            onChange={e => setFiltroPrioridade(e.target.value)}
+            className={cn("appearance-none rounded-md border bg-card pl-8 pr-7 py-2 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none cursor-pointer", filtroPrioridade !== "Todas" ? "border-letitia-gold ring-1 ring-letitia-gold/30" : "border-border")}
+          >
+            <option value="Todas">Todas</option>
+            <option value="baixa">Baixa</option>
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="urgente">Urgente</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+        </div>
+
+        {/* Filtro Data */}
+        <div className="relative">
+          <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+          <select
+            value={filtroData}
+            onChange={e => setFiltroData(e.target.value)}
+            className="appearance-none rounded-md border border-border bg-card pl-8 pr-7 py-2 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none cursor-pointer"
+          >
+            <option value="Todas as datas">Todas as datas</option>
+            <option value="hoje">Hoje</option>
+            <option value="atrasadas">Atrasadas</option>
+            <option value="semana">Próximos 7 dias</option>
+            <option value="mes">Próximos 30 dias</option>
+            <option value="sem_prazo">Sem prazo</option>
+          </select>
+          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Tabs + View mode + Filtro Pessoa */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="rounded-md border border-border bg-card pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none w-48"
-              placeholder="Buscar tarefas..."
-            />
+          <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1">
+            <button onClick={() => setTab("minhas")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "minhas" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+              Minhas Tarefas
+            </button>
+            <button onClick={() => setTab("time")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "time" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+              Time
+            </button>
           </div>
 
-          <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
-            <button onClick={() => setView("lista")} className={cn("p-1.5 rounded text-sm transition-all", view === "lista" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
-              <List className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("kanban")} className={cn("p-1.5 rounded text-sm transition-all", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
+          {/* Filtro por Pessoa */}
+          {tab === "time" && (
+            <div className="relative">
+              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+              <select
+                value={filtroPessoa}
+                onChange={e => setFiltroPessoa(e.target.value)}
+                className="appearance-none rounded-md border border-border bg-card pl-8 pr-7 py-2 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none cursor-pointer"
+              >
+                <option value="Todas">Todas as pessoas</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.full_name}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted pointer-events-none" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
+          <button onClick={() => setView("lista")} className={cn("p-1.5 rounded text-sm transition-all", view === "lista" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+            <List className="h-4 w-4" />
+          </button>
+          <button onClick={() => setView("kanban")} className={cn("p-1.5 rounded text-sm transition-all", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
+            <LayoutGrid className="h-4 w-4" />
+          </button>
         </div>
       </div>
 

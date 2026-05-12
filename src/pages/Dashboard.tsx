@@ -78,7 +78,7 @@ export function Dashboard() {
         status: 'fazer',
         prioridade: 'normal',
         responsavel_id: user.id,
-        prazo: null as any
+        prazo: new Date().toISOString().split('T')[0]
       });
       setQuickTask("");
       await loadStats();
@@ -109,6 +109,8 @@ export function Dashboard() {
   }
 
   const progressoGeral = stats ? Math.round((stats.tarefas.concluidas / (stats.tarefas.total || 1)) * 100) : 0;
+  const hoje = new Date().toISOString().split('T')[0];
+  const concluidasHoje = allTasks.filter(t => t.status === 'concluido' && t.responsavel_id === user?.id && t.updated_at?.startsWith(hoje));
 
   return (
     <div className="space-y-8 pb-10">
@@ -350,10 +352,35 @@ export function Dashboard() {
                 ))}
               </AnimatePresence>
             </div>
+
+            {/* Concluídas Hoje */}
+            {concluidasHoje.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center gap-2 text-green-600 mb-3">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Concluídas hoje ({concluidasHoje.length})</span>
+                </div>
+                {concluidasHoje.map((tarefa) => (
+                  <div
+                    key={tarefa.id}
+                    onClick={() => setSelectedTarefa(tarefa)}
+                    className="flex items-center gap-4 p-3 rounded-2xl border border-green-500/10 bg-green-500/5 hover:border-green-500/20 transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-muted line-through truncate">{tarefa.titulo}</h4>
+                    </div>
+                    <span className="text-[9px] font-medium text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">✓ Feita</span>
+                  </div>
+                ))}
+              </div>
+            )}
             
             <div className="mt-8">
-              <a href="/tarefas" className="flex items-center justify-center w-full py-3 rounded-2xl border border-border text-xs font-bold text-muted hover:text-foreground hover:bg-muted/5 transition-all">
+              <a href="/tarefas" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border text-xs font-bold text-muted hover:text-foreground hover:bg-muted/5 transition-all">
+                <ListIcon className="h-3.5 w-3.5" />
                 Ver todas as tarefas
+                <ChevronRight className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>

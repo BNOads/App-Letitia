@@ -229,7 +229,10 @@ export function Suporte() {
                       <tr 
                         key={t.id} 
                         onClick={() => setSelectedTicket(t)}
-                        className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer group"
+                        className={cn(
+                          "border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer group",
+                          (t.status === 'Resolvido' || t.status === 'Fechado') && "bg-green-500/[0.03] shadow-[inset_0_0_0_1px_rgba(34,197,94,0.15)] hover:bg-green-500/[0.06]"
+                        )}
                       >
                         <td className="px-4 py-4 text-sm font-medium text-muted">
                           <div className="flex items-center gap-1">
@@ -238,7 +241,7 @@ export function Suporte() {
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <p className="text-sm font-bold text-foreground uppercase tracking-wide">{t.cliente_nome}</p>
+                          <p className={cn("text-sm font-bold uppercase tracking-wide", (t.status === 'Resolvido' || t.status === 'Fechado') ? "text-muted line-through" : "text-foreground")}>{t.cliente_nome}</p>
                           <div className="flex items-center gap-3 mt-1 flex-wrap">
                             <span className="flex items-center gap-1 text-[11px] text-muted"><Mail className="h-3 w-3" /> {t.cliente_email}</span>
                             {t.cliente_telefone && <span className="flex items-center gap-1 text-[11px] text-muted"><Phone className="h-3 w-3" /> {t.cliente_telefone}</span>}

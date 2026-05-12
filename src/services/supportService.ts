@@ -133,8 +133,7 @@ export async function transferTicket(
     ticket_id: ticketId,
     user_id: fromUserId,
     conteudo,
-    is_system: true,
-  } as any);
+  });
 }
 
 /**
@@ -148,6 +147,5 @@ export async function resolveTicket(ticketId: string, userId: string, userName: 
     ticket_id: ticketId,
     user_id: userId,
     conteudo,
-    is_system: true,
-  } as any);
+  });
 }

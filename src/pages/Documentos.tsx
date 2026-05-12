@@ -3,11 +3,11 @@ import { getPastas, updateDocumento, createDocumento, createPasta, type DBPasta,
 import { cn } from "@/lib/utils";
 import { 
   Search, Plus, FolderOpen, Star, FileText, ChevronDown, ChevronRight, 
-  Bold, Italic, Underline, Heading1, Heading2, 
-  Heading3, Loader2, X, Edit2, Trash2, Save, Globe, Lock, Share2
+  Loader2, X, Edit2, Trash2, Save, Globe, Lock, Share2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 export function Documentos() {
   const [pastas, setPastas] = useState<DBPasta[]>([]);
@@ -297,41 +297,31 @@ export function Documentos() {
               </div>
 
               {isEditing ? (
-                <div className="flex-1 flex flex-col bg-background/5">
-                  <div className="px-4 py-2 border-b border-border flex items-center gap-1 flex-wrap bg-card">
-                    {[Heading1, Heading2, Heading3].map((Icon, i) => (
-                      <button key={i} className="p-1.5 rounded hover:bg-foreground/10 text-muted transition-colors"><Icon className="h-4 w-4" /></button>
-                    ))}
-                    <div className="w-px h-5 bg-border mx-1" />
-                    {[Bold, Italic, Underline].map((Icon, i) => (
-                      <button key={i} className="p-1.5 rounded hover:bg-foreground/10 text-muted transition-colors"><Icon className="h-4 w-4" /></button>
-                    ))}
-                  </div>
-                  <textarea 
+                <div className="flex-1 flex flex-col min-h-0">
+                  <RichTextEditor
                     value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    className="flex-1 w-full p-8 bg-transparent resize-none focus:outline-none font-mono text-sm leading-relaxed"
-                    placeholder="Comece a escrever seu documento em Markdown..."
+                    onChange={setEditContent}
+                    placeholder="Comece a escrever seu documento..."
+                    className="flex-1 border-0 rounded-none"
                   />
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto p-8 bg-card selection:bg-letitia-gold/20">
-                  <div className="max-w-3xl mx-auto prose prose-sm prose-slate prose-headings:font-serif">
-                    {docSelecionado.conteudo?.split("\n").map((line, i) => {
-                      if (line.startsWith("### ")) return <h3 key={i} className="text-base font-bold text-foreground mt-6 mb-2 border-l-4 border-letitia-gold/30 pl-3">{line.replace("### ", "")}</h3>;
-                      if (line.startsWith("## ")) return <h2 key={i} className="text-xl font-bold text-foreground mt-8 mb-4 border-b border-border pb-2">{line.replace("## ", "")}</h2>;
-                      if (line.startsWith("# ")) return <h1 key={i} className="text-3xl font-serif font-bold text-foreground mt-10 mb-6">{line.replace("# ", "")}</h1>;
-                      if (line.startsWith("- [ ] ")) return <div key={i} className="flex items-center gap-2 py-1"><div className="w-4 h-4 rounded border border-border flex-shrink-0" /><span className="text-sm text-foreground">{line.replace("- [ ] ", "")}</span></div>;
-                      if (line.startsWith("- [x] ")) return <div key={i} className="flex items-center gap-2 py-1"><div className="w-4 h-4 rounded bg-letitia-gold flex items-center justify-center flex-shrink-0"><X className="h-3 w-3 text-white" /></div><span className="text-sm text-muted line-through">{line.replace("- [x] ", "")}</span></div>;
-                      if (line.startsWith("- **")) return <li key={i} className="text-sm text-foreground ml-6 list-disc mb-1">{renderBold(line.replace("- ", ""))}</li>;
-                      if (line.startsWith("- ")) return <li key={i} className="text-sm text-foreground ml-6 list-disc mb-1">{line.replace("- ", "")}</li>;
-                      if (line.match(/^\d+\. /)) return <li key={i} className="text-sm text-foreground ml-6 list-decimal mb-1">{renderBold(line.replace(/^\d+\. /, ""))}</li>;
-                      if (line.startsWith("|")) return <TableRow key={i} line={line} />;
-                      if (line.startsWith("---")) return <hr key={i} className="my-8 border-border" />;
-                      if (line.trim() === "") return <div key={i} className="h-4" />;
-                      return <p key={i} className="text-sm text-foreground/80 leading-relaxed mb-4">{renderBold(line)}</p>;
-                    })}
-                  </div>
+                  <div 
+                    className="max-w-3xl mx-auto prose prose-sm prose-slate prose-headings:font-serif
+                      [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-3
+                      [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-border [&_h2]:pb-2
+                      [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:border-l-4 [&_h3]:border-letitia-gold/30 [&_h3]:pl-3
+                      [&_ul]:list-disc [&_ul]:ml-5
+                      [&_ol]:list-decimal [&_ol]:ml-5
+                      [&_li]:mb-1 [&_li]:text-sm [&_li]:text-foreground
+                      [&_a]:text-letitia-gold [&_a]:underline [&_a]:font-medium
+                      [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-3
+                      [&_p]:text-sm [&_p]:text-foreground/80 [&_p]:leading-relaxed [&_p]:mb-4
+                      [&_.checklist-item]:flex [&_.checklist-item]:items-center [&_.checklist-item]:gap-2 [&_.checklist-item]:my-1
+                    "
+                    dangerouslySetInnerHTML={{ __html: docSelecionado.conteudo || '<p class="text-muted">Documento vazio</p>' }}
+                  />
                 </div>
               )}
             </>
@@ -364,22 +354,6 @@ export function Documentos() {
   );
 }
 
-/* ─── Sub-components ──────────────────────────────────────── */
-
-function TableRow({ line }: { line: string }) {
-  const cells = line.split("|").filter(c => c.trim() !== "").map(c => c.trim());
-  if (cells.every(c => c.includes("---"))) return null; // Ignorar separador de header
-  
-  return (
-    <div className="grid grid-cols-4 gap-2 py-2 border-b border-border/50 items-center">
-      {cells.map((cell, i) => (
-        <div key={i} className={cn("text-xs", i === 0 ? "font-bold text-foreground" : "text-muted")}>
-          {renderBold(cell)}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function NovoDocumentoModal({ pastas, onClose, onSuccess }: { pastas: DBPasta[]; onClose: () => void; onSuccess: (doc: DBDocumento) => void }) {
   const { user } = useAuth();
@@ -442,13 +416,12 @@ function NovoDocumentoModal({ pastas, onClose, onSuccess }: { pastas: DBPasta[];
           </div>
 
           <div className="flex-1 px-6 pb-6 flex flex-col min-h-0">
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Conteúdo (Suporta Markdown)</label>
-            <textarea
-              required
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Conteúdo</label>
+            <RichTextEditor
               value={formData.conteudo}
-              onChange={e => setFormData({ ...formData, conteudo: e.target.value })}
-              className="flex-1 w-full rounded-md border border-border bg-background px-4 py-4 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none resize-none font-mono leading-relaxed"
-              placeholder="# Cabeçalho 1&#10;- Item de lista&#10;**Texto em negrito**"
+              onChange={(html) => setFormData({ ...formData, conteudo: html })}
+              placeholder="Comece a escrever seu documento..."
+              className="flex-1"
             />
           </div>
 
@@ -568,30 +541,4 @@ function DocItem({ doc, selected, onClick }: { doc: DBDocumento; selected: boole
   );
 }
 
-function renderBold(text: string | React.ReactNode) {
-  if (typeof text !== "string") return text;
-  
-  // Primeiro, processar links markdown [texto](url)
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const parts = text.split(linkRegex);
-  
-  const content = [];
-  for (let i = 0; i < parts.length; i++) {
-    if (i % 3 === 0) {
-      // Texto normal
-      const boldParts = parts[i].split(/(\*\*.*?\*\*)/g);
-      content.push(...boldParts.map((part, j) =>
-        part.startsWith("**") && part.endsWith("**")
-          ? <strong key={`${i}-${j}`} className="font-bold text-foreground">{part.slice(2, -2)}</strong>
-          : part
-      ));
-    } else if (i % 3 === 1) {
-      // Texto do link
-      const url = parts[i+1];
-      content.push(<a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-letitia-gold hover:underline font-medium">{parts[i]}</a>);
-      i++; // Pular a URL que já pegamos
-    }
-  }
-  
-  return <>{content}</>;
-}
+
