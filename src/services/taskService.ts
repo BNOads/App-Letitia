@@ -309,3 +309,294 @@ export async function deleteTaskComment(commentId: string) {
 
   if (error) throw error;
 }
+
+// ─── Subtasks ──────────────────────────────────────────────
+
+export interface DBSubtask {
+  id: string;
+  tarefa_id: string;
+  titulo: string;
+  concluida: boolean;
+  responsavel_id: string | null;
+  prazo: string | null;
+  ordem: number;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+export async function getSubtasks(taskId: string): Promise<DBSubtask[]> {
+  const { data, error } = await supabase
+    .from('subtarefas')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('tarefa_id', taskId)
+    .order('ordem', { ascending: true });
+
+  if (error) {
+    console.warn('Erro ao buscar subtarefas:', error.message);
+    return [] as DBSubtask[];
+  }
+  return data as DBSubtask[];
+}
+
+/** Fetch ALL subtasks (across all tasks) with parent task info */
+export async function getAllSubtasks(): Promise<(DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]> {
+  const { data, error } = await supabase
+    .from('subtarefas')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      ),
+      tarefas (
+        id,
+        titulo
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Erro ao buscar todas subtarefas:', error.message);
+    return [];
+  }
+  return data as any[];
+}
+
+export async function createSubtask(subtask: Partial<DBSubtask>): Promise<DBSubtask> {
+  const { data, error } = await supabase
+    .from('subtarefas')
+    .insert([subtask])
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `)
+    .single();
+
+  if (error) throw error;
+  return data as DBSubtask;
+}
+
+export async function updateSubtask(id: string, updates: Partial<DBSubtask>) {
+  const { error } = await supabase
+    .from('subtarefas')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function toggleSubtask(id: string, concluida: boolean) {
+  const { error } = await supabase
+    .from('subtarefas')
+    .update({ concluida })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteSubtask(id: string) {
+  const { error } = await supabase
+    .from('subtarefas')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function createBulkSubtasks(subtasks: Partial<DBSubtask>[]): Promise<DBSubtask[]> {
+  if (subtasks.length === 0) return [];
+  const { data, error } = await supabase
+    .from('subtarefas')
+    .insert(subtasks)
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `);
+
+  if (error) throw error;
+  return data as DBSubtask[];
+}
+
+// ─── Task Templates (Modelos) ──────────────────────────────
+
+export interface DBTaskTemplate {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  prioridade: TaskPriority;
+  responsavel_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  modelo_subtarefas?: DBTemplateSubtask[];
+}
+
+export interface DBTemplateSubtask {
+  id: string;
+  modelo_id: string;
+  titulo: string;
+  responsavel_id: string | null;
+  ordem: number;
+  created_at: string;
+  profiles?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
+
+export async function getTaskTemplates(): Promise<DBTaskTemplate[]> {
+  const { data, error } = await supabase
+    .from('tarefa_modelos')
+    .select(`
+      *,
+      profiles!tarefa_modelos_responsavel_id_fkey (
+        full_name,
+        avatar_url
+      ),
+      modelo_subtarefas (
+        *,
+        profiles!modelo_subtarefas_responsavel_id_fkey (
+          full_name,
+          avatar_url
+        )
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Erro ao buscar modelos:', error.message);
+    return [] as DBTaskTemplate[];
+  }
+  return (data as DBTaskTemplate[]).map(t => ({
+    ...t,
+    modelo_subtarefas: (t.modelo_subtarefas || []).sort((a, b) => a.ordem - b.ordem),
+  }));
+}
+
+export async function createTaskTemplate(template: {
+  nome: string;
+  descricao?: string;
+  prioridade?: TaskPriority;
+  responsavel_id?: string | null;
+  created_by?: string | null;
+  subtarefas: { titulo: string; responsavel_id?: string | null; ordem: number }[];
+}): Promise<DBTaskTemplate> {
+  const { subtarefas, ...templateData } = template;
+  const { data, error } = await supabase
+    .from('tarefa_modelos')
+    .insert([templateData])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  if (subtarefas.length > 0) {
+    const subs = subtarefas.map(s => ({
+      modelo_id: data.id,
+      titulo: s.titulo,
+      responsavel_id: s.responsavel_id || null,
+      ordem: s.ordem,
+    }));
+    await supabase.from('modelo_subtarefas').insert(subs);
+  }
+
+  return data as DBTaskTemplate;
+}
+
+export async function updateTaskTemplate(id: string, updates: Partial<DBTaskTemplate>) {
+  const { error } = await supabase
+    .from('tarefa_modelos')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteTaskTemplate(id: string) {
+  const { error } = await supabase
+    .from('tarefa_modelos')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function updateTemplateSubtasks(
+  modeloId: string,
+  subtarefas: { titulo: string; responsavel_id?: string | null; ordem: number }[]
+) {
+  await supabase.from('modelo_subtarefas').delete().eq('modelo_id', modeloId);
+
+  if (subtarefas.length > 0) {
+    const subs = subtarefas.map(s => ({
+      modelo_id: modeloId,
+      titulo: s.titulo,
+      responsavel_id: s.responsavel_id || null,
+      ordem: s.ordem,
+    }));
+    const { error } = await supabase.from('modelo_subtarefas').insert(subs);
+    if (error) throw error;
+  }
+}
+
+/** Create a task from a template, including all template subtasks */
+export async function createTaskFromTemplate(
+  template: DBTaskTemplate,
+  overrides: {
+    titulo?: string;
+    descricao?: string;
+    prazo?: string | null;
+    responsavel_id?: string | null;
+    prioridade?: TaskPriority;
+  } = {}
+): Promise<DBTask> {
+  const taskData = {
+    titulo: overrides.titulo || template.nome,
+    descricao: overrides.descricao || template.descricao || '',
+    prioridade: overrides.prioridade || template.prioridade || 'normal',
+    status: 'fazer' as TaskStatus,
+    responsavel_id: overrides.responsavel_id !== undefined ? overrides.responsavel_id : template.responsavel_id,
+    prazo: overrides.prazo || null,
+  };
+
+  const { data, error } = await supabase
+    .from('tarefas')
+    .insert([taskData])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  const templateSubs = template.modelo_subtarefas || [];
+  if (templateSubs.length > 0) {
+    const subs = templateSubs.map(s => ({
+      tarefa_id: data.id,
+      titulo: s.titulo,
+      concluida: false,
+      responsavel_id: s.responsavel_id || null,
+      ordem: s.ordem,
+    }));
+    await supabase.from('subtarefas').insert(subs);
+  }
+
+  return data as DBTask;
+}

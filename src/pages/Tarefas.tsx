@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
-  Download, Calendar, FileText, Layers, Filter, Flag
+  Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
+  GripVertical
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -25,6 +26,7 @@ const kanbanColumns = [
 export function Tarefas() {
   const { user, loading: authLoading } = useAuth();
   const [tarefas, setTarefas] = useState<DBTask[]>([]);
+  const [allSubtasks, setAllSubtasks] = useState<(DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<ViewMode>("lista");
@@ -43,6 +45,7 @@ export function Tarefas() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<DBTask | null>(null);
   const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -54,12 +57,14 @@ export function Tarefas() {
 
   async function fetchData() {
     try {
-      const [tasksData, profilesData] = await Promise.all([
+      const [tasksData, profilesData, subsData] = await Promise.all([
         getTasks(), 
-        getProfiles()
+        getProfiles(),
+        getAllSubtasks()
       ]);
       setTarefas(tasksData);
       setProfiles(profilesData);
+      setAllSubtasks(subsData);
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
     } finally {
@@ -69,8 +74,9 @@ export function Tarefas() {
 
   const fetchTarefas = async () => {
     try {
-      const data = await getTasks();
+      const [data, subsData] = await Promise.all([getTasks(), getAllSubtasks()]);
       setTarefas(data);
+      setAllSubtasks(subsData);
       if (selectedTarefa) {
         const updated = data.find(t => t.id === selectedTarefa.id);
         if (updated) setSelectedTarefa(updated);
@@ -79,6 +85,26 @@ export function Tarefas() {
       console.error("Erro ao buscar tarefas:", error);
     }
   };
+
+  // Convert subtasks to virtual task entries for display in lists
+  const subtasksAsTasks: (DBTask & { __isSubtask?: boolean; __parentTitle?: string; __parentId?: string; __subtaskId?: string })[] = allSubtasks
+    .filter(s => s.responsavel_id && !s.concluida)
+    .map(s => ({
+      id: `sub_${s.id}`,
+      titulo: s.titulo,
+      descricao: '',
+      prioridade: 'normal' as TaskPriority,
+      status: (s.concluida ? 'concluido' : 'fazer') as TaskStatus,
+      responsavel_id: s.responsavel_id,
+      prazo: s.prazo,
+      created_at: s.created_at,
+      updated_at: s.created_at,
+      profiles: s.profiles || null,
+      __isSubtask: true,
+      __parentTitle: s.tarefas?.titulo || '',
+      __parentId: s.tarefa_id,
+      __subtaskId: s.id,
+    }));
 
   const filtradas = tarefas.filter((t) => {
     const matchBusca = t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
@@ -123,17 +149,37 @@ export function Tarefas() {
     return true;
   });
 
-  const pendentes = filtradas.filter((t) => t.status !== "concluido");
-  const concluidas = filtradas.filter((t) => t.status === "concluido");
+  // Filter subtasks the same way as tasks (tab + person filter)
+  const filteredSubtasks = subtasksAsTasks.filter(s => {
+    if (tab === "minhas" && s.responsavel_id !== user?.id) return false;
+    if (filtroPessoa !== "Todas" && s.responsavel_id !== filtroPessoa) return false;
+    const matchBusca = s.titulo.toLowerCase().includes(busca.toLowerCase()) ||
+                       s.profiles?.full_name?.toLowerCase().includes(busca.toLowerCase()) || false;
+    if (!matchBusca) return false;
+    return true;
+  });
+
+  const allItems = [...filtradas, ...filteredSubtasks];
+  const pendentes = allItems.filter((t) => t.status !== "concluido");
+  const concluidas = allItems.filter((t) => t.status === "concluido");
   const atrasadas = pendentes.filter((t) => t.prazo && t.prazo < hoje);
   const paraHoje = pendentes.filter((t) => t.prazo === hoje);
   const proximas = pendentes.filter((t) => !t.prazo || t.prazo > hoje);
   const altaPrioridade = pendentes.filter((t) => t.prioridade === "alta" || t.prioridade === "urgente");
 
-  const totalTarefas = filtradas.length;
+  const totalTarefas = allItems.length;
   const progresso = totalTarefas > 0 ? Math.round((concluidas.length / totalTarefas) * 100) : 0;
 
   const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
+    // Handle subtask toggle
+    if (id.startsWith('sub_')) {
+      const realId = id.replace('sub_', '');
+      const newVal = currentStatus !== 'concluido';
+      setAllSubtasks(prev => prev.map(s => s.id === realId ? { ...s, concluida: newVal } : s));
+      try { await toggleSubtask(realId, newVal); } catch { fetchTarefas(); }
+      return;
+    }
+
     const newStatus: TaskStatus = currentStatus === "concluido" ? "fazer" : "concluido";
     const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
@@ -156,6 +202,14 @@ export function Tarefas() {
       console.error("Erro ao atualizar status:", error);
       fetchTarefas();
     }
+  };
+
+  const handleTaskClick = (t: any) => {
+    if (t.__isSubtask && t.__parentId) {
+      const parent = tarefas.find(task => task.id === t.__parentId);
+      if (parent) { setSelectedTarefa(parent); return; }
+    }
+    setSelectedTarefa(t);
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -223,6 +277,12 @@ export function Tarefas() {
             title="Histórico de tarefas"
           >
             <History className="h-4 w-4" /> Histórico
+          </button>
+          <button 
+            onClick={() => setIsTemplateModalOpen(true)}
+            className="rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm font-medium text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 transition-all flex items-center gap-2"
+          >
+            <BookTemplate className="h-4 w-4" /> Modelos
           </button>
           <button 
             onClick={() => setIsBulkModalOpen(true)}
@@ -390,7 +450,7 @@ export function Tarefas() {
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onClick={() => setSelectedTarefa(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue />
+                <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue />
               ))}
             </TaskSection>
           )}
@@ -406,7 +466,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => setSelectedTarefa(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)
             )}
           </TaskSection>
 
@@ -418,7 +478,7 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => setSelectedTarefa(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)}
           </TaskSection>
 
           <TaskSection
@@ -429,7 +489,7 @@ export function Tarefas() {
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => setSelectedTarefa(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone />)}
           </TaskSection>
         </div>
       ) : (
@@ -472,6 +532,14 @@ export function Tarefas() {
 
       {isHistoryOpen && (
         <TaskHistoryModal onClose={() => setIsHistoryOpen(false)} />
+      )}
+
+      {isTemplateModalOpen && (
+        <TaskTemplateModal
+          profiles={profiles}
+          onClose={() => setIsTemplateModalOpen(false)}
+          onTaskCreated={() => { setIsTemplateModalOpen(false); fetchTarefas(); }}
+        />
       )}
 
       {selectedTarefa && (
@@ -518,7 +586,62 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [respSearch, setRespSearch] = useState("");
   const feedEndRef = useRef<HTMLDivElement>(null);
 
+  // Subtask state
+  const [subtasks, setSubtasks] = useState<DBSubtask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newSubtaskResp, setNewSubtaskResp] = useState<string | null>(null);
+  const [newSubtaskPrazo, setNewSubtaskPrazo] = useState("");
+  const [addingSubtask, setAddingSubtask] = useState(false);
+  const [showSubtaskForm, setShowSubtaskForm] = useState(false);
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editSubResp, setEditSubResp] = useState<string | null>(null);
+  const [editSubPrazo, setEditSubPrazo] = useState("");
+
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
+  useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
+
+  const subtasksDone = subtasks.filter(s => s.concluida).length;
+  const subtasksTotal = subtasks.length;
+  const subtasksProgress = subtasksTotal > 0 ? Math.round((subtasksDone / subtasksTotal) * 100) : 0;
+
+  const handleAddSubtask = async () => {
+    if (!newSubtaskTitle.trim() || addingSubtask) return;
+    setAddingSubtask(true);
+    try {
+      const sub = await createSubtask({
+        tarefa_id: tarefa.id,
+        titulo: newSubtaskTitle.trim(),
+        concluida: false,
+        responsavel_id: newSubtaskResp,
+        prazo: newSubtaskPrazo || null,
+        ordem: subtasks.length,
+      });
+      setSubtasks(prev => [...prev, sub]);
+      setNewSubtaskTitle("");
+      setNewSubtaskResp(null);
+      setNewSubtaskPrazo("");
+    } catch (e) { console.error("Erro ao criar subtarefa:", e); }
+    finally { setAddingSubtask(false); }
+  };
+
+  const handleToggleSubtask = async (sub: DBSubtask) => {
+    const newVal = !sub.concluida;
+    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, concluida: newVal } : s));
+    try { await toggleSubtask(sub.id, newVal); } catch { getSubtasks(tarefa.id).then(setSubtasks); }
+  };
+
+  const handleDeleteSubtask = async (id: string) => {
+    setSubtasks(prev => prev.filter(s => s.id !== id));
+    try { await deleteSubtask(id); } catch { getSubtasks(tarefa.id).then(setSubtasks); }
+  };
+
+  const handleSaveSubtaskEdit = async (sub: DBSubtask) => {
+    try {
+      await updateSubtask(sub.id, { responsavel_id: editSubResp, prazo: editSubPrazo || null });
+      setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, responsavel_id: editSubResp, prazo: editSubPrazo || null } : s));
+      setEditingSubtaskId(null);
+    } catch (e) { console.error("Erro ao editar subtarefa:", e); }
+  };
 
   const handleSendComment = async () => {
     if (!newComment.trim() || !user || sending) return;
@@ -666,6 +789,174 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                 </div>
               )}
             </div>
+
+            {/* Subtasks Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
+                  <ListChecks className="h-3.5 w-3.5" /> Subtarefas
+                  {subtasksTotal > 0 && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {subtasksDone}/{subtasksTotal}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowSubtaskForm(!showSubtaskForm)}
+                  className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Adicionar
+                </button>
+              </div>
+
+              {/* Progress bar */}
+              {subtasksTotal > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                    <div
+                      className="h-full bg-green-500 rounded-full transition-all duration-500"
+                      style={{ width: `${subtasksProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-semibold text-muted">{subtasksProgress}%</span>
+                </div>
+              )}
+
+              {/* Subtask list */}
+              <div className="space-y-1">
+                {subtasks.map((sub) => {
+                  const subProfile = allProfiles.find(p => p.id === sub.responsavel_id);
+                  const subIniciais = subProfile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "";
+                  const isEditing = editingSubtaskId === sub.id;
+
+                  return (
+                    <div key={sub.id} className={cn(
+                      "group flex items-start gap-2.5 px-3 py-2 rounded-lg transition-all hover:bg-foreground/[0.03] border border-transparent hover:border-border/50",
+                      sub.concluida && "opacity-60"
+                    )}>
+                      <button
+                        onClick={() => handleToggleSubtask(sub)}
+                        className="flex-shrink-0 mt-0.5"
+                      >
+                        {sub.concluida ? (
+                          <CheckSquare2 className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Square className="h-4 w-4 text-border group-hover:text-muted transition-colors" />
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-xs font-medium leading-snug", sub.concluida && "line-through text-muted")}>
+                          {sub.titulo}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {subProfile && (
+                            <span className="flex items-center gap-1 text-[10px] text-muted">
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-letitia-gold/10 border border-letitia-gold/20 text-[7px] font-bold text-letitia-gold">
+                                {subIniciais}
+                              </span>
+                              {subProfile.full_name?.split(' ')[0]}
+                            </span>
+                          )}
+                          {sub.prazo && (
+                            <span className={cn("flex items-center gap-0.5 text-[10px]", sub.prazo < new Date().toISOString().split('T')[0] && !sub.concluida ? "text-red-500 font-medium" : "text-muted")}>
+                              <Clock className="h-2.5 w-2.5" />
+                              {new Date(sub.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Inline edit */}
+                        {isEditing && (
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <select
+                              value={editSubResp || ""}
+                              onChange={e => setEditSubResp(e.target.value || null)}
+                              className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="">Sem responsável</option>
+                              {allProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                            </select>
+                            <input
+                              type="date"
+                              value={editSubPrazo}
+                              onChange={e => setEditSubPrazo(e.target.value)}
+                              className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            <button onClick={() => handleSaveSubtaskEdit(sub)} className="text-[9px] font-medium px-2 py-1 rounded bg-primary text-primary-foreground">Salvar</button>
+                            <button onClick={() => setEditingSubtaskId(null)} className="text-[9px] text-muted hover:text-foreground">Cancelar</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <button
+                          onClick={() => { setEditingSubtaskId(sub.id); setEditSubResp(sub.responsavel_id); setEditSubPrazo(sub.prazo || ""); }}
+                          className="p-1 rounded hover:bg-foreground/5 text-muted hover:text-foreground"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSubtask(sub.id)}
+                          className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add subtask form */}
+              {showSubtaskForm && (
+                <div className="rounded-xl border border-border bg-background/50 p-3 space-y-2.5">
+                  <input
+                    type="text"
+                    value={newSubtaskTitle}
+                    onChange={e => setNewSubtaskTitle(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleAddSubtask(); }}
+                    placeholder="Nome da subtarefa..."
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-primary focus:outline-none"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={newSubtaskResp || ""}
+                      onChange={e => setNewSubtaskResp(e.target.value || null)}
+                      className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none flex-1 min-w-[120px]"
+                    >
+                      <option value="">Sem responsável</option>
+                      {allProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                    </select>
+                    <input
+                      type="date"
+                      value={newSubtaskPrazo}
+                      onChange={e => setNewSubtaskPrazo(e.target.value)}
+                      className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
+                    <button
+                      onClick={handleAddSubtask}
+                      disabled={!newSubtaskTitle.trim() || addingSubtask}
+                      className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {addingSubtask ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      Adicionar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {subtasksTotal === 0 && !showSubtaskForm && (
+                <button
+                  onClick={() => setShowSubtaskForm(true)}
+                  className="w-full py-4 rounded-xl border border-dashed border-border text-xs text-muted hover:text-foreground hover:border-primary/30 transition-all flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Adicionar subtarefas
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -739,6 +1030,7 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
   tarefa?: DBTask | null;
 }) {
   const { user } = useAuth();
+  const hoje = new Date().toISOString().split("T")[0];
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     titulo: tarefa?.titulo || "",
@@ -746,9 +1038,37 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
     prioridade: (tarefa?.prioridade as TaskPriority) || "normal",
     status: (tarefa?.status as TaskStatus) || "fazer",
     responsavel_id: tarefa?.responsavel_id || user?.id || "",
-    prazo: tarefa?.prazo || "",
+    prazo: tarefa?.prazo || hoje,
     recorrencia: (tarefa?.recorrencia || null) as RecurrenceType | null
   });
+
+  // Template selector state
+  const [templates, setTemplates] = useState<DBTaskTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  useEffect(() => {
+    if (!tarefa) {
+      setLoadingTemplates(true);
+      getTaskTemplates().then(setTemplates).finally(() => setLoadingTemplates(false));
+    }
+  }, [tarefa]);
+
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId) || null;
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const tmpl = templates.find(t => t.id === templateId);
+    if (tmpl) {
+      setFormData(prev => ({
+        ...prev,
+        titulo: tmpl.nome,
+        descricao: tmpl.descricao || "",
+        prioridade: tmpl.prioridade || "normal",
+        responsavel_id: tmpl.responsavel_id || prev.responsavel_id,
+      }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -772,8 +1092,21 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
         saveTaskHistory({
           tarefa_id: created.id, titulo: formData.titulo, prioridade: formData.prioridade,
           status: formData.status, responsavel_id: formData.responsavel_id || null,
-          prazo: formData.prazo || null, action: 'criada', details: 'Tarefa criada',
+          prazo: formData.prazo || null, action: 'criada',
+          details: selectedTemplate ? `Criada do modelo "${selectedTemplate.nome}"` : 'Tarefa criada',
         });
+
+        // If a template was selected, create its subtasks
+        if (selectedTemplate && selectedTemplate.modelo_subtarefas && selectedTemplate.modelo_subtarefas.length > 0) {
+          const subs = selectedTemplate.modelo_subtarefas.map(s => ({
+            tarefa_id: created.id,
+            titulo: s.titulo,
+            concluida: false,
+            responsavel_id: s.responsavel_id || null,
+            ordem: s.ordem,
+          }));
+          await createBulkSubtasks(subs);
+        }
       }
       onSuccess();
     } catch (error) {
@@ -785,7 +1118,7 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">{tarefa ? "Editar Tarefa" : "Nova Tarefa"}</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
@@ -794,6 +1127,43 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Template selector — only for new tasks */}
+          {!tarefa && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5 flex items-center gap-1.5">
+                <BookTemplate className="h-3.5 w-3.5" /> Usar modelo (opcional)
+              </label>
+              <select
+                value={selectedTemplateId}
+                onChange={e => handleTemplateChange(e.target.value)}
+                className="w-full rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-violet-500 focus:outline-none"
+              >
+                <option value="">Tarefa em branco</option>
+                {loadingTemplates && <option disabled>Carregando modelos...</option>}
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>
+                    📋 {t.nome} ({(t.modelo_subtarefas || []).length} subtarefas)
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate && (selectedTemplate.modelo_subtarefas || []).length > 0 && (
+                <div className="mt-2 p-2.5 rounded-lg border border-violet-500/15 bg-violet-500/5 space-y-1">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-violet-600 mb-1">Subtarefas incluídas:</p>
+                  {(selectedTemplate.modelo_subtarefas || []).map((s, i) => {
+                    const sp = profiles.find(p => p.id === s.responsavel_id);
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-[11px] text-muted">
+                        <Square className="h-3 w-3 text-violet-400 flex-shrink-0" />
+                        <span className="flex-1 truncate">{s.titulo}</span>
+                        {sp && <span className="text-[9px] bg-foreground/5 px-1.5 py-0.5 rounded">{sp.full_name?.split(' ')[0]}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título</label>
             <input
@@ -936,12 +1306,15 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
 }) {
   const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
   const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
+  const isSubtask = (tarefa as any).__isSubtask;
+  const parentTitle = (tarefa as any).__parentTitle;
 
   return (
     <div 
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-4 py-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm group",
+        isSubtask ? "border-violet-500/20 bg-violet-500/[0.03]" :
         isOverdue ? "border-red-500/30 bg-red-500/5" :
         isDone ? "border-green-500/20 bg-green-500/5" :
         "border-border bg-card hover:border-letitia-gold/30"
@@ -954,15 +1327,28 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
         {isDone ? (
           <CheckSquare2 className="h-5 w-5 text-green-500" />
         ) : (
-          <Square className={cn("h-5 w-5", isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
+          <Square className={cn("h-5 w-5", isOverdue ? "text-red-400" : isSubtask ? "text-violet-400" : "text-border group-hover:text-muted")} />
         )}
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium leading-snug", isDone ? "line-through text-muted" : "text-foreground")}>
-          {tarefa.titulo}
-        </p>
+        <div className="flex items-center gap-2">
+          {isSubtask && (
+            <span className="flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20 flex-shrink-0">
+              <ListChecks className="h-2.5 w-2.5" />
+              Subtarefa
+            </span>
+          )}
+          <p className={cn("text-sm font-medium leading-snug truncate", isDone ? "line-through text-muted" : "text-foreground")}>
+            {tarefa.titulo}
+          </p>
+        </div>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
+          {isSubtask && parentTitle && (
+            <span className="text-[10px] text-muted/70 italic truncate max-w-[200px]">
+              ↳ {parentTitle}
+            </span>
+          )}
           <span className="flex items-center gap-1.5 text-[11px] text-muted">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
               {iniciais}
@@ -979,7 +1365,7 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
               {recurrenceLabels[tarefa.recorrencia as RecurrenceType]}
             </span>
           )}
-          {tarefa.prioridade !== "baixa" && (
+          {!isSubtask && tarefa.prioridade !== "baixa" && (
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>
               {prior.label}
             </span>
@@ -987,20 +1373,22 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
         </div>
       </div>
 
-      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onEdit(tarefa); }}
-          className="p-1.5 rounded hover:bg-foreground/5 text-muted hover:text-foreground"
-        >
-          <Plus className="h-3.5 w-3.5 rotate-45" />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }}
-          className="p-1.5 rounded hover:bg-red-500/10 text-muted hover:text-red-500"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      {!isSubtask && (
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onEdit(tarefa); }}
+            className="p-1.5 rounded hover:bg-foreground/5 text-muted hover:text-foreground"
+          >
+            <Plus className="h-3.5 w-3.5 rotate-45" />
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }}
+            className="p-1.5 rounded hover:bg-red-500/10 text-muted hover:text-red-500"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1596,6 +1984,314 @@ function TaskHistoryModal({ onClose }: { onClose: () => void }) {
                 </div>
               );
             })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Task Template Modal ──────────────────────────────────── */
+
+function TaskTemplateModal({ profiles, onClose, onTaskCreated }: {
+  profiles: DBProfile[];
+  onClose: () => void;
+  onTaskCreated: () => void;
+}) {
+  const { user } = useAuth();
+  const [templates, setTemplates] = useState<DBTaskTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"list" | "create" | "use">("list");
+  const [selectedTemplate, setSelectedTemplate] = useState<DBTaskTemplate | null>(null);
+
+  // Create form
+  const [nome, setNome] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [prioridade, setPrioridade] = useState<TaskPriority>("normal");
+  const [respId, setRespId] = useState<string | null>(null);
+  const [subs, setSubs] = useState<{ titulo: string; responsavel_id: string | null }[]>([]);
+  const [newSubTitle, setNewSubTitle] = useState("");
+  const [newSubResp, setNewSubResp] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Use template form
+  const [useTitulo, setUseTitulo] = useState("");
+  const [usePrazo, setUsePrazo] = useState("");
+  const [useResp, setUseResp] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => { fetchTemplates(); }, []);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    try { setTemplates(await getTaskTemplates()); } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const handleAddSub = () => {
+    if (!newSubTitle.trim()) return;
+    setSubs(prev => [...prev, { titulo: newSubTitle.trim(), responsavel_id: newSubResp }]);
+    setNewSubTitle("");
+    setNewSubResp(null);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!nome.trim()) return;
+    setSaving(true);
+    try {
+      await createTaskTemplate({
+        nome: nome.trim(),
+        descricao: descricao || undefined,
+        prioridade,
+        responsavel_id: respId,
+        created_by: user?.id || null,
+        subtarefas: subs.map((s, i) => ({ ...s, ordem: i })),
+      });
+      await fetchTemplates();
+      setView("list");
+      setNome(""); setDescricao(""); setSubs([]); setPrioridade("normal"); setRespId(null);
+    } catch (e) { console.error(e); alert("Erro ao salvar modelo."); }
+    finally { setSaving(false); }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm("Excluir este modelo?")) return;
+    try { await deleteTaskTemplate(id); setTemplates(prev => prev.filter(t => t.id !== id)); }
+    catch (e) { console.error(e); }
+  };
+
+  const handleUseTemplate = async () => {
+    if (!selectedTemplate) return;
+    setCreating(true);
+    try {
+      const created = await createTaskFromTemplate(selectedTemplate, {
+        titulo: useTitulo || undefined,
+        prazo: usePrazo || null,
+        responsavel_id: useResp !== null ? useResp : undefined,
+      });
+      saveTaskHistory({
+        tarefa_id: created.id, titulo: created.titulo, prioridade: created.prioridade,
+        status: created.status, responsavel_id: created.responsavel_id, prazo: created.prazo,
+        action: 'criada', details: `Criada a partir do modelo "${selectedTemplate.nome}"`,
+      });
+      onTaskCreated();
+    } catch (e) { console.error(e); alert("Erro ao criar tarefa."); }
+    finally { setCreating(false); }
+  };
+
+  const openUseTemplate = (t: DBTaskTemplate) => {
+    setSelectedTemplate(t);
+    setUseTitulo(t.nome);
+    setUseResp(t.responsavel_id);
+    setUsePrazo("");
+    setView("use");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-3xl max-h-[90vh] rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+              <BookTemplate className="h-5 w-5 text-violet-500" />
+            </div>
+            <div>
+              <h3 className="font-serif text-2xl font-medium text-foreground">
+                {view === "list" ? "Modelos de Tarefas" : view === "create" ? "Novo Modelo" : "Criar Tarefa do Modelo"}
+              </h3>
+              <p className="text-xs text-muted mt-0.5">
+                {view === "list" ? `${templates.length} modelos disponíveis` : view === "create" ? "Configure as subtarefas padrão" : `Modelo: ${selectedTemplate?.nome}`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {view !== "list" && (
+              <button onClick={() => setView("list")} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors">← Voltar</button>
+            )}
+            {view === "list" && (
+              <button onClick={() => setView("create")} className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition-colors flex items-center gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Novo Modelo
+              </button>
+            )}
+            <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors"><X className="h-5 w-5 text-muted" /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {view === "list" && (
+            loading ? (
+              <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-violet-500" /></div>
+            ) : templates.length === 0 ? (
+              <div className="py-16 text-center">
+                <BookTemplate className="h-12 w-12 text-muted/30 mx-auto mb-3" />
+                <p className="text-sm text-muted">Nenhum modelo criado ainda.</p>
+                <p className="text-xs text-muted/60 mt-1">Crie modelos para tarefas repetitivas como "Postar Vídeo" com subtarefas pré-configuradas.</p>
+                <button onClick={() => setView("create")} className="mt-4 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 transition-colors">Criar primeiro modelo</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templates.map(t => {
+                  const subsCount = t.modelo_subtarefas?.length || 0;
+                  return (
+                    <div key={t.id} className="rounded-xl border border-border bg-background hover:border-violet-500/30 transition-all group">
+                      <div className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-semibold text-foreground truncate">{t.nome}</h4>
+                            {t.descricao && <p className="text-[11px] text-muted mt-0.5 line-clamp-2">{t.descricao}</p>}
+                          </div>
+                          <button onClick={() => handleDeleteTemplate(t.id)} className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-muted hover:text-red-500 transition-all">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 mt-3 text-[10px] text-muted">
+                          <span className="flex items-center gap-1"><ListChecks className="h-3 w-3" /> {subsCount} subtarefas</span>
+                          <span className={cn("px-1.5 py-0.5 rounded font-medium", prioridadeColors[t.prioridade]?.bg, prioridadeColors[t.prioridade]?.text)}>{prioridadeColors[t.prioridade]?.label}</span>
+                        </div>
+                        {subsCount > 0 && (
+                          <div className="mt-3 space-y-1">
+                            {(t.modelo_subtarefas || []).slice(0, 5).map((s, i) => {
+                              const sp = profiles.find(p => p.id === s.responsavel_id);
+                              return (
+                                <div key={s.id || i} className="flex items-center gap-2 text-[11px] text-muted">
+                                  <Square className="h-3 w-3 text-border flex-shrink-0" />
+                                  <span className="flex-1 truncate">{s.titulo}</span>
+                                  {sp && <span className="text-[9px] bg-foreground/5 px-1.5 py-0.5 rounded">{sp.full_name?.split(' ')[0]}</span>}
+                                </div>
+                              );
+                            })}
+                            {subsCount > 5 && <p className="text-[10px] text-muted/60 pl-5">+{subsCount - 5} mais...</p>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="border-t border-border px-4 py-2.5">
+                        <button onClick={() => openUseTemplate(t)} className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-colors py-1">
+                          <Plus className="h-3.5 w-3.5" /> Usar este modelo
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {view === "create" && (
+            <div className="space-y-5 max-w-xl mx-auto">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Nome do Modelo</label>
+                <input value={nome} onChange={e => setNome(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none" placeholder="Ex: Postar Vídeo, Lançamento..." />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Descrição (opcional)</label>
+                <textarea value={descricao} onChange={e => setDescricao(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none min-h-[60px] resize-none" placeholder="Descrição do modelo..." />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Prioridade padrão</label>
+                  <select value={prioridade} onChange={e => setPrioridade(e.target.value as TaskPriority)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none">
+                    <option value="baixa">Baixa</option><option value="normal">Normal</option><option value="alta">Alta</option><option value="urgente">Urgente</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Responsável padrão</label>
+                  <select value={respId || ""} onChange={e => setRespId(e.target.value || null)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:outline-none">
+                    <option value="">Sem responsável</option>
+                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Subtasks builder */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-2 flex items-center gap-2">
+                  <ListChecks className="h-3.5 w-3.5" /> Subtarefas do modelo ({subs.length})
+                </label>
+                <div className="space-y-1.5 mb-3">
+                  {subs.map((s, i) => {
+                    const sp = profiles.find(p => p.id === s.responsavel_id);
+                    return (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background group">
+                        <GripVertical className="h-3.5 w-3.5 text-muted/40 flex-shrink-0" />
+                        <span className="text-xs font-medium flex-1 truncate">{s.titulo}</span>
+                        {sp && <span className="text-[9px] bg-violet-500/10 text-violet-600 px-1.5 py-0.5 rounded font-medium">{sp.full_name?.split(' ')[0]}</span>}
+                        <button onClick={() => setSubs(prev => prev.filter((_, idx) => idx !== i))} className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/10 text-muted hover:text-red-500 transition-all">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input value={newSubTitle} onChange={e => setNewSubTitle(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleAddSub(); }} placeholder="Nova subtarefa..." className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs focus:ring-1 focus:ring-violet-500 focus:outline-none" />
+                  <select value={newSubResp || ""} onChange={e => setNewSubResp(e.target.value || null)} className="rounded-md border border-border bg-background px-2 py-2 text-xs focus:ring-1 focus:ring-violet-500 focus:outline-none w-36">
+                    <option value="">Sem resp.</option>
+                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name?.split(' ')[0]}</option>)}
+                  </select>
+                  <button onClick={handleAddSub} disabled={!newSubTitle.trim()} className="px-3 py-2 rounded-md bg-violet-600 text-white text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-all">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-border">
+                <button onClick={() => setView("list")} className="px-4 py-2 text-sm text-muted hover:text-foreground">Cancelar</button>
+                <button onClick={handleSaveTemplate} disabled={!nome.trim() || saving} className="px-6 py-2 rounded-md bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2 transition-all">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookTemplate className="h-4 w-4" />}
+                  Salvar Modelo
+                </button>
+              </div>
+            </div>
+          )}
+
+          {view === "use" && selectedTemplate && (
+            <div className="space-y-5 max-w-xl mx-auto">
+              <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-violet-600 mb-2">
+                  <BookTemplate className="h-3.5 w-3.5" /> Modelo selecionado
+                </div>
+                <h4 className="text-sm font-semibold">{selectedTemplate.nome}</h4>
+                {(selectedTemplate.modelo_subtarefas || []).length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {(selectedTemplate.modelo_subtarefas || []).map((s, i) => {
+                      const sp = profiles.find(p => p.id === s.responsavel_id);
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-[11px] text-muted">
+                          <Square className="h-3 w-3 text-violet-400 flex-shrink-0" />
+                          <span className="flex-1 truncate">{s.titulo}</span>
+                          {sp && <span className="text-[9px] bg-foreground/5 px-1.5 py-0.5 rounded">{sp.full_name?.split(' ')[0]}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título da tarefa</label>
+                <input value={useTitulo} onChange={e => setUseTitulo(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Prazo</label>
+                  <input type="date" value={usePrazo} onChange={e => setUsePrazo(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Responsável</label>
+                  <select value={useResp || ""} onChange={e => setUseResp(e.target.value || null)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
+                    <option value="">Sem responsável</option>
+                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2 border-t border-border">
+                <button onClick={() => setView("list")} className="px-4 py-2 text-sm text-muted hover:text-foreground">Cancelar</button>
+                <button onClick={handleUseTemplate} disabled={creating} className="px-6 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2 transition-all">
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Criar Tarefa
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
