@@ -5,14 +5,14 @@ import {
   FileText, Clock, 
   Loader2, ChevronRight, Video, Camera,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays,
-  Circle, CheckCircle2, Send, AlertCircle, Ticket as TicketIcon, Repeat
+  Circle, CheckCircle2, Send, Repeat
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask, type TaskStatus } from "@/services/taskService";
+import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { NovoTarefaModal, TaskDetailModal } from "./Tarefas";
-import { useNavigate } from "react-router-dom";
+
 
 type Stats = {
   totalVendas: number;
@@ -39,7 +39,7 @@ export function Dashboard() {
   const [addingTask, setAddingTask] = useState(false);
   const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
   const [allTasks, setAllTasks] = useState<DBTask[]>([]);
-  const navigate = useNavigate();
+
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia";
   const hour = new Date().getHours();

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, deleteTaskComment, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, recurrenceLabels, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
-  Share2, Trash2, History, MessageSquare, Send, User, Calendar, Edit3, Copy, Check, Repeat
+  Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat, Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -34,6 +34,8 @@ export function Tarefas() {
   const [showHoje, setShowHoje] = useState(true);
   const [showProximas, setShowProximas] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<DBTask | null>(null);
   const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
 
@@ -95,9 +97,23 @@ export function Tarefas() {
 
   const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
     const newStatus: TaskStatus = currentStatus === "concluido" ? "fazer" : "concluido";
+    const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
     try {
       await updateTaskStatus(id, newStatus);
+      if (tarefa) {
+        saveTaskHistory({
+          tarefa_id: id,
+          titulo: tarefa.titulo,
+          prioridade: tarefa.prioridade,
+          status: newStatus,
+          responsavel_nome: tarefa.profiles?.full_name || undefined,
+          responsavel_id: tarefa.responsavel_id,
+          prazo: tarefa.prazo,
+          action: newStatus === 'concluido' ? 'concluida' : 'status_alterado',
+          details: newStatus === 'concluido' ? 'Tarefa concluída' : 'Tarefa reaberta',
+        });
+      }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       fetchTarefas();
@@ -115,6 +131,12 @@ export function Tarefas() {
       );
       if (!choice) return;
       try {
+        saveTaskHistory({
+          tarefa_id: id, titulo: tarefa.titulo, prioridade: tarefa.prioridade,
+          status: tarefa.status, responsavel_nome: tarefa.profiles?.full_name || undefined,
+          responsavel_id: tarefa.responsavel_id, prazo: tarefa.prazo,
+          action: 'excluida', details: 'Série recorrente excluída',
+        });
         const parentId = tarefa.recorrencia_pai_id || tarefa.id;
         await deleteRecurringTaskSeries(parentId);
         setSelectedTarefa(null);
@@ -127,6 +149,12 @@ export function Tarefas() {
 
     if (!confirm("Tem certeza que deseja excluir esta tarefa?")) return;
     try {
+      saveTaskHistory({
+        tarefa_id: id, titulo: tarefa.titulo, prioridade: tarefa.prioridade,
+        status: tarefa.status, responsavel_nome: tarefa.profiles?.full_name || undefined,
+        responsavel_id: tarefa.responsavel_id, prazo: tarefa.prazo,
+        action: 'excluida', details: 'Tarefa excluída manualmente',
+      });
       await deleteTask(id);
       setSelectedTarefa(null);
       fetchTarefas();
@@ -150,12 +178,27 @@ export function Tarefas() {
           <h2 className="font-serif text-3xl font-medium tracking-tight text-foreground">Tarefas</h2>
           <p className="mt-1 text-sm text-muted">Gerencie suas atividades e do seu time.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2 self-start"
-        >
-          <Plus className="h-4 w-4" /> Nova Tarefa
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          <button 
+            onClick={() => setIsHistoryOpen(true)}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted hover:text-foreground hover:bg-foreground/5 transition-all flex items-center gap-2"
+            title="Histórico de tarefas"
+          >
+            <History className="h-4 w-4" /> Histórico
+          </button>
+          <button 
+            onClick={() => setIsBulkModalOpen(true)}
+            className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition-all flex items-center gap-2"
+          >
+            <Layers className="h-4 w-4" /> Em Massa
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" /> Nova Tarefa
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-border pb-4">
@@ -208,7 +251,7 @@ export function Tarefas() {
           onTaskEdit={setEditingTarefa}
           onTaskDelete={handleDeleteTask}
           onToggle={toggleConcluida}
-          onNewTask={(profileId) => {
+          onNewTask={(_profileId) => {
             setIsModalOpen(true);
           }}
           busca={busca}
@@ -307,6 +350,30 @@ export function Tarefas() {
         />
       )}
 
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-serif text-xl font-medium text-foreground">Criar Tarefas em Massa</h3>
+              <button onClick={() => setIsBulkModalOpen(false)} className="rounded-full p-1 hover:bg-foreground/10"><X className="h-5 w-5 text-muted" /></button>
+            </div>
+            <p className="text-sm text-muted">Em breve: criação de tarefas em massa.</p>
+          </div>
+        </div>
+      )}
+
+      {isHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-serif text-xl font-medium text-foreground">Histórico de Tarefas</h3>
+              <button onClick={() => setIsHistoryOpen(false)} className="rounded-full p-1 hover:bg-foreground/10"><X className="h-5 w-5 text-muted" /></button>
+            </div>
+            <p className="text-sm text-muted">Em breve: histórico completo de tarefas.</p>
+          </div>
+        </div>
+      )}
+
       {selectedTarefa && (
         <TaskDetailModal
           tarefa={selectedTarefa}
@@ -378,11 +445,11 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
 
   // Build unified timeline
   type TimelineEntry = { type: "activity" | "comment"; date: string; data: any };
-  const timeline: TimelineEntry[] = [
-    { type: "activity", date: tarefa.created_at, data: { user: tarefa.profiles?.full_name || "Sistema", action: "criou a tarefa" } },
+  const timeline: TimelineEntry[] = ([
+    { type: "activity" as const, date: tarefa.created_at, data: { user: tarefa.profiles?.full_name || "Sistema", action: "criou a tarefa" } },
     ...(tarefa.updated_at !== tarefa.created_at ? [{ type: "activity" as const, date: tarefa.updated_at, data: { user: tarefa.profiles?.full_name || "Sistema", action: "atualizou a tarefa" } }] : []),
     ...comments.map(c => ({ type: "comment" as const, date: c.created_at, data: c })),
-  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  ] as TimelineEntry[]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 md:p-8" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -563,21 +630,7 @@ function Property({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function ActivityItem({ user, action, date }: { user: string; action: string; date: string }) {
-  return (
-    <div className="flex gap-3">
-      <div className="flex-shrink-0 h-6 w-6 rounded-full bg-foreground/5 flex items-center justify-center">
-        <User className="h-3 w-3 text-muted" />
-      </div>
-      <div>
-        <p className="text-xs leading-snug">
-          <span className="font-semibold text-foreground">{user}</span> {action}
-        </p>
-        <p className="text-[10px] text-muted mt-0.5">{date}</p>
-      </div>
-    </div>
-  );
-}
+
 
 export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: { 
   profiles: DBProfile[]; 
@@ -609,8 +662,18 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
     try {
       if (tarefa) {
         await updateTask(tarefa.id, taskData);
+        saveTaskHistory({
+          tarefa_id: tarefa.id, titulo: formData.titulo, prioridade: formData.prioridade,
+          status: formData.status, responsavel_id: formData.responsavel_id || null,
+          prazo: formData.prazo || null, action: 'editada', details: 'Tarefa editada',
+        });
       } else {
-        await createTask(taskData);
+        const created = await createTask(taskData);
+        saveTaskHistory({
+          tarefa_id: created.id, titulo: formData.titulo, prioridade: formData.prioridade,
+          status: formData.status, responsavel_id: formData.responsavel_id || null,
+          prazo: formData.prazo || null, action: 'criada', details: 'Tarefa criada',
+        });
       }
       onSuccess();
     } catch (error) {
@@ -884,7 +947,7 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onC
 
 /* ─── Team View ──────────────────────────────────────────── */
 
-function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTaskDelete, onToggle, onNewTask, busca }: {
+function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca }: {
   tarefas: DBTask[];
   profiles: DBProfile[];
   view: ViewMode;
@@ -912,7 +975,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTa
   tarefas.forEach(t => {
     const key = t.responsavel_id || "__none__";
     if (!grouped.has(key)) {
-      grouped.set(key, { profile: t.profiles || null, tasks: [] });
+      grouped.set(key, { profile: (t.profiles as DBProfile | null) || null, tasks: [] });
     }
     grouped.get(key)!.tasks.push(t);
   });
@@ -1215,6 +1278,227 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit, onTa
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Bulk Task Creation Modal ─────────────────────────────── */
+
+function BulkTaskModal({ profiles, onClose, onSuccess }: {
+  profiles: DBProfile[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [tasksText, setTasksText] = useState("");
+  const [responsavelId, setResponsavelId] = useState(user?.id || "");
+  const [prazo, setPrazo] = useState("");
+  const [prioridade, setPrioridade] = useState<TaskPriority>("normal");
+  const [resultado, setResultado] = useState<{ total: number; criadas: number } | null>(null);
+
+  const linhas = tasksText.split("\n").filter(l => l.trim().length > 0);
+
+  const handleSubmit = async () => {
+    if (linhas.length === 0) return;
+    setLoading(true);
+    try {
+      const tasks = linhas.map(titulo => ({
+        titulo: titulo.trim(),
+        descricao: "",
+        prioridade,
+        status: "fazer" as TaskStatus,
+        responsavel_id: responsavelId || null,
+        prazo: prazo || null,
+      }));
+      const created = await createBulkTasks(tasks);
+      for (const t of created) {
+        saveTaskHistory({
+          tarefa_id: t.id, titulo: t.titulo, prioridade: t.prioridade,
+          status: t.status, responsavel_id: t.responsavel_id, prazo: t.prazo,
+          action: 'bulk_criada', details: `Criada em massa (${created.length} tarefas)`,
+        });
+      }
+      setResultado({ total: linhas.length, criadas: created.length });
+      setTimeout(() => onSuccess(), 1500);
+    } catch (error) {
+      console.error("Erro ao criar tarefas em massa:", error);
+      alert("Erro ao criar tarefas. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Layers className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-serif text-2xl font-medium text-foreground">Criar Tarefas em Massa</h3>
+              <p className="text-xs text-muted mt-0.5">Uma tarefa por linha. Todas compartilham responsável, prazo e prioridade.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
+            <X className="h-5 w-5 text-muted" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Tarefas (uma por linha)</label>
+            <textarea
+              value={tasksText}
+              onChange={e => setTasksText(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-3 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none min-h-[180px] font-mono"
+              placeholder={"Revisar copy do e-mail de lançamento\nGravar episódio 47\nCriar criativos Instagram semana 20\nFollow-up boletos Maio"}
+            />
+            {linhas.length > 0 && (
+              <p className="text-[11px] text-muted mt-1.5 flex items-center gap-1.5">
+                <FileText className="h-3 w-3" />
+                {linhas.length} {linhas.length === 1 ? "tarefa será criada" : "tarefas serão criadas"}
+              </p>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Prioridade</label>
+              <select value={prioridade} onChange={e => setPrioridade(e.target.value as TaskPriority)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none">
+                <option value="baixa">Baixa</option>
+                <option value="normal">Normal</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Prazo</label>
+              <input type="date" value={prazo} onChange={e => setPrazo(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Responsável</label>
+              <select value={responsavelId} onChange={e => setResponsavelId(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none">
+                <option value="">Sem atribuição</option>
+                {profiles.map(p => (<option key={p.id} value={p.id}>{p.full_name}</option>))}
+              </select>
+            </div>
+          </div>
+          {linhas.length > 0 && (
+            <div className="rounded-lg border border-border bg-background/50 p-3 max-h-[150px] overflow-y-auto">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-2">Pré-visualização</p>
+              {linhas.map((l, i) => (
+                <div key={i} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <Square className="h-3.5 w-3.5 text-border flex-shrink-0" />
+                  <span className="text-xs text-foreground truncate">{l.trim()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {resultado && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="text-sm font-medium">{resultado.criadas} tarefas criadas com sucesso!</span>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 p-6 border-t border-border">
+          <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors">Cancelar</button>
+          <button onClick={handleSubmit} disabled={loading || linhas.length === 0} className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+            Criar {linhas.length} {linhas.length === 1 ? "Tarefa" : "Tarefas"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Task History Modal ───────────────────────────────────── */
+
+function TaskHistoryModal({ onClose }: { onClose: () => void }) {
+  const [history] = useState<TaskHistoryEntry[]>(() => getTaskHistory());
+  const [busca, setBusca] = useState("");
+  const filteredHistory = history.filter(h =>
+    h.titulo.toLowerCase().includes(busca.toLowerCase()) ||
+    h.responsavel_nome?.toLowerCase().includes(busca.toLowerCase()) ||
+    h.action.toLowerCase().includes(busca.toLowerCase())
+  );
+  const handleExport = () => {
+    const data = exportTaskHistory();
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tarefas_historico_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const actionLabels: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+    criada: { label: "Criada", color: "bg-blue-500/10 text-blue-600", icon: <Plus className="h-3 w-3" /> },
+    bulk_criada: { label: "Em massa", color: "bg-violet-500/10 text-violet-600", icon: <Layers className="h-3 w-3" /> },
+    concluida: { label: "Concluída", color: "bg-green-500/10 text-green-600", icon: <CheckCircle2 className="h-3 w-3" /> },
+    editada: { label: "Editada", color: "bg-amber-500/10 text-amber-600", icon: <Edit3 className="h-3 w-3" /> },
+    excluida: { label: "Excluída", color: "bg-red-500/10 text-red-600", icon: <Trash2 className="h-3 w-3" /> },
+    status_alterado: { label: "Status", color: "bg-gray-500/10 text-gray-600", icon: <Clock className="h-3 w-3" /> },
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-3xl max-h-[85vh] rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-letitia-gold/10 flex items-center justify-center">
+              <History className="h-5 w-5 text-letitia-gold" />
+            </div>
+            <div>
+              <h3 className="font-serif text-2xl font-medium text-foreground">Histórico de Tarefas</h3>
+              <p className="text-xs text-muted mt-0.5">{history.length} registros salvos localmente</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleExport} className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground hover:bg-foreground/5 transition-all flex items-center gap-1.5" title="Exportar como JSON">
+              <Download className="h-3.5 w-3.5" /> Exportar
+            </button>
+            <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
+              <X className="h-5 w-5 text-muted" />
+            </button>
+          </div>
+        </div>
+        <div className="px-6 pt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+            <input type="text" value={busca} onChange={e => setBusca(e.target.value)} className="w-full rounded-md border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none" placeholder="Buscar no histórico..." />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-2">
+          {filteredHistory.length === 0 ? (
+            <div className="py-16 text-center">
+              <History className="h-12 w-12 text-muted/30 mx-auto mb-3" />
+              <p className="text-sm text-muted">Nenhum registro encontrado.</p>
+              <p className="text-xs text-muted/60 mt-1">O histórico é salvo automaticamente quando tarefas são criadas, concluídas ou excluídas.</p>
+            </div>
+          ) : (
+            filteredHistory.map((entry) => {
+              const info = actionLabels[entry.action] || actionLabels.editada;
+              return (
+                <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-foreground/[0.02] transition-colors">
+                  <div className={cn("flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center", info.color)}>{info.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{entry.titulo}</p>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      <span className={cn("text-[9px] font-bold uppercase px-1.5 py-0.5 rounded", info.color)}>{info.label}</span>
+                      {entry.responsavel_nome && <span className="text-[10px] text-muted flex items-center gap-1"><User className="h-2.5 w-2.5" /> {entry.responsavel_nome}</span>}
+                      {entry.prazo && <span className="text-[10px] text-muted flex items-center gap-1"><Calendar className="h-2.5 w-2.5" /> {new Date(entry.prazo + 'T00:00:00').toLocaleDateString("pt-BR")}</span>}
+                      {entry.details && <span className="text-[10px] text-muted italic">{entry.details}</span>}
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-muted flex-shrink-0">{new Date(entry.timestamp).toLocaleString("pt-BR", { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
     </div>
   );
 }

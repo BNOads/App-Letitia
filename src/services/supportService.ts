@@ -24,6 +24,7 @@ export interface DBTicketComment {
   ticket_id: string;
   user_id: string;
   conteudo: string;
+  is_system?: boolean;
   created_at: string;
   profiles?: {
     full_name: string;
@@ -110,4 +111,43 @@ export async function createComment(comment: Partial<DBTicketComment>) {
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Transferir ticket para outro responsável com motivo registrado no histórico.
+ */
+export async function transferTicket(
+  ticketId: string,
+  fromUserId: string,
+  toUserId: string,
+  motivo: string,
+  fromName: string,
+  toName: string
+) {
+  // 1. Atualizar responsável
+  await updateTicket(ticketId, { responsavel_id: toUserId } as any);
+
+  // 2. Criar comentário de sistema com o motivo
+  const conteudo = `🔄 **Transferência**: ${fromName} transferiu para ${toName}.\n📝 **Motivo**: ${motivo}`;
+  await createComment({
+    ticket_id: ticketId,
+    user_id: fromUserId,
+    conteudo,
+    is_system: true,
+  } as any);
+}
+
+/**
+ * Concluir/resolver um ticket registrando no histórico.
+ */
+export async function resolveTicket(ticketId: string, userId: string, userName: string) {
+  await updateTicketStatus(ticketId, 'Resolvido');
+
+  const conteudo = `✅ **Ticket concluído** por ${userName}.`;
+  await createComment({
+    ticket_id: ticketId,
+    user_id: userId,
+    conteudo,
+    is_system: true,
+  } as any);
 }

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { 
   getTickets, updateTicketStatus, createTicket, updateTicket, deleteTicket, 
-  getComments, createComment, type DBTicket, type DBTicketComment 
+  getComments, createComment, transferTicket, resolveTicket, type DBTicket, type DBTicketComment 
 } from "@/services/supportService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { 
   Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
   RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera,
-  MessageSquare, Send, ChevronRight, ChevronDown, Edit2, Trash2, Save
+  MessageSquare, Send, ChevronRight, ChevronDown, Edit2, Trash2, Save,
+  ArrowRightLeft, CheckCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -224,7 +225,6 @@ export function Suporte() {
                   </tr>
                 ) : (
                   filtrados.map((t) => {
-                    const iniciais = t.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
                     return (
                       <tr 
                         key={t.id} 
@@ -319,10 +319,12 @@ export function Suporte() {
       {selectedTicket && (
         <TicketSidebar 
           ticket={selectedTicket} 
+          profiles={profiles}
           onClose={() => setSelectedTicket(null)} 
           onStatusUpdate={handleStatusUpdate}
           onDelete={handleDeleteTicket}
           onEdit={() => setIsEditModalOpen(true)}
+          onRefresh={fetchTickets}
         />
       )}
 
@@ -348,18 +350,25 @@ export function Suporte() {
 
 /* ─── Sub-components ──────────────────────────────────────── */
 
-function TicketSidebar({ ticket, onClose, onStatusUpdate, onDelete, onEdit }: { 
+function TicketSidebar({ ticket, profiles: allProfiles, onClose, onStatusUpdate, onDelete, onEdit, onRefresh }: { 
   ticket: DBTicket; 
+  profiles: DBProfile[];
   onClose: () => void;
   onStatusUpdate: (id: string, status: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onEdit: () => void;
+  onRefresh: () => void;
 }) {
   const { user } = useAuth();
   const [comments, setComments] = useState<DBTicketComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingComments, setLoadingComments] = useState(true);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferTo, setTransferTo] = useState("");
+  const [transferMotivo, setTransferMotivo] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     fetchComments();
@@ -391,6 +400,40 @@ function TicketSidebar({ ticket, onClose, onStatusUpdate, onDelete, onEdit }: {
       console.error("Erro ao enviar comentário:", error);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!user) return;
+    setResolving(true);
+    try {
+      const userName = allProfiles.find(p => p.id === user.id)?.full_name || "Usuário";
+      await resolveTicket(ticket.id, user.id, userName);
+      onRefresh();
+      fetchComments();
+    } catch (error) {
+      console.error("Erro ao resolver ticket:", error);
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferTo || !transferMotivo.trim() || !user) return;
+    setTransferring(true);
+    try {
+      const fromName = allProfiles.find(p => p.id === user.id)?.full_name || "Usuário";
+      const toName = allProfiles.find(p => p.id === transferTo)?.full_name || "Usuário";
+      await transferTicket(ticket.id, user.id, transferTo, transferMotivo.trim(), fromName, toName);
+      setShowTransfer(false);
+      setTransferTo("");
+      setTransferMotivo("");
+      onRefresh();
+      fetchComments();
+    } catch (error) {
+      console.error("Erro ao transferir ticket:", error);
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -455,6 +498,88 @@ function TicketSidebar({ ticket, onClose, onStatusUpdate, onDelete, onEdit }: {
             </div>
           </div>
 
+          {/* Responsável */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">Responsável</label>
+            <select
+              value={ticket.responsavel_id || ""}
+              onChange={(e) => {
+                onStatusUpdate(ticket.id, ticket.status); // keep status
+                // Use inline update via parent
+                updateTicket(ticket.id, { responsavel_id: e.target.value || null } as any).then(() => onRefresh());
+              }}
+              className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary outline-none cursor-pointer"
+            >
+              <option value="">Sem atribuição</option>
+              {allProfiles.map(p => (
+                <option key={p.id} value={p.id}>{p.full_name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            {ticket.status !== "Resolvido" && ticket.status !== "Fechado" && (
+              <button
+                onClick={handleResolve}
+                disabled={resolving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-green-500/10 text-green-700 hover:bg-green-500/20 transition-all text-xs font-semibold border border-green-500/20"
+              >
+                {resolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+                Concluir Ticket
+              </button>
+            )}
+            <button
+              onClick={() => setShowTransfer(!showTransfer)}
+              className={cn("flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold border transition-all", showTransfer ? "bg-violet-500/10 text-violet-700 border-violet-500/20" : "bg-foreground/5 text-foreground border-border hover:bg-foreground/10")}
+            >
+              <ArrowRightLeft className="h-4 w-4" />
+              Transferir
+            </button>
+          </div>
+
+          {/* Transfer Panel */}
+          {showTransfer && (
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-violet-600 flex items-center gap-1.5">
+                <ArrowRightLeft className="h-3 w-3" /> Transferir Ticket
+              </h4>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1">Transferir para</label>
+                <select
+                  value={transferTo}
+                  onChange={e => setTransferTo(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {allProfiles.filter(p => p.id !== ticket.responsavel_id).map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1">Motivo da transferência</label>
+                <textarea
+                  value={transferMotivo}
+                  onChange={e => setTransferMotivo(e.target.value)}
+                  placeholder="Explique por que está transferindo este ticket..."
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:ring-2 focus:ring-violet-500 focus:outline-none min-h-[70px] resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowTransfer(false)} className="px-3 py-1.5 text-xs text-muted hover:text-foreground transition-colors">Cancelar</button>
+                <button
+                  onClick={handleTransfer}
+                  disabled={!transferTo || !transferMotivo.trim() || transferring}
+                  className="px-4 py-1.5 rounded-md bg-violet-600 text-white text-xs font-medium hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {transferring ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
+                  Transferir
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Contato */}
           <div className="space-y-4">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted border-b border-border/50 pb-2">Informações de Contato</h4>
@@ -496,19 +621,24 @@ function TicketSidebar({ ticket, onClose, onStatusUpdate, onDelete, onEdit }: {
               </div>
             ) : (
               <div className="space-y-4">
-                {comments.map((c) => (
-                  <div key={c.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-foreground">{c.profiles?.full_name || "Usuário"}</span>
-                        <span className="text-[9px] text-muted">{new Date(c.created_at).toLocaleString("pt-BR")}</span>
+                {comments.map((c) => {
+                  const isSystem = (c as any).is_system || c.conteudo.startsWith('🔄') || c.conteudo.startsWith('✅');
+                  return (
+                    <div key={c.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isSystem && <ArrowRightLeft className="h-3 w-3 text-violet-500" />}
+                          <span className={cn("text-[10px] font-bold", isSystem ? "text-violet-600" : "text-foreground")}>{c.profiles?.full_name || "Sistema"}</span>
+                          {isSystem && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-500">sistema</span>}
+                          <span className="text-[9px] text-muted">{new Date(c.created_at).toLocaleString("pt-BR")}</span>
+                        </div>
+                      </div>
+                      <div className={cn("border rounded-lg px-3 py-2", isSystem ? "bg-violet-500/5 border-violet-500/20" : "bg-background border-border")}>
+                        <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.conteudo}</p>
                       </div>
                     </div>
-                    <div className="bg-background border border-border rounded-lg px-3 py-2">
-                      <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{c.conteudo}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   X, Save, Loader2, Send, MessageSquare, AlertTriangle,
   Calendar, Clock, Link2, Trash2, Plus, Lightbulb, FileText,
-  ArrowRight, User, RefreshCw
+  ArrowRight, RefreshCw
 } from "lucide-react";
 
 const STATUS_OPTIONS = [

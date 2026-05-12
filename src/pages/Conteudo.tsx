@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Video, Loader2, Plus, X, Music, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Filter } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";

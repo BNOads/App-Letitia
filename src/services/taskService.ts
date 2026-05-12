@@ -154,6 +154,25 @@ export async function createTask(task: Partial<DBTask>) {
   return data;
 }
 
+/** Criação de tarefas em massa */
+export async function createBulkTasks(tasks: Partial<DBTask>[]): Promise<DBTask[]> {
+  if (tasks.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('tarefas')
+    .insert(tasks)
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      )
+    `);
+
+  if (error) throw error;
+  return data as DBTask[];
+}
+
 export async function deleteTask(taskId: string) {
   const { error } = await supabase
     .from('tarefas')
@@ -180,6 +199,66 @@ export async function deleteRecurringTaskSeries(parentId: string) {
     .gte('prazo', today);
 
   if (error) throw error;
+}
+
+// ─── Task History / Backup ─────────────────────────────────
+
+const TASK_HISTORY_KEY = 'letitia_task_history_backup';
+const MAX_HISTORY_SIZE = 5000;
+
+export interface TaskHistoryEntry {
+  id: string;
+  tarefa_id: string;
+  titulo: string;
+  descricao?: string;
+  prioridade: string;
+  status: string;
+  responsavel_nome?: string;
+  responsavel_id?: string | null;
+  prazo?: string | null;
+  action: 'criada' | 'concluida' | 'editada' | 'excluida' | 'status_alterado' | 'bulk_criada';
+  timestamp: string;
+  details?: string;
+}
+
+/** Salvar entrada no histórico local */
+export function saveTaskHistory(entry: Omit<TaskHistoryEntry, 'id' | 'timestamp'>) {
+  try {
+    const history = getTaskHistory();
+    const newEntry: TaskHistoryEntry = {
+      ...entry,
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    };
+    history.unshift(newEntry);
+    // Limitar tamanho
+    const trimmed = history.slice(0, MAX_HISTORY_SIZE);
+    localStorage.setItem(TASK_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch (e) {
+    console.warn('Erro ao salvar histórico de tarefas:', e);
+  }
+}
+
+/** Recuperar histórico do localStorage */
+export function getTaskHistory(): TaskHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(TASK_HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as TaskHistoryEntry[];
+  } catch {
+    return [];
+  }
+}
+
+/** Exportar histórico como JSON */
+export function exportTaskHistory(): string {
+  const history = getTaskHistory();
+  return JSON.stringify(history, null, 2);
+}
+
+/** Limpar histórico */
+export function clearTaskHistory() {
+  localStorage.removeItem(TASK_HISTORY_KEY);
 }
 
 // ─── Comments ──────────────────────────────────────────────
