@@ -3,14 +3,7 @@ import { supabase } from '@/lib/supabase';
 export async function getDashboardStats(userId?: string) {
   const today = new Date().toISOString().split('T')[0];
 
-  // 1. Vendas do mês
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
-  const { data: vendas } = await supabase.from('vendas').select('valor').gte('data_venda', startOfMonthStr);
-  const totalVendas = vendas?.reduce((acc, v) => acc + Number(v.valor), 0) || 0;
-
-  // 2. Tarefas (filtradas pelo usuário logado)
+  // 1. Tarefas (filtradas pelo usuário logado)
   let tarefasQuery = supabase.from('tarefas').select('id, status, titulo, prazo, prioridade, responsavel_id');
   if (userId) tarefasQuery = tarefasQuery.eq('responsavel_id', userId);
   const { data: allTarefas } = await tarefasQuery;
@@ -21,7 +14,7 @@ export async function getDashboardStats(userId?: string) {
     .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''))
     .slice(0, 5) || [];
 
-  // 3. Agenda (Eventos)
+  // 2. Agenda (Eventos)
   const { data: eventos } = await supabase
     .from('eventos')
     .select('*')
@@ -30,7 +23,7 @@ export async function getDashboardStats(userId?: string) {
     .order('hora_inicio', { ascending: true })
     .limit(3);
 
-  // 4. Tickets (Suporte) - fetch all counts in parallel
+  // 3. Tickets (Suporte) - fetch all counts in parallel
   const [
     { count: ticketsAbertos },
     { count: ticketsEmAtendimento },
@@ -45,7 +38,7 @@ export async function getDashboardStats(userId?: string) {
 
   const ticketsAtrasados = ticketsComSLA?.filter(t => t.prazo_sla && new Date(t.prazo_sla) < new Date()).length || 0;
 
-  // 5. Editorial (Pautas)
+  // 4. Editorial (Pautas)
   const { data: pautas } = await supabase
     .from('conteudo_pautas')
     .select('*')
@@ -54,7 +47,6 @@ export async function getDashboardStats(userId?: string) {
     .limit(3);
 
   return {
-    totalVendas,
     tarefas: {
       total: totalTarefas,
       concluidas: concluidasTarefas,
@@ -68,3 +60,4 @@ export async function getDashboardStats(userId?: string) {
     pautas: pautas || []
   };
 }
+

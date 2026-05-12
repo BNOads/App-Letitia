@@ -1,13 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, CheckSquare, LineChart, FileText
+  LayoutDashboard, CheckSquare, FileText, Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
-  { name: "Vendas", href: "/vendas", icon: LineChart },
+  { name: "Agenda", href: "/agenda", icon: Calendar },
   { name: "Editorial", href: "/editorial", icon: FileText },
 ];
 

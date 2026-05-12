@@ -15,7 +15,6 @@ import { NovoTarefaModal, TaskDetailModal } from "./Tarefas";
 
 
 type Stats = {
-  totalVendas: number;
   tarefas: {
     total: number;
     concluidas: number;
@@ -28,6 +27,7 @@ type Stats = {
   ticketsResolvidos: number;
   pautas: any[];
 };
+
 
 export function Dashboard() {
   const { user } = useAuth();

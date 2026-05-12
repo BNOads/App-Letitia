@@ -198,6 +198,14 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Auto-preenche a senha com o e-mail para facilitar
+  const handleEmailChange = (newEmail: string) => {
+    setEmail(newEmail);
+    if (!password || password === email) {
+      setPassword(newEmail);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -226,9 +234,10 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
       // 2. Criar conta (usando instância secundária para não deslogar o admin)
       // Nota: Em produção, o ideal é usar uma Edge Function, 
       // mas aqui usaremos o signUp com persistSession: false.
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
       const tempSupabase = (await import('@supabase/supabase-js')).createClient(
         import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        supabaseAnonKey,
         { auth: { persistSession: false } }
       );
 
@@ -240,11 +249,17 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
             full_name: fullName,
             avatar_url: avatarUrl,
             role: role
-          }
+          },
+          emailRedirectTo: undefined
         }
       });
 
       if (authError) throw authError;
+
+      // Verificar se o usuário foi realmente criado
+      if (!authData.user) {
+        throw new Error('Não foi possível criar o usuário. Verifique se o e-mail já está cadastrado.');
+      }
 
       // 3. Garantir que o perfil existe (o trigger do banco geralmente cuida disso, 
       // mas vamos forçar os campos extras)
@@ -318,7 +333,7 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
                 required
                 type="email" 
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => handleEmailChange(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none transition-all"
                 placeholder="email@equipe.com"
               />
@@ -330,13 +345,14 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
               <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Senha Inicial</label>
               <input 
                 required
-                type="password" 
+                type="text" 
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none transition-all"
-                placeholder="••••••••"
+                placeholder="Igual ao e-mail"
                 minLength={6}
               />
+              <p className="text-[10px] text-muted mt-1">Por padrão, a senha é igual ao e-mail.</p>
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Nível de Permissão</label>

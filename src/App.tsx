@@ -3,7 +3,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { Dashboard } from "./pages/Dashboard";
 import { Tarefas } from "./pages/Tarefas";
 
-import { Vendas } from "./pages/Vendas";
+
 import { Conteudo } from "./pages/Conteudo";
 import { Agenda } from "./pages/Agenda";
 import { Documentos } from "./pages/Documentos";
@@ -34,7 +34,7 @@ function App() {
               <Route path="tarefas" element={<Tarefas />} />
               <Route path="agenda" element={<Agenda />} />
 
-              <Route path="vendas" element={<Vendas />} />
+
               <Route path="editorial" element={<Conteudo />} />
               <Route path="documentos" element={<Documentos />} />
               <Route path="treinamentos" element={<Treinamentos />} />

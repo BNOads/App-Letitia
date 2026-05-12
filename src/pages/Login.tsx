@@ -35,7 +35,17 @@ export function Login() {
     });
 
     if (error) {
-      setError(error.message === 'Invalid login credentials' ? 'E-mail ou senha inválidos' : error.message);
+      console.error('Supabase auth error:', error);
+      const msg = error.message;
+      if (msg === 'Invalid login credentials') {
+        setError('E-mail ou senha inválidos. Tente usar o e-mail como senha.');
+      } else if (msg.includes('Database error') || msg.includes('schema')) {
+        setError(`Erro no banco de dados: ${msg}`);
+      } else if (msg.includes('Email not confirmed')) {
+        setError('E-mail não confirmado. Peça ao administrador para desabilitar a confirmação no Supabase.');
+      } else {
+        setError(msg);
+      }
     }
     setLoading(false);
   };

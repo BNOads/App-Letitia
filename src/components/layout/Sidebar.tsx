@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard, CheckSquare, Users, LineChart, FileText,
+  LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
   PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2
 } from "lucide-react";
@@ -22,12 +22,7 @@ const sections = [
       { name: "Links Úteis", href: "/links", icon: Link2 },
     ],
   },
-  {
-    label: "Comercial",
-    items: [
-      { name: "Vendas", href: "/vendas", icon: LineChart },
-    ],
-  },
+
   {
     label: "Conteúdo",
     items: [
