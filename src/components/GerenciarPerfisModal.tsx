@@ -318,6 +318,8 @@ function ProfileForm({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(initialData?.avatar_url || null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingStatus, setSavingStatus] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState(
     PRESET_COLORS.includes(initialData?.cor || "") ? "" : (initialData?.cor || "")
   );
@@ -328,13 +330,18 @@ function ProfileForm({
     if (!file) return;
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+    setFormError(null);
+    // Reset input value so same file can be selected again
+    e.target.value = '';
   };
 
   const handleSubmit = async () => {
     if (!nome.trim()) return;
     setSaving(true);
+    setFormError(null);
     try {
       // Save profile first (creates it if new, updates if existing)
+      setSavingStatus("Salvando perfil...");
       const profileId = await onSave({ 
         nome: nome.trim(), 
         cor, 
@@ -343,6 +350,7 @@ function ProfileForm({
 
       // Upload avatar if a new file was selected
       if (avatarFile && onAvatarUpload) {
+        setSavingStatus("Enviando imagem...");
         const targetId = (typeof profileId === 'string' ? profileId : initialData?.id) || '';
         if (targetId) {
           await onAvatarUpload(targetId, avatarFile);
@@ -353,8 +361,10 @@ function ProfileForm({
       if (onDone) onDone();
     } catch (error: any) {
       console.error("Erro ao salvar perfil:", error);
+      setFormError(error?.message || "Erro ao salvar perfil. Tente novamente.");
     } finally {
       setSaving(false);
+      setSavingStatus("");
     }
   };
 
@@ -460,11 +470,20 @@ function ProfileForm({
           </div>
         </div>
 
+        {/* Error Display */}
+        {formError && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {formError}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             onClick={onCancel}
-            className="px-5 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+            disabled={saving}
+            className="px-5 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
@@ -478,7 +497,7 @@ function ProfileForm({
             ) : (
               <Check className="h-4 w-4" />
             )}
-            {saving ? "Salvando..." : initialData ? "Salvar" : "Criar Perfil"}
+            {saving ? (savingStatus || "Salvando...") : initialData ? "Salvar" : "Criar Perfil"}
           </button>
         </div>
       </div>

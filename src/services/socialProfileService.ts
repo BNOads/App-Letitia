@@ -51,20 +51,36 @@ export async function uploadSocialAvatar(profileId: string, file: File): Promise
   const fileExt = file.name.split('.').pop();
   const filePath = `social-profiles/${profileId}/avatar.${fileExt}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file, { upsert: true });
+  try {
+    // Try Supabase storage first
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
 
-  if (uploadError) throw uploadError;
+    if (uploadError) throw uploadError;
 
-  const { data: { publicUrl } } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(filePath);
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
 
-  const urlWithCacheBuster = `${publicUrl}?t=${new Date().getTime()}`;
+    const urlWithCacheBuster = `${publicUrl}?t=${new Date().getTime()}`;
+    await updateSocialProfile(profileId, { avatar_url: urlWithCacheBuster });
+    return urlWithCacheBuster;
+  } catch (storageError) {
+    console.warn('Storage upload failed, falling back to data URL:', storageError);
+    
+    // Fallback: convert to base64 data URL and save directly
+    const dataUrl = await fileToDataUrl(file);
+    await updateSocialProfile(profileId, { avatar_url: dataUrl });
+    return dataUrl;
+  }
+}
 
-  // Update the profile with the new avatar URL
-  await updateSocialProfile(profileId, { avatar_url: urlWithCacheBuster });
-
-  return urlWithCacheBuster;
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
