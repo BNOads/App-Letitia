@@ -14,6 +14,7 @@ export interface DBContent {
   roteiro: string | null;
   links: string[] | null;
   prazo_seguranca: string | null;
+  collab_plataformas: string[] | null;
   created_at: string;
 }
 

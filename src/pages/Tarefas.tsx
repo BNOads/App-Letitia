@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
+import { TiptapEditor } from "@/components/TiptapEditor";
 
 type ViewMode = "lista" | "kanban";
 type TabFilter = "minhas" | "time";
@@ -777,7 +778,12 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
               </div>
               {editingDesc ? (
                 <div className="space-y-2">
-                  <textarea value={descDraft} onChange={e => setDescDraft(e.target.value)} className="w-full min-h-[100px] p-4 rounded-xl border border-border bg-background text-sm focus:ring-2 focus:ring-primary focus:outline-none resize-none" autoFocus />
+                  <TiptapEditor
+                    value={descDraft}
+                    onChange={setDescDraft}
+                    placeholder="Descreva os detalhes da tarefa... Cole prints, insira links ou anexe arquivos."
+                    minHeight="150px"
+                  />
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setEditingDesc(false); setDescDraft(tarefa.descricao || ""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
                     <button onClick={handleSaveDesc} className="px-3 py-1 rounded bg-primary text-primary-foreground text-xs font-medium">Salvar</button>
@@ -785,7 +791,11 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                 </div>
               ) : (
                 <div onClick={() => setEditingDesc(true)} className="min-h-[60px] p-4 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed cursor-pointer hover:border-primary/30 transition-colors">
-                  {tarefa.descricao || <span className="italic opacity-50">Clique para adicionar descrição...</span>}
+                  {tarefa.descricao ? (
+                    <div className="tiptap-display" dangerouslySetInnerHTML={{ __html: tarefa.descricao }} />
+                  ) : (
+                    <span className="italic opacity-50">Clique para adicionar descrição...</span>
+                  )}
                 </div>
               )}
             </div>
@@ -1177,11 +1187,12 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Descrição</label>
-            <textarea
+            <TiptapEditor
               value={formData.descricao}
-              onChange={e => setFormData({ ...formData, descricao: e.target.value })}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none min-h-[100px]"
-              placeholder="Detalhes da tarefa..."
+              onChange={(html) => setFormData({ ...formData, descricao: html })}
+              placeholder="Detalhes da tarefa... Cole prints, insira links ou anexe arquivos."
+              minHeight="120px"
+              compact
             />
           </div>
 

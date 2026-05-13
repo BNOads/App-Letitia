@@ -146,10 +146,22 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
                 onSave={async (data) => {
                   const newProfile = await createSocialProfile(data);
                   setProfiles((prev) => [...prev, newProfile]);
+                  return newProfile.id;
+                }}
+                onCancel={() => setIsAdding(false)}
+                onDone={() => {
                   setIsAdding(false);
                   setMessage({ type: "success", text: "Perfil criado com sucesso!" });
                 }}
-                onCancel={() => setIsAdding(false)}
+                onAvatarUpload={async (profileId, file) => {
+                  const url = await uploadSocialAvatar(profileId, file);
+                  setProfiles((prev) =>
+                    prev.map((p) =>
+                      p.id === profileId ? { ...p, avatar_url: url } : p
+                    )
+                  );
+                  return url;
+                }}
               />
             )}
           </AnimatePresence>
@@ -183,15 +195,18 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
                               p.id === profile.id ? { ...p, ...data } : p
                             )
                           );
+                          return profile.id;
+                        }}
+                        onCancel={() => setEditingId(null)}
+                        onDone={() => {
                           setEditingId(null);
                           setMessage({ type: "success", text: "Perfil atualizado!" });
                         }}
-                        onCancel={() => setEditingId(null)}
-                        onAvatarUpload={async (file) => {
-                          const url = await uploadSocialAvatar(profile.id, file);
+                        onAvatarUpload={async (profileId, file) => {
+                          const url = await uploadSocialAvatar(profileId, file);
                           setProfiles((prev) =>
                             prev.map((p) =>
-                              p.id === profile.id ? { ...p, avatar_url: url } : p
+                              p.id === profileId ? { ...p, avatar_url: url } : p
                             )
                           );
                           return url;
@@ -289,12 +304,14 @@ function ProfileForm({
   initialData,
   onSave,
   onCancel,
+  onDone,
   onAvatarUpload,
 }: {
   initialData?: SocialProfile;
-  onSave: (data: { nome: string; cor: string; avatar_url?: string }) => Promise<void>;
+  onSave: (data: { nome: string; cor: string; avatar_url?: string }) => Promise<string | void>;
   onCancel: () => void;
-  onAvatarUpload?: (file: File) => Promise<string>;
+  onDone?: () => void;
+  onAvatarUpload?: (profileId: string, file: File) => Promise<string>;
 }) {
   const [nome, setNome] = useState(initialData?.nome || "");
   const [cor, setCor] = useState(initialData?.cor || "#C4A47C");
@@ -317,18 +334,23 @@ function ProfileForm({
     if (!nome.trim()) return;
     setSaving(true);
     try {
-      let finalAvatarUrl = initialData?.avatar_url;
-
-      // If editing and has a new avatar file, upload it
-      if (avatarFile && onAvatarUpload) {
-        finalAvatarUrl = await onAvatarUpload(avatarFile);
-      }
-
-      await onSave({ 
+      // Save profile first (creates it if new, updates if existing)
+      const profileId = await onSave({ 
         nome: nome.trim(), 
         cor, 
-        ...(finalAvatarUrl ? { avatar_url: finalAvatarUrl } : {})
+        ...(initialData?.avatar_url && !avatarFile ? { avatar_url: initialData.avatar_url } : {})
       });
+
+      // Upload avatar if a new file was selected
+      if (avatarFile && onAvatarUpload) {
+        const targetId = (typeof profileId === 'string' ? profileId : initialData?.id) || '';
+        if (targetId) {
+          await onAvatarUpload(targetId, avatarFile);
+        }
+      }
+
+      // Close form AFTER everything is done
+      if (onDone) onDone();
     } catch (error: any) {
       console.error("Erro ao salvar perfil:", error);
     } finally {

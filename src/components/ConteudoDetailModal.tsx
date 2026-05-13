@@ -65,6 +65,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
     roteiro: conteudo.roteiro || "",
     descricao: conteudo.descricao || "",
     links: conteudo.links || [],
+    collab_plataformas: conteudo.collab_plataformas || [],
   });
 
   const [newLink, setNewLink] = useState("");
@@ -138,6 +139,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
         roteiro: form.roteiro || null,
         descricao: form.descricao || null,
         links: form.links.length > 0 ? form.links : null,
+        collab_plataformas: form.collab_plataformas.length > 0 ? form.collab_plataformas : null,
       });
 
       // Log all trails
@@ -293,6 +295,53 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
             >
               {socialProfiles.map(sp => <option key={sp.id} value={sp.nome}>{sp.nome}</option>)}
             </select>
+          </div>
+
+          {/* Collab Toggle */}
+          <div className="rounded-xl border border-border p-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay">
+                <Link2 className="h-3 w-3" /> Collab
+              </label>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, collab_plataformas: prev.collab_plataformas.length > 0 ? [] : [] }))}
+                className={cn("relative w-10 h-5 rounded-full transition-all duration-300", form.collab_plataformas.length > 0 ? "bg-letitia-gold" : "bg-foreground/15")}
+              >
+                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300", form.collab_plataformas.length > 0 ? "left-[22px]" : "left-0.5")} />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {socialProfiles.filter(sp => sp.nome !== form.plataforma).map(sp => {
+                const sel = form.collab_plataformas.includes(sp.nome);
+                return (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      collab_plataformas: sel
+                        ? prev.collab_plataformas.filter(n => n !== sp.nome)
+                        : [...prev.collab_plataformas, sp.nome]
+                    }))}
+                    className={cn(
+                      "flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full text-[10px] font-medium border transition-all",
+                      sel ? "border-letitia-gold bg-letitia-gold/10 text-foreground" : "border-border bg-card text-muted hover:text-foreground"
+                    )}
+                  >
+                    {sp.avatar_url ? (
+                      <img src={sp.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full flex items-center justify-center text-[6px] font-bold text-white" style={{ backgroundColor: sp.cor }}>
+                        {sp.nome.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {sp.nome}
+                    {sel && <span className="text-letitia-gold">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Content Section */}

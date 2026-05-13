@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2 } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";
@@ -38,6 +38,14 @@ export function Conteudo() {
   const [filtroDataDe, setFiltroDataDe] = useState("");
   const [filtroDataAte, setFiltroDataAte] = useState("");
   const [selectedConteudo, setSelectedConteudo] = useState<DBContent | null>(null);
+  const [modalInitialDate, setModalInitialDate] = useState("");
+  const [modalInitialStatus, setModalInitialStatus] = useState("");
+
+  function openNewModal(date?: string, status?: string) {
+    setModalInitialDate(date || "");
+    setModalInitialStatus(status || "");
+    setIsModalOpen(true);
+  }
 
   useEffect(() => {
     fetchData();
@@ -72,7 +80,7 @@ export function Conteudo() {
   }
 
   const filtradas = pautas.filter((p) => {
-    const matchPlataforma = filtroPlataforma === "todas" || p.plataforma === filtroPlataforma;
+    const matchPlataforma = filtroPlataforma === "todas" || p.plataforma === filtroPlataforma || (p.collab_plataformas && p.collab_plataformas.includes(filtroPlataforma));
     const matchBusca = !busca || p.titulo.toLowerCase().includes(busca.toLowerCase());
     const matchStatus = filtroStatus === "todos" || p.status === filtroStatus;
     const matchDataDe = !filtroDataDe || p.data_prevista >= filtroDataDe;
@@ -104,7 +112,7 @@ export function Conteudo() {
             <Users2 className="h-4 w-4 text-letitia-gold" /> Perfis
           </button>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => openNewModal()}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
           >
             <Plus className="h-4 w-4" /> Novo Conteúdo
@@ -231,14 +239,16 @@ export function Conteudo() {
       )}
 
       {/* Views */}
-      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
-      {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
-      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} />}
+      {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={(status) => openNewModal(undefined, status)} />}
+      {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={() => openNewModal()} />}
+      {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={(date) => openNewModal(date)} />}
 
       {isModalOpen && (
         <NovoPautaModal 
           profiles={profiles}
           socialProfiles={socialProfiles}
+          initialDate={modalInitialDate}
+          initialStatus={modalInitialStatus}
           onClose={() => setIsModalOpen(false)} 
           onSuccess={() => { setIsModalOpen(false); fetchPautas(); }} 
         />
@@ -261,24 +271,34 @@ export function Conteudo() {
   );
 }
 
-function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { profiles: DBProfile[]; socialProfiles: SocialProfile[]; onClose: () => void; onSuccess: () => void }) {
+function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, onClose, onSuccess }: { profiles: DBProfile[]; socialProfiles: SocialProfile[]; initialDate?: string; initialStatus?: string; onClose: () => void; onSuccess: () => void }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [isCollab, setIsCollab] = useState(false);
+  const [collabProfiles, setCollabProfiles] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     titulo: "",
     pilar: "pessoal",
     formato: "reels",
     plataforma: socialProfiles[0]?.nome || "",
-    data_prevista: new Date().toISOString().split("T")[0],
-    status: "legenda",
+    data_prevista: initialDate || new Date().toISOString().split("T")[0],
+    status: initialStatus || "legenda",
     responsavel_id: user?.id || ""
   });
+
+  const toggleCollabProfile = (nome: string) => {
+    setCollabProfiles(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await createContent(formData);
+      const payload: any = { ...formData };
+      if (isCollab && collabProfiles.length > 0) {
+        payload.collab_plataformas = collabProfiles.filter(n => n !== formData.plataforma);
+      }
+      await createContent(payload);
       onSuccess();
     } catch (error) {
       console.error("Erro ao criar pauta:", error);
@@ -289,7 +309,7 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">Novo Conteúdo</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
@@ -300,23 +320,13 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Título do Conteúdo</label>
-            <input
-              required
-              value={formData.titulo}
-              onChange={e => setFormData({ ...formData, titulo: e.target.value })}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
-              placeholder="Ex: Como lidar com crises"
-            />
+            <input required value={formData.titulo} onChange={e => setFormData({ ...formData, titulo: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none" placeholder="Ex: Como lidar com crises" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Pilar</label>
-              <select
-                value={formData.pilar}
-                onChange={e => setFormData({ ...formData, pilar: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
-              >
+              <select value={formData.pilar} onChange={e => setFormData({ ...formData, pilar: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none">
                 <option value="pessoal">Pessoal</option>
                 <option value="profissional">Profissional</option>
                 <option value="interior">Interior</option>
@@ -324,11 +334,7 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Formato</label>
-              <select
-                value={formData.formato}
-                onChange={e => setFormData({ ...formData, formato: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
-              >
+              <select value={formData.formato} onChange={e => setFormData({ ...formData, formato: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none">
                 <option value="reels">Reels</option>
                 <option value="carrossel">Carrossel</option>
                 <option value="post">Post Único</option>
@@ -342,48 +348,58 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Perfil / Plataforma</label>
-              <select
-                value={formData.plataforma}
-                onChange={e => setFormData({ ...formData, plataforma: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
-              >
-                {socialProfiles.map(sp => (
-                  <option key={sp.id} value={sp.nome}>{sp.nome}</option>
-                ))}
+              <select value={formData.plataforma} onChange={e => setFormData({ ...formData, plataforma: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none">
+                {socialProfiles.map(sp => (<option key={sp.id} value={sp.nome}>{sp.nome}</option>))}
               </select>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Data Prevista</label>
-              <input
-                required
-                type="date"
-                value={formData.data_prevista}
-                onChange={e => setFormData({ ...formData, data_prevista: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
-              />
+              <input required type="date" value={formData.data_prevista} onChange={e => setFormData({ ...formData, data_prevista: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none" />
             </div>
           </div>
 
-          <UserSelector
-            label="Responsável"
-            users={profiles}
-            selectedIds={formData.responsavel_id}
-            onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })}
-          />
+          {/* Collab Toggle */}
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-letitia-gold" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-foreground">Collab</span>
+                <span className="text-[10px] text-muted">Postar em colaboração</span>
+              </div>
+              <button type="button" onClick={() => { setIsCollab(!isCollab); if (isCollab) setCollabProfiles([]); }} className={cn("relative w-10 h-5 rounded-full transition-all duration-300", isCollab ? "bg-letitia-gold" : "bg-foreground/15")}>
+                <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-md transition-all duration-300", isCollab ? "left-[22px]" : "left-0.5")} />
+              </button>
+            </div>
+            {isCollab && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted">Selecione os perfis que vão participar da collab:</p>
+                <div className="flex flex-wrap gap-2">
+                  {socialProfiles.filter(sp => sp.nome !== formData.plataforma).map(sp => {
+                    const sel = collabProfiles.includes(sp.nome);
+                    return (
+                      <button key={sp.id} type="button" onClick={() => toggleCollabProfile(sp.nome)} className={cn("flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full text-xs font-medium border transition-all", sel ? "border-letitia-gold bg-letitia-gold/10 text-foreground shadow-sm" : "border-border bg-card text-muted hover:text-foreground hover:border-foreground/20")}>
+                        {sp.avatar_url ? (<img src={sp.avatar_url} alt="" className="h-5 w-5 rounded-full border border-white/30 object-cover" />) : (<div className="h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: sp.cor }}>{sp.nome.charAt(0).toUpperCase()}</div>)}
+                        {sp.nome}
+                        {sel && <span className="ml-1 text-letitia-gold">✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {collabProfiles.length > 0 && (
+                  <div className="flex items-center gap-2 mt-1 p-2 rounded-lg bg-letitia-gold/5 border border-letitia-gold/20">
+                    <Link2 className="h-3 w-3 text-letitia-gold flex-shrink-0" />
+                    <p className="text-[10px] text-foreground">Este post vai aparecer em <strong>{formData.plataforma}</strong> e também em <strong>{collabProfiles.join(", ")}</strong></p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <UserSelector label="Responsável" users={profiles} selectedIds={formData.responsavel_id} onSelect={(id) => setFormData({ ...formData, responsavel_id: id as string })} />
 
           <div className="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
-            >
+            <button type="button" onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors">Cancelar</button>
+            <button type="submit" disabled={loading} className="rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Criar Conteúdo
             </button>
@@ -394,8 +410,10 @@ function NovoPautaModal({ profiles, socialProfiles, onClose, onSuccess }: { prof
   );
 }
 
+
+
 /* ─── Kanban ──────────────────────────────────────────────── */
-function KanbanView({ pautas, onUpdate, socialProfiles, onSelect }: { pautas: DBContent[]; onUpdate: () => void; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
+function KanbanView({ pautas, onUpdate, socialProfiles, onSelect, onAdd }: { pautas: DBContent[]; onUpdate: () => void; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void; onAdd: (status: string) => void }) {
   const handleStatusChange = async (id: string, status: string) => {
     try {
       await updateContentStatus(id, status);
@@ -413,7 +431,12 @@ function KanbanView({ pautas, onUpdate, socialProfiles, onSelect }: { pautas: DB
           <div key={col.id}>
             <div className={cn("rounded-t-lg border-t-2 bg-card border border-border px-3 py-2.5 flex items-center justify-between", col.color)}>
               <h3 className="text-xs font-semibold text-foreground">{col.label}</h3>
-              <span className="text-[10px] font-medium text-muted bg-background px-1.5 py-0.5 rounded-full">{items.length}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-muted bg-background px-1.5 py-0.5 rounded-full">{items.length}</span>
+                <button onClick={() => onAdd(col.id)} className="p-0.5 rounded hover:bg-foreground/10 text-muted hover:text-letitia-gold transition-colors" title="Adicionar conteúdo">
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
             <div className="bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[180px]">
               {items.map((p) => (
@@ -428,6 +451,9 @@ function KanbanView({ pautas, onUpdate, socialProfiles, onSelect }: { pautas: DB
                   </select>
                 </div>
               ))}
+              <button onClick={() => onAdd(col.id)} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border text-muted hover:text-letitia-gold hover:border-letitia-gold/40 hover:bg-letitia-gold/5 transition-all text-xs">
+                <Plus className="h-3 w-3" /> Adicionar
+              </button>
             </div>
           </div>
         );
@@ -436,8 +462,9 @@ function KanbanView({ pautas, onUpdate, socialProfiles, onSelect }: { pautas: DB
   );
 }
 
+
 /* ─── Lista ───────────────────────────────────────────────── */
-function ListView({ pautas, socialProfiles, onSelect }: { pautas: DBContent[]; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
+function ListView({ pautas, socialProfiles, onSelect, onAdd }: { pautas: DBContent[]; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void; onAdd: () => void }) {
   const [sortKey, setSortKey] = useState<string>("data_prevista");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -498,9 +525,20 @@ function ListView({ pautas, socialProfiles, onSelect }: { pautas: DBContent[]; s
           <tbody>
             {sorted.map((p) => {
               const pilar = pilarColors[p.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
+              const mainSp = socialProfiles?.find(s => s.nome === p.plataforma);
+              const collabSps = (p.collab_plataformas || []).map(n => socialProfiles?.find(s => s.nome === n)).filter(Boolean) as SocialProfile[];
               return (
                 <tr key={p.id} onClick={() => onSelect(p)} className="border-b border-border last:border-0 hover:bg-background/50 transition-colors cursor-pointer">
-                  <td className="px-4 py-3"><div className="flex items-center gap-2"><span>{formatoIcons[p.formato as keyof typeof formatoIcons]}</span><span className="text-sm font-medium text-foreground">{p.titulo}</span></div></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center -space-x-1.5 flex-shrink-0">
+                        {mainSp && <ProfileAvatar sp={mainSp} size="sm" />}
+                        {collabSps.map(cp => <ProfileAvatar key={cp.id} sp={cp} size="sm" />)}
+                        {collabSps.length > 0 && <Link2 className="h-3 w-3 text-letitia-gold ml-1" />}
+                      </div>
+                      <span className="text-sm font-medium text-foreground">{p.titulo}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} socialProfiles={socialProfiles} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
                   <td className="px-4 py-3"><StatusBadge status={p.status || "legenda"} /></td>
@@ -511,12 +549,15 @@ function ListView({ pautas, socialProfiles, onSelect }: { pautas: DBContent[]; s
           </tbody>
         </table>
       </div>
+      <button onClick={onAdd} className="w-full flex items-center justify-center gap-2 py-3 border-t border-dashed border-border text-muted hover:text-letitia-gold hover:bg-letitia-gold/5 transition-all text-xs font-medium">
+        <Plus className="h-3.5 w-3.5" /> Adicionar novo conteúdo
+      </button>
     </div>
   );
 }
 
 /* ─── Calendário ──────────────────────────────────────────── */
-function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { pautas: DBContent[]; mode: CalMode; weekOffset: number; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void }) {
+function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAdd }: { pautas: DBContent[]; mode: CalMode; weekOffset: number; socialProfiles: SocialProfile[]; onSelect: (c: DBContent) => void; onAdd: (date: string) => void }) {
   const today = new Date();
 
   if (mode === "dia") {
@@ -537,6 +578,9 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { 
           ) : (
             dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} onClick={() => onSelect(p)} />)
           )}
+          <button onClick={() => onAdd(dayStr)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border text-muted hover:text-letitia-gold hover:border-letitia-gold/40 hover:bg-letitia-gold/5 transition-all text-xs font-medium">
+            <Plus className="h-3.5 w-3.5" /> Adicionar conteúdo
+          </button>
         </div>
       </div>
     );
@@ -565,17 +609,25 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { 
                 <p className="text-[10px] font-medium text-muted uppercase">{day.toLocaleDateString("pt-BR", { weekday: "short" })}</p>
                 <p className={cn("text-lg font-semibold", isToday ? "text-letitia-clay" : "text-foreground")}>{day.getDate()}</p>
               </div>
-              <div className="p-1.5 space-y-1">
-                {dayPautas.map((p) => (
-                  <div key={p.id} onClick={() => onSelect(p)} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className="text-xs">{formatoIcons[p.formato as keyof typeof formatoIcons]}</span>
-                      <PlataformaBadge plataforma={p.plataforma} tiny socialProfiles={socialProfiles} />
+              <div className="p-1.5 space-y-1 flex-1">
+                {dayPautas.map((p) => {
+                  const mainSp = socialProfiles?.find(s => s.nome === p.plataforma);
+                  const collabSps = (p.collab_plataformas || []).map(n => socialProfiles?.find(s => s.nome === n)).filter(Boolean) as SocialProfile[];
+                  return (
+                    <div key={p.id} onClick={() => onSelect(p)} className="rounded-md bg-background/60 border border-border p-2 cursor-pointer hover:shadow-sm transition-shadow">
+                      <div className="flex items-center gap-1 mb-1">
+                        {mainSp && <ProfileAvatar sp={mainSp} size="sm" />}
+                        {collabSps.map(cp => <ProfileAvatar key={cp.id} sp={cp} size="sm" />)}
+                        {collabSps.length > 0 && <Link2 className="h-2.5 w-2.5 text-letitia-gold" />}
+                      </div>
+                      <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
+                      <StatusBadge status={p.status || "legenda"} tiny />
                     </div>
-                    <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
-                    <StatusBadge status={p.status || "legenda"} tiny />
-                  </div>
-                ))}
+                  );
+                })}
+                <button onClick={() => onAdd(dayStr)} className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-muted hover:text-letitia-gold hover:border-letitia-gold/40 hover:bg-letitia-gold/5 transition-all">
+                  <Plus className="h-3 w-3" />
+                </button>
               </div>
             </div>
           );
@@ -614,8 +666,13 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { 
           const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
           const isToday = dayStr === today.toISOString().split("T")[0];
           return (
-            <div key={i} className={cn("border-b border-r border-border min-h-[80px] p-1", isToday ? "bg-letitia-gold/5" : "")}>
-              <p className={cn("text-xs font-medium mb-1 px-1", isToday ? "text-letitia-clay font-bold" : "text-muted")}>{day.getDate()}</p>
+          <div key={i} className={cn("border-b border-r border-border min-h-[80px] p-1 group/cell", isToday ? "bg-letitia-gold/5" : "")}>
+              <div className="flex items-center justify-between px-1 mb-1">
+                <p className={cn("text-xs font-medium", isToday ? "text-letitia-clay font-bold" : "text-muted")}>{day.getDate()}</p>
+                <button onClick={() => onAdd(dayStr)} className="opacity-0 group-hover/cell:opacity-100 p-0.5 rounded hover:bg-letitia-gold/10 text-muted hover:text-letitia-gold transition-all" title="Adicionar">
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
               {dayPautas.slice(0, 2).map((p) => (
                 <div key={p.id} onClick={() => onSelect(p)} className="rounded px-1.5 py-0.5 mb-0.5 bg-background/60 border border-border cursor-pointer hover:shadow-sm">
                   <p className="text-[9px] font-medium text-foreground truncate">{formatoIcons[p.formato as keyof typeof formatoIcons]} {p.titulo}</p>
@@ -631,17 +688,50 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect }: { 
 }
 
 /* ─── Shared Components ───────────────────────────────────── */
+function ProfileAvatar({ sp, size = "md" }: { sp: SocialProfile | undefined; size?: "sm" | "md" }) {
+  const dims = size === "sm" ? "h-6 w-6" : "h-8 w-8";
+  const textSize = size === "sm" ? "text-[7px]" : "text-[9px]";
+  if (!sp) return null;
+  return sp.avatar_url ? (
+    <img src={sp.avatar_url} alt={sp.nome} className={cn(dims, "rounded-full border-2 border-card object-cover shadow-sm")} />
+  ) : (
+    <div className={cn(dims, "rounded-full flex items-center justify-center text-white font-bold border-2 border-card shadow-sm", textSize)} style={{ backgroundColor: sp.cor }}>
+      {sp.nome.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 function PautaCard({ pauta, wide, socialProfiles, onClick }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[]; onClick?: () => void }) {
   const pilar = pilarColors[pauta.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
+  const mainProfile = socialProfiles?.find(p => p.nome === pauta.plataforma);
+  const collabProfilesList = (pauta.collab_plataformas || []).map(name => socialProfiles?.find(p => p.nome === name)).filter(Boolean) as SocialProfile[];
+  const isCollab = collabProfilesList.length > 0;
+
   return (
     <div onClick={onClick} className={cn("rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer", wide && "flex items-start gap-3")}>
-      <div className="flex items-start gap-2 flex-1">
-        <span className="text-lg">{formatoIcons[pauta.formato as keyof typeof formatoIcons] || "📄"}</span>
-        <div className="flex-1 min-w-0">
+      <div className="flex items-start gap-2.5 flex-1">
+        {/* Profile avatar(s) */}
+        <div className="flex-shrink-0 relative">
+          <ProfileAvatar sp={mainProfile} size={isCollab ? "sm" : "md"} />
+          {isCollab && collabProfilesList.map((cp, idx) => (
+            <div key={cp.id} className="absolute" style={{ top: 12 + idx * 8, left: 10 + idx * 4 }}>
+              <ProfileAvatar sp={cp} size="sm" />
+            </div>
+          ))}
+          {isCollab && (
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-letitia-gold rounded-full flex items-center justify-center border-2 border-card">
+              <Link2 className="h-2 w-2 text-white" />
+            </div>
+          )}
+        </div>
+        <div className={cn("flex-1 min-w-0", isCollab && "mt-0")}>
           <p className="text-sm font-medium text-foreground leading-snug">{pauta.titulo}</p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", pilar.bg, pilar.text)}>{pilar.label}</span>
             <PlataformaBadge plataforma={pauta.plataforma} socialProfiles={socialProfiles} />
+            {isCollab && collabProfilesList.map(cp => (
+              <PlataformaBadge key={cp.id} plataforma={cp.nome} socialProfiles={socialProfiles} />
+            ))}
           </div>
           <div className="flex items-center justify-between mt-2">
             <span className="text-[10px] text-muted uppercase tracking-tight">{new Date(pauta.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
@@ -651,6 +741,7 @@ function PautaCard({ pauta, wide, socialProfiles, onClick }: { pauta: DBContent;
     </div>
   );
 }
+
 
 function PlataformaBadge({ plataforma, tiny, socialProfiles }: { plataforma: string; tiny?: boolean; socialProfiles?: SocialProfile[] }) {
   const sp = socialProfiles?.find(p => p.nome === plataforma);
