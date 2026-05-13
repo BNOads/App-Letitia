@@ -14,39 +14,44 @@ import { LinksUteis } from "./pages/LinksUteis";
 import { PublicDocument } from "./pages/PublicDocument";
 import { Perfil } from "./pages/Perfil";
 import { Equipe } from "./pages/Equipe";
+import { Notificacoes } from "./pages/Notificacoes";
 import { Login } from "./pages/Login";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { Seeder } from "./components/Seeder";
 
 function App() {
   return (
     <AuthProvider>
-      <Seeder />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/publico/documento/:id" element={<PublicDocument />} />
-          
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="tarefas" element={<Tarefas />} />
-              <Route path="agenda" element={<Agenda />} />
+      <NotificationProvider>
+        <Seeder />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/publico/documento/:id" element={<PublicDocument />} />
+            
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<AppLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="tarefas" element={<Tarefas />} />
+                <Route path="agenda" element={<Agenda />} />
 
 
-              <Route path="editorial" element={<Conteudo />} />
-              <Route path="documentos" element={<Documentos />} />
-              <Route path="treinamentos" element={<Treinamentos />} />
-              <Route path="senhas" element={<Senhas />} />
-              <Route path="suporte" element={<Suporte />} />
-              <Route path="links" element={<LinksUteis />} />
-              <Route path="perfil" element={<Perfil />} />
-              <Route path="equipe" element={<Equipe />} />
+                <Route path="editorial" element={<Conteudo />} />
+                <Route path="documentos" element={<Documentos />} />
+                <Route path="treinamentos" element={<Treinamentos />} />
+                <Route path="senhas" element={<Senhas />} />
+                <Route path="suporte" element={<Suporte />} />
+                <Route path="links" element={<LinksUteis />} />
+                <Route path="perfil" element={<Perfil />} />
+                <Route path="equipe" element={<Equipe />} />
+                <Route path="notificacoes" element={<Notificacoes />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

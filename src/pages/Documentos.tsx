@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { getPastas, updateDocumento, createDocumento, createPasta, type DBPasta, type DBDocumento } from "@/services/docService";
+import { notifyNewDocument } from "@/services/notificationService";
+import { markdownToHtml } from "@/lib/markdownToHtml";
 import { cn } from "@/lib/utils";
 import { 
   Search, Plus, FolderOpen, Star, FileText, ChevronDown, ChevronRight, 
@@ -10,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { RichTextEditor } from "@/components/RichTextEditor";
 
 export function Documentos() {
+  const location = useLocation();
   const [pastas, setPastas] = useState<DBPasta[]>([]);
   const [loading, setLoading] = useState(true);
   const [docSelecionado, setDocSelecionado] = useState<DBDocumento | null>(null);
@@ -24,6 +28,21 @@ export function Documentos() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle navigation from global search
+  useEffect(() => {
+    const state = location.state as { openDocId?: string } | null;
+    if (state?.openDocId && pastas.length > 0) {
+      const allDocs = pastas.flatMap(p => p.documentos || []);
+      const targetDoc = allDocs.find(d => d.id === state.openDocId);
+      if (targetDoc) {
+        setDocSelecionado(targetDoc);
+        setPastasAbertas(prev => ({ ...prev, [targetDoc.pasta_id]: true }));
+      }
+      // Clear the state so it doesn't re-trigger
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, pastas]);
 
   async function fetchData() {
     try {
@@ -258,7 +277,7 @@ export function Documentos() {
                         <button 
                           onClick={() => {
                             setIsEditing(true);
-                            setEditContent(docSelecionado.conteudo || "");
+                            setEditContent(markdownToHtml(docSelecionado.conteudo || ""));
                             setEditTitle(docSelecionado.titulo || "");
                           }}
                           className="p-2 rounded-md hover:bg-foreground/5 text-muted hover:text-foreground transition-colors"
@@ -320,7 +339,7 @@ export function Documentos() {
                       [&_p]:text-sm [&_p]:text-foreground/80 [&_p]:leading-relaxed [&_p]:mb-4
                       [&_.checklist-item]:flex [&_.checklist-item]:items-center [&_.checklist-item]:gap-2 [&_.checklist-item]:my-1
                     "
-                    dangerouslySetInnerHTML={{ __html: docSelecionado.conteudo || '<p class="text-muted">Documento vazio</p>' }}
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(docSelecionado.conteudo || '') || '<p class="text-muted">Documento vazio</p>' }}
                   />
                 </div>
               )}
@@ -371,6 +390,11 @@ function NovoDocumentoModal({ pastas, onClose, onSuccess }: { pastas: DBPasta[];
     setLoading(true);
     try {
       const newDoc = await createDocumento(formData);
+      // Notify everyone about the new document
+      if (user) {
+        const userName = user.user_metadata?.full_name || 'Alguém';
+        notifyNewDocument(formData.titulo, newDoc.id, user.id, userName);
+      }
       onSuccess(newDoc);
     } catch (error) {
       console.error("Erro ao criar documento:", error);

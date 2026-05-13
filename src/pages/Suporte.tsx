@@ -4,6 +4,7 @@ import {
   getComments, createComment, transferTicket, resolveTicket, type DBTicket, type DBTicketComment 
 } from "@/services/supportService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
+import { notifyNewTicket } from "@/services/notificationService";
 import { 
   Search, Plus, Clock, AlertCircle, CheckCircle2, Ticket as TicketIcon, 
   RefreshCw, ExternalLink, Loader2, X, Phone, Mail, Camera,
@@ -706,7 +707,12 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
     e.preventDefault();
     setLoading(true);
     try {
-      await createTicket(formData);
+      const created = await createTicket(formData);
+      // Notify everyone about the new ticket
+      if (created) {
+        const userName = profiles.find(p => p.id === formData.responsavel_id)?.full_name || 'Alguém da equipe';
+        notifyNewTicket(created.numero || 0, formData.cliente_nome, created.id, formData.responsavel_id || '', userName);
+      }
       onSuccess();
     } catch (error) {
       console.error("Erro ao criar ticket:", error);

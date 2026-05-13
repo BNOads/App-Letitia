@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
+import { notifyNewPost } from "@/services/notificationService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2 } from "lucide-react";
@@ -23,6 +25,7 @@ const statusCols = [
 ];
 
 export function Conteudo() {
+  const location = useLocation();
   const [pautas, setPautas] = useState<DBContent[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
@@ -50,6 +53,18 @@ export function Conteudo() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle navigation from global search
+  useEffect(() => {
+    const state = location.state as { openConteudoId?: string } | null;
+    if (state?.openConteudoId && pautas.length > 0) {
+      const target = pautas.find(p => p.id === state.openConteudoId);
+      if (target) {
+        setSelectedConteudo(target);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, pautas]);
 
   async function fetchData() {
     try {
@@ -299,6 +314,11 @@ function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, 
         payload.collab_plataformas = collabProfiles.filter(n => n !== formData.plataforma);
       }
       await createContent(payload);
+      // Notify everyone about the new post
+      if (user) {
+        const userName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+        notifyNewPost(formData.titulo, '', user.id, userName, formData.responsavel_id || null);
+      }
       onSuccess();
     } catch (error) {
       console.error("Erro ao criar pauta:", error);

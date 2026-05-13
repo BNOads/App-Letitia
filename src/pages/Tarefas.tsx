@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
+import { notifyTaskCompleted, notifyNewTaskAssigned } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
@@ -25,6 +27,7 @@ const kanbanColumns = [
 ];
 
 export function Tarefas() {
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const [tarefas, setTarefas] = useState<DBTask[]>([]);
   const [allSubtasks, setAllSubtasks] = useState<(DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]>([]);
@@ -55,6 +58,20 @@ export function Tarefas() {
       fetchData();
     }
   }, [user, authLoading]);
+
+  // Handle navigation from global search
+  useEffect(() => {
+    const state = location.state as { openTarefaId?: string } | null;
+    if (state?.openTarefaId && tarefas.length > 0) {
+      const target = tarefas.find(t => t.id === state.openTarefaId);
+      if (target) {
+        setSelectedTarefa(target);
+        // Switch to "time" tab to ensure the task is visible
+        setTab("time");
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, tarefas]);
 
   async function fetchData() {
     try {
@@ -198,6 +215,11 @@ export function Tarefas() {
           action: newStatus === 'concluido' ? 'concluida' : 'status_alterado',
           details: newStatus === 'concluido' ? 'Tarefa concluída' : 'Tarefa reaberta',
         });
+        // Notify everyone when a task is completed
+        if (newStatus === 'concluido' && user) {
+          const userName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+          notifyTaskCompleted(tarefa.titulo, tarefa.id, user.id, userName);
+        }
       }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
@@ -1105,6 +1127,12 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
           prazo: formData.prazo || null, action: 'criada',
           details: selectedTemplate ? `Criada do modelo "${selectedTemplate.nome}"` : 'Tarefa criada',
         });
+
+        // Notify assigned user about the new task
+        if (formData.responsavel_id && user && formData.responsavel_id !== user.id) {
+          const creatorName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+          notifyNewTaskAssigned(formData.titulo, created.id, formData.responsavel_id, user.id, creatorName);
+        }
 
         // If a template was selected, create its subtasks
         if (selectedTemplate && selectedTemplate.modelo_subtarefas && selectedTemplate.modelo_subtarefas.length > 0) {

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
+import { notifyTaskCompleted } from "@/services/notificationService";
 import { NovoTarefaModal, TaskDetailModal } from "./Tarefas";
 
 
@@ -94,6 +95,14 @@ export function Dashboard() {
     const newStatus = currentStatus === 'concluido' ? 'fazer' : 'concluido';
     try {
       await updateTaskStatus(id, newStatus as any);
+      // Notify everyone when a task is completed from the dashboard
+      if (newStatus === 'concluido' && user) {
+        const tarefa = allTasks.find(t => t.id === id);
+        if (tarefa) {
+          const uName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+          notifyTaskCompleted(tarefa.titulo, tarefa.id, user.id, uName);
+        }
+      }
       loadStats();
     } catch (error) {
       console.error("Erro ao alternar tarefa:", error);
