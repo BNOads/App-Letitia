@@ -10,7 +10,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare, Link2, Image, Undo2, Redo2, X,
-  Loader2, Paperclip, FileText, Code, Quote, Minus
+  Loader2, Paperclip, Code, Quote, Minus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";

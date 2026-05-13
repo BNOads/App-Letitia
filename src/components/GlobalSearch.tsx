@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, Hash, Clock, Star, FileStack } from "lucide-react";
+import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, FileStack } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -120,7 +120,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Focus input when opened
   useEffect(() => {

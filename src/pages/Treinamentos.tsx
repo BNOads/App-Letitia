@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Search, Plus, Play, BookOpen, Users, Loader2, Edit2, Trash2, X, Save, CheckCircle2, Circle, Target } from "lucide-react";
+import { Search, Plus, Play, Loader2, Edit2, Trash2, X, Save, CheckCircle2, Circle, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CursoDetailModal } from "@/components/CursoDetailModal";
 import { UserSelector } from "@/components/UserSelector";
@@ -10,6 +10,7 @@ import {
   addPdiMeta, togglePdiMeta, deletePdiMeta,
   type DBCurso, type DBPdi, type DBPdiMeta
 } from "@/services/trainingService";
+import { getProfiles, type DBProfile } from "@/services/profileService";
 
 const cardGradients: Record<string, string> = {
   Analytics: "from-blue-400 to-cyan-400",
@@ -33,7 +34,7 @@ const niveis = ["Iniciante", "Intermediário", "Avançado"];
 type Tab = "cursos" | "pdis";
 
 export function Treinamentos() {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [tab, setTab] = useState<Tab>("cursos");
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
@@ -51,11 +52,16 @@ export function Treinamentos() {
   const [editingPdi, setEditingPdi] = useState<DBPdi | null>(null);
   const [showPdiForm, setShowPdiForm] = useState(false);
   const [selectedPdi, setSelectedPdi] = useState<DBPdi | null>(null); // For detail/metas modal
+  const [profiles, setProfiles] = useState<DBProfile[]>([]);
 
   useEffect(() => {
     if (tab === "cursos") fetchCursos();
     else fetchPdis();
   }, [tab]);
+
+  useEffect(() => {
+    getProfiles().then(setProfiles).catch(console.error);
+  }, []);
 
   async function fetchCursos() {
     setLoadingCursos(true);
@@ -267,6 +273,7 @@ export function Treinamentos() {
       {showPdiForm && (
         <PdiFormModal
           pdi={editingPdi}
+          profiles={profiles}
           onClose={() => { setShowPdiForm(false); setEditingPdi(null); }}
           onSave={() => { setShowPdiForm(false); setEditingPdi(null); fetchPdis(); }}
         />
@@ -350,7 +357,7 @@ function CursoFormModal({ curso, onClose, onSave }: { curso: DBCurso | null, onC
   );
 }
 
-function PdiFormModal({ pdi, onClose, onSave }: { pdi: DBPdi | null, onClose: () => void, onSave: () => void }) {
+function PdiFormModal({ pdi, profiles, onClose, onSave }: { pdi: DBPdi | null, profiles: DBProfile[], onClose: () => void, onSave: () => void }) {
   const [titulo, setTitulo] = useState(pdi?.titulo || "");
   const [descricao, setDescricao] = useState(pdi?.descricao || "");
   const [userId, setUserId] = useState(pdi?.user_id || "");
@@ -378,7 +385,7 @@ function PdiFormModal({ pdi, onClose, onSave }: { pdi: DBPdi | null, onClose: ()
         <form onSubmit={handleSubmit} className="space-y-4 overflow-visible">
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Usuário</label>
-            <UserSelector selectedUserId={userId} onSelect={(id) => setUserId(id || "")} />
+            <UserSelector users={profiles} selectedIds={userId} onSelect={(id) => setUserId(typeof id === 'string' ? id : id[0] || '')} />
           </div>
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Título do PDI</label>
@@ -390,7 +397,7 @@ function PdiFormModal({ pdi, onClose, onSave }: { pdi: DBPdi | null, onClose: ()
           </div>
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Status</label>
-            <select value={status} onChange={e => setStatus(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none">
+            <select value={status} onChange={e => setStatus(e.target.value as "concluido" | "em_andamento" | "pausado")} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none">
               <option value="em_andamento">Em Andamento</option>
               <option value="concluido">Concluído</option>
               <option value="pausado">Pausado</option>
@@ -442,7 +449,7 @@ function PdiDetailModal({ pdi, onClose, onUpdate }: { pdi: DBPdi, onClose: () =>
     try {
       await deletePdiMeta(id);
       onUpdate();
-    } catch (err) { console.error(err); fetchPdis(); /* fallback */ }
+    } catch (err) { console.error(err); onUpdate(); /* fallback */ }
   }
 
   const concluidas = metas.filter(m => m.concluida).length;

@@ -194,7 +194,7 @@ export function Dashboard() {
                   <p className="text-sm text-muted">Nenhum evento agendado para os próximos dias.</p>
                 </div>
               ) : (
-                stats?.eventos.map((evento, idx) => (
+                stats?.eventos.map((evento, _idx) => (
                   <div 
                     key={evento.id}
                     className="flex items-center gap-4 p-4 rounded-2xl bg-letitia-gold/[0.03] border border-letitia-gold/5 group/item hover:border-letitia-gold/20 hover:bg-letitia-gold/[0.05] transition-colors cursor-pointer"

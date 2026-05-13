@@ -4,7 +4,7 @@ import { getProfiles, updateProfile, ensureProfileExists, syncAuthUsersToProfile
 import { 
   UserPlus, Shield, Mail, Phone, 
   Trash2, Edit2, X,
-  Search, Loader2, Camera, CheckSquare, Square, AlertTriangle, RefreshCw
+  Search, Loader2, Camera, CheckSquare, Square, RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";

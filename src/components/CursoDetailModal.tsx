@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
-  X, Plus, Loader2, Play, Trash2, Edit2, Check, GripVertical,
-  CheckCircle2, Circle, ChevronDown, ChevronUp, Save, Video, FileText, Link2
+  X, Plus, Loader2, Play, Trash2, Edit2,
+  CheckCircle2, Circle, Save, Video, FileText, Link2
 } from "lucide-react";
 import {
   getAulas, createAula, updateAula, deleteAula,
@@ -17,7 +17,7 @@ interface Props {
   onUpdate: () => void;
 }
 
-export function CursoDetailModal({ curso, onClose, onUpdate }: Props) {
+export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props) {
   const { user } = useAuth();
   const [aulas, setAulas] = useState<DBAula[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,7 +243,7 @@ function AulaForm({ cursoId, aula, nextOrdem, onSave, onCancel }: {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Tipo</label>
-            <select value={tipo} onChange={e => setTipo(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none">
+            <select value={tipo} onChange={e => setTipo(e.target.value as "link" | "video" | "texto")} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:ring-2 focus:ring-letitia-gold outline-none">
               <option value="video">Vídeo</option>
               <option value="texto">Texto</option>
               <option value="link">Link Externo</option>
