@@ -8,7 +8,7 @@ import {
   Lock, Save, Loader2, CheckCircle2, AlertCircle, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+
 
 const ROLES = ["CEO", "Diretoria", "Parceiro", "Vendas", "Suporte"];
 
@@ -135,9 +135,7 @@ export function Perfil() {
       </header>
 
       {message && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
+        <div 
           className={cn(
             "p-4 rounded-xl border flex items-center justify-between",
             message.type === 'success' ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"
@@ -148,7 +146,7 @@ export function Perfil() {
             <span className="text-sm font-medium">{message.text}</span>
           </div>
           <button onClick={() => setMessage(null)}><X className="h-4 w-4" /></button>
-        </motion.div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

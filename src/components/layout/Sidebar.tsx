@@ -91,7 +91,7 @@ export function Sidebar() {
 
   return (
     <div className={cn(
-      "hidden md:flex h-full flex-col border-r border-border bg-card transition-all duration-300",
+      "hidden md:flex h-full flex-col border-r border-border bg-card transition-[width] duration-150",
       collapsed ? "w-16" : "w-64"
     )}>
       {/* Logo */}

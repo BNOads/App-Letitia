@@ -698,10 +698,10 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   ] as TimelineEntry[]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 md:p-8" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-background border border-border rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="modal-overlay modal-overlay-z60 items-center justify-center p-2 sm:p-4 md:p-8" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="relative w-full max-w-6xl max-h-[95vh] md:max-h-[90vh] bg-background border border-border rounded-2xl shadow-lg flex flex-col md:flex-row overflow-hidden modal-content">
         
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-foreground/10 hover:bg-foreground/20 backdrop-blur-md border border-border/50 transition-all shadow-lg" title="Fechar">
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-foreground/10 hover:bg-foreground/20 border border-border/50 transition-colors" title="Fechar">
           <X className="h-5 w-5 text-foreground" />
         </button>
 
@@ -1155,8 +1155,8 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg modal-content max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">{tarefa ? "Editar Tarefa" : "Nova Tarefa"}</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
@@ -1847,7 +1847,7 @@ function BulkTaskModal({ profiles, onClose, onSuccess }: {
         });
       }
       setResultado({ total: linhas.length, criadas: created.length });
-      setTimeout(() => onSuccess(), 1500);
+      setTimeout(() => onSuccess(), 300);
     } catch (error) {
       console.error("Erro ao criar tarefas em massa:", error);
       alert("Erro ao criar tarefas. Tente novamente.");
@@ -1857,8 +1857,8 @@ function BulkTaskModal({ profiles, onClose, onSuccess }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+    <div className="modal-overlay items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-lg modal-content flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -1970,8 +1970,8 @@ function TaskHistoryModal({ onClose }: { onClose: () => void }) {
     status_alterado: { label: "Status", color: "bg-gray-500/10 text-gray-600", icon: <Clock className="h-3 w-3" /> },
   };
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-3xl max-h-[85vh] rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col">
+    <div className="modal-overlay modal-overlay-z60 items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-3xl max-h-[85vh] rounded-xl border border-border bg-card shadow-lg modal-content flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-letitia-gold/10 flex items-center justify-center">
@@ -2127,8 +2127,8 @@ function TaskTemplateModal({ profiles, onClose, onTaskCreated }: {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="w-full max-w-3xl max-h-[90vh] rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 flex flex-col">
+    <div className="modal-overlay modal-overlay-z60 items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-3xl max-h-[90vh] rounded-xl border border-border bg-card shadow-lg modal-content flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">

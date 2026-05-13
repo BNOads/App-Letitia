@@ -1,8 +1,69 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Performance: Global Speed Layer ──────────────────── */
+
+/* Fast modal overlay — no backdrop-blur, GPU-composited */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  display: flex;
+  animation: overlay-in 100ms ease-out both;
+  will-change: opacity;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+.modal-overlay-z60 { z-index: 60; }
+.modal-overlay-z70 { z-index: 70; }
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Fast modal content — opacity-only enter, no zoom/scale */
+.modal-content {
+  animation: modal-in 120ms ease-out both;
+  will-change: opacity, transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) translateZ(0); }
+  to { opacity: 1; transform: translateY(0) translateZ(0); }
+}
+
+/* Slide-in from right (for drawers) */
+.modal-slide-right {
+  animation: slide-right-in 150ms ease-out both;
+  will-change: transform;
+}
+
+@keyframes slide-right-in {
+  from { transform: translateX(100%) translateZ(0); }
+  to { transform: translateX(0) translateZ(0); }
+}
+
+/* Override: make all transition-all faster and limit properties */
+*, *::before, *::after {
+  transition-duration: 100ms !important;
+}
+
+/* But preserve spinner and progress animations */
+.animate-spin {
+  transition-duration: 0ms !important;
+}
+
+/* Reduce animate-pulse speed */
+.animate-pulse {
+  animation-duration: 1.5s;
+}
 
 :root {
   --background: #F5F1EA;

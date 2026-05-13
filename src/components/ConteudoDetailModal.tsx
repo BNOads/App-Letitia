@@ -187,9 +187,9 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-overlay items-stretch justify-end" onClick={onClose}>
       <div
-        className="w-full max-w-4xl bg-card border-l border-border shadow-2xl flex animate-in slide-in-from-right duration-300 overflow-hidden"
+        className="w-full max-w-4xl bg-card border-l border-border shadow-lg flex modal-slide-right overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Left: Content Detail */}

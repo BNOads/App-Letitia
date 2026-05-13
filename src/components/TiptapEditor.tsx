@@ -341,8 +341,8 @@ export function TiptapEditor({ value, onChange, placeholder, className, minHeigh
 
       {/* Link Modal */}
       {showLinkModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) { setShowLinkModal(false); setLinkUrl(""); setLinkText(""); } }}>
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay modal-overlay-z70 items-center justify-center" onClick={(e) => { if (e.target === e.currentTarget) { setShowLinkModal(false); setLinkUrl(""); setLinkText(""); } }}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-serif text-lg font-medium text-foreground flex items-center gap-2">
                 <Link2 className="h-4 w-4 text-letitia-gold" />

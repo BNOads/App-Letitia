@@ -159,7 +159,7 @@ export function Header() {
               className={cn(
                 'absolute right-0 top-full mt-2 w-[360px] max-w-[calc(100vw-2rem)]',
                 'bg-popover border border-border rounded-xl shadow-xl',
-                'animate-in fade-in slide-in-from-top-2 duration-200',
+                'modal-content',
                 'z-50 overflow-hidden'
               )}
             >

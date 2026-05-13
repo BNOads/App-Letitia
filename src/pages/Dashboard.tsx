@@ -8,7 +8,7 @@ import {
   Circle, CheckCircle2, Send, Repeat
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted } from "@/services/notificationService";
@@ -125,24 +125,16 @@ export function Dashboard() {
     <div className="space-y-8 pb-10">
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <motion.h2 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="font-serif text-4xl font-medium tracking-tight text-foreground"
-          >
+          <h2 className="font-serif text-4xl font-medium tracking-tight text-foreground">
             {saudacao}, {userName}
-          </motion.h2>
+          </h2>
           <p className="mt-1.5 text-muted text-sm">Aqui está o panorama geral do seu ecossistema hoje.</p>
         </div>
         
         {/* Ticket Summary */}
-        <motion.a 
+        <a 
           href="/suporte"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-5 bg-card border border-border px-6 py-4 rounded-2xl cursor-pointer hover:border-letitia-gold/30 transition-all shadow-sm"
+          className="flex items-center gap-5 bg-card border border-border px-6 py-4 rounded-2xl cursor-pointer hover:border-letitia-gold/30 transition-colors shadow-sm"
         >
           <div className="h-11 w-11 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
             <Headset className="h-5 w-5 text-red-500" />
@@ -168,7 +160,7 @@ export function Dashboard() {
             </div>
           </div>
           <ChevronRight className="h-4 w-4 text-muted ml-auto" />
-        </motion.a>
+        </a>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -203,12 +195,9 @@ export function Dashboard() {
                 </div>
               ) : (
                 stats?.eventos.map((evento, idx) => (
-                  <motion.div 
+                  <div 
                     key={evento.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-letitia-gold/[0.03] border border-letitia-gold/5 group/item hover:border-letitia-gold/20 hover:bg-letitia-gold/[0.05] transition-all cursor-pointer"
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-letitia-gold/[0.03] border border-letitia-gold/5 group/item hover:border-letitia-gold/20 hover:bg-letitia-gold/[0.05] transition-colors cursor-pointer"
                   >
                     <div className="w-1 bg-letitia-gold rounded-full self-stretch" />
                     <div className="flex-1">
@@ -241,7 +230,7 @@ export function Dashboard() {
                       </div>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted/30 group-hover/item:text-letitia-gold transition-colors" />
-                  </motion.div>
+                  </div>
                 ))
               )}
             </div>
@@ -279,11 +268,9 @@ export function Dashboard() {
                 <span className="text-letitia-gold">{progressoGeral}%</span>
               </div>
               <div className="h-2 w-full bg-letitia-gold/10 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progressoGeral}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="h-full bg-letitia-gold"
+                <div 
+                  className="h-full bg-letitia-gold transition-[width] duration-500"
+                  style={{ width: `${progressoGeral}%` }}
                 />
               </div>
             </div>
@@ -315,19 +302,15 @@ export function Dashboard() {
                 </button>
               </form>
 
-              <AnimatePresence>
+              <>
                 {stats?.tarefas.proximas.map((tarefa, idx) => (
-                  <motion.div 
+                  <div 
                     key={tarefa.id || idx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: idx * 0.05 }}
                     onClick={() => {
                       const fullTask = allTasks.find(t => t.id === tarefa.id);
                       if (fullTask) setSelectedTarefa(fullTask);
                     }}
-                    className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-background/50 hover:border-letitia-gold/20 transition-all group cursor-pointer"
+                    className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-background/50 hover:border-letitia-gold/20 transition-colors group cursor-pointer"
                   >
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleToggleTask(tarefa.id, tarefa.status); }}
@@ -357,9 +340,9 @@ export function Dashboard() {
                     )}>
                       {tarefa.prioridade}
                     </span>
-                  </motion.div>
+                  </div>
                 ))}
-              </AnimatePresence>
+              </>
             </div>
 
             {/* Concluídas Hoje */}
@@ -413,10 +396,9 @@ export function Dashboard() {
 
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {stats?.pautas.map((pauta) => (
-                  <motion.div 
+                  <div 
                     key={pauta.id}
-                    whileHover={{ y: -5 }}
-                    className="p-5 rounded-3xl border border-border bg-background/40 hover:border-purple-500/30 transition-all flex flex-col gap-4"
+                    className="p-5 rounded-3xl border border-border bg-background/40 hover:border-purple-500/30 hover:-translate-y-1 transition-[border-color,transform] flex flex-col gap-4"
                   >
                     <div className="flex items-start justify-between">
                       <div className={cn("p-2 rounded-xl", pauta.formato === 'youtube' ? "bg-red-500/10 text-red-500" : "bg-pink-500/10 text-pink-500")}>
@@ -434,7 +416,7 @@ export function Dashboard() {
                         {pauta.pilar}
                       </span>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
              </div>
           </div>

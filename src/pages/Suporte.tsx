@@ -443,8 +443,8 @@ function TicketSidebar({ ticket, profiles: allProfiles, onClose, onStatusUpdate,
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-card border-l border-border shadow-lg flex flex-col modal-slide-right">
         {/* Header */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-background/50">
           <div className="flex items-center gap-3">
@@ -544,7 +544,7 @@ function TicketSidebar({ ticket, profiles: allProfiles, onClose, onStatusUpdate,
 
           {/* Transfer Panel */}
           {showTransfer && (
-            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3 modal-content">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-violet-600 flex items-center gap-1.5">
                 <ArrowRightLeft className="h-3 w-3" /> Transferir Ticket
               </h4>
@@ -722,8 +722,8 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg modal-content">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">Novo Ticket</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
@@ -887,8 +887,8 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg modal-content">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">Editar Ticket</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">

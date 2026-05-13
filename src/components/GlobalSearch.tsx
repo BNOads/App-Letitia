@@ -255,10 +255,10 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[10vh] sm:pt-[12vh] bg-black/60 backdrop-blur-sm p-4"
+      className="modal-overlay items-start justify-center p-4 pt-[10vh] sm:pt-[12vh]" style={{ zIndex: 100 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-200">
+      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-lg overflow-hidden modal-content">
         {/* Search Input */}
         <div className="relative flex items-center border-b border-border">
           <Search className="absolute left-5 h-5 w-5 text-muted pointer-events-none" />

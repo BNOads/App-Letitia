@@ -93,7 +93,7 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
         </div>
 
         {isOpen && (
-          <div className="absolute z-[100] mt-1 w-full rounded-lg border border-border bg-card p-1 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="absolute z-[100] mt-1 w-full rounded-lg border border-border bg-card p-1 shadow-lg modal-content">
             <div className="relative mb-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
               <input

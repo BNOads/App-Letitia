@@ -472,8 +472,8 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-card border border-border rounded-2xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-card border border-border rounded-2xl p-8 shadow-lg overflow-y-auto modal-content max-h-[90vh]">
         <div className="flex items-center justify-between mb-8">
           <h3 className="text-2xl font-serif font-medium">Cadastrar Novo Membro</h3>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">
@@ -641,8 +641,8 @@ function EditMemberModal({ user, onClose, onSuccess }: { user: any, onClose: () 
   const initials = (fullName || email || "??").split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-card border border-border rounded-2xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg bg-card border border-border rounded-2xl p-8 shadow-lg overflow-y-auto modal-content max-h-[90vh]">
         <div className="flex items-center justify-between mb-8">
           <h3 className="text-2xl font-serif font-medium">Editar Membro</h3>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">

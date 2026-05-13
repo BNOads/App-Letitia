@@ -404,8 +404,8 @@ function NovoDocumentoModal({ pastas, onClose, onSuccess }: { pastas: DBPasta[];
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl h-[80vh] flex flex-col rounded-xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in duration-200 overflow-hidden">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-4xl h-[80vh] flex flex-col rounded-xl border border-border bg-card shadow-lg modal-content overflow-hidden">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h3 className="font-serif text-2xl font-medium text-foreground">Novo Documento</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
@@ -505,8 +505,8 @@ function NovoPastaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg modal-content">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">Nova Pasta</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">

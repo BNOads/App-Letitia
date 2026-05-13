@@ -8,7 +8,7 @@ import {
   Users2, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+
 
 const PRESET_COLORS = [
   "#E74C3C", "#E67E22", "#F1C40F", "#2ECC71", "#1ABC9C",
@@ -63,12 +63,9 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        className="w-full max-w-2xl bg-card border border-border rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+    <div className="modal-overlay modal-overlay-z60 items-center justify-center p-4">
+      <div
+        className="w-full max-w-2xl bg-card border border-border rounded-3xl shadow-lg overflow-hidden max-h-[90vh] modal-content flex flex-col"
       >
         {/* Header */}
         <div className="relative bg-gradient-to-br from-[#1a1a2e] to-[#16213e] px-8 pt-8 pb-10 text-center overflow-hidden">
@@ -99,12 +96,9 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
           {/* Message */}
-          <AnimatePresence>
+          <>
             {message && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+              <div
                 className={cn(
                   "p-3 rounded-xl border flex items-center gap-3 text-sm font-medium",
                   message.type === "success"
@@ -118,9 +112,9 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
                   <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 )}
                 {message.text}
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
 
           {/* Add Button */}
           <button
@@ -140,7 +134,7 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
           </button>
 
           {/* Add Form */}
-          <AnimatePresence>
+          <>
             {isAdding && (
               <ProfileForm
                 onSave={async (data) => {
@@ -164,7 +158,7 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
                 }}
               />
             )}
-          </AnimatePresence>
+          </>
 
           {/* Profiles List */}
           <div>
@@ -225,7 +219,7 @@ export function GerenciarPerfisModal({ onClose }: GerenciarPerfisModalProps) {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -241,12 +235,8 @@ function ProfileCard({
   onDelete: () => void;
 }) {
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
-      className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-background hover:border-letitia-gold/30 hover:shadow-md transition-all"
+    <div
+      className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-background hover:border-letitia-gold/30 hover:shadow-md transition-colors"
     >
       {/* Avatar */}
       <div className="h-14 w-14 rounded-xl overflow-hidden flex-shrink-0 border-2 border-border bg-muted/20 shadow-sm">
@@ -295,7 +285,7 @@ function ProfileCard({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -369,10 +359,7 @@ function ProfileForm({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
+    <div
       className="overflow-hidden"
     >
       <div className="rounded-2xl border-2 border-letitia-gold/30 bg-letitia-gold/5 p-5 space-y-5">
@@ -501,6 +488,6 @@ function ProfileForm({
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

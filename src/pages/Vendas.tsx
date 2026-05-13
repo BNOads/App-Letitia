@@ -152,8 +152,8 @@ function NovoVendaModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+    <div className="modal-overlay items-center justify-center p-4">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg modal-content">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-serif text-2xl font-medium text-foreground">Registrar Venda</h3>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-foreground/10 transition-colors">
