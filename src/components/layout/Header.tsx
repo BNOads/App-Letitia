@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, Search, CheckCircle2, FileText, HeadphonesIcon,
-  CheckSquare, FileStack, ChevronRight
+  CheckSquare, FileStack, ChevronRight, PanelLeftOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -75,7 +75,11 @@ function DropdownNotifItem({
   );
 }
 
-export function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+}
+
+export function Header({ onMenuToggle }: HeaderProps) {
   const navigate = useNavigate();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
@@ -114,6 +118,13 @@ export function Header() {
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 md:px-8">
       {/* Mobile: App Name | Desktop: Search */}
       <div className="flex flex-1 items-center gap-3">
+        <button
+          onClick={onMenuToggle}
+          className="md:hidden p-1.5 -ml-1 text-muted hover:text-foreground hover:bg-foreground/5 rounded-md transition-colors"
+          aria-label="Menu"
+        >
+          <PanelLeftOpen className="h-5 w-5" />
+        </button>
         <h1 className="font-serif text-xl font-semibold tracking-wide text-foreground md:hidden">
           LaetitiAPP
         </h1>
