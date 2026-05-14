@@ -335,6 +335,7 @@ export function Suporte() {
       {isModalOpen && (
         <NovoTicketModal 
           profiles={profiles}
+          currentUserId={user?.id || ''}
           onClose={() => setIsModalOpen(false)} 
           onSuccess={() => { setIsModalOpen(false); fetchTickets(); }} 
         />
@@ -598,6 +599,14 @@ function TicketSidebar({ ticket, profiles: allProfiles, onClose, onStatusUpdate,
           <div className="space-y-4">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted border-b border-border/50 pb-2">Detalhes da Demanda</h4>
             <div className="space-y-4">
+              {ticket.descricao && (
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted mb-1 block">O que é a questão</label>
+                  <div className="bg-foreground/[0.03] border border-border rounded-lg px-3 py-2">
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{ticket.descricao}</p>
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-widest text-muted mb-1 block">Categoria</label>
                 <p className="text-sm font-medium text-foreground">{ticket.categoria}</p>
@@ -690,13 +699,14 @@ function ContactItem({ icon, label, value }: { icon: React.ReactNode; label: str
   );
 }
 
-function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile[]; onClose: () => void; onSuccess: () => void }) {
+function NovoTicketModal({ profiles, currentUserId, onClose, onSuccess }: { profiles: DBProfile[]; currentUserId: string; onClose: () => void; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     cliente_nome: "",
     cliente_email: "",
     cliente_telefone: "",
     cliente_instagram: "",
+    descricao: "",
     categoria: "Dúvida",
     prioridade: "Normal",
     status: "Aberto",
@@ -710,8 +720,8 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
       const created = await createTicket(formData);
       // Notify everyone about the new ticket
       if (created) {
-        const userName = profiles.find(p => p.id === formData.responsavel_id)?.full_name || 'Alguém da equipe';
-        notifyNewTicket(created.numero || 0, formData.cliente_nome, created.id, formData.responsavel_id || '', userName);
+        const userName = profiles.find(p => p.id === currentUserId)?.full_name || 'Alguém da equipe';
+        notifyNewTicket(created.numero || 0, formData.cliente_nome, created.id, currentUserId, userName);
       }
       onSuccess();
     } catch (error) {
@@ -792,6 +802,16 @@ function NovoTicketModal({ profiles, onClose, onSuccess }: { profiles: DBProfile
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">O que é a questão</label>
+            <textarea
+              value={formData.descricao}
+              onChange={e => setFormData({ ...formData, descricao: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none min-h-[80px] resize-none"
+              placeholder="Descreva o problema ou situação da aluna..."
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Prioridade</label>
@@ -867,6 +887,7 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
     cliente_email: ticket.cliente_email,
     cliente_telefone: ticket.cliente_telefone || "",
     cliente_instagram: ticket.cliente_instagram || "",
+    descricao: ticket.descricao || "",
     categoria: ticket.categoria,
     prioridade: ticket.prioridade,
     status: ticket.status,
@@ -951,6 +972,16 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
                 <option value="Outros">Outros</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">O que é a questão</label>
+            <textarea
+              value={formData.descricao}
+              onChange={e => setFormData({ ...formData, descricao: e.target.value })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none min-h-[80px] resize-none"
+              placeholder="Descreva o problema ou situação da aluna..."
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
