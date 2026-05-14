@@ -744,9 +744,13 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
               <Property label="Responsável">
                 <div className="relative">
                   <button onClick={() => setShowResponsavelPicker(!showResponsavelPicker)} className="flex items-center gap-2 bg-foreground/5 hover:bg-foreground/10 px-2 py-1 rounded cursor-pointer transition-colors">
-                    <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold text-letitia-gold border border-letitia-gold/30">
-                      {tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??"}
-                    </div>
+                    {tarefa.profiles?.avatar_url ? (
+                      <img src={tarefa.profiles.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover border border-letitia-gold/30" />
+                    ) : (
+                      <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold text-letitia-gold border border-letitia-gold/30">
+                        {tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??"}
+                      </div>
+                    )}
                     <span className="text-xs font-medium truncate max-w-[100px]">{tarefa.profiles?.full_name || "Sem atribuição"}</span>
                     <ChevronDown className="h-3 w-3 text-muted" />
                   </button>
@@ -762,7 +766,11 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                         </button>
                         {allProfiles.filter(p => (p.full_name || "").toLowerCase().includes(respSearch.toLowerCase())).map(p => (
                           <button key={p.id} onClick={() => { onUpdate({ responsavel_id: p.id } as any); setShowResponsavelPicker(false); setRespSearch(""); }} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/5 transition-colors">
-                            <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[7px] font-bold text-letitia-gold">{(p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}</div>
+                            {p.avatar_url ? (
+                              <img src={p.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                            ) : (
+                              <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[7px] font-bold text-letitia-gold">{(p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}</div>
+                            )}
                             <span>{p.full_name}</span>
                           </button>
                         ))}
@@ -1389,9 +1397,13 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
             </span>
           )}
           <span className="flex items-center gap-1.5 text-[11px] text-muted">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
-              {iniciais}
-            </span>
+            {tarefa.profiles?.avatar_url ? (
+              <img src={tarefa.profiles.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover border border-border" />
+            ) : (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
+                {iniciais}
+              </span>
+            )}
             {tarefa.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}
           </span>
           <span className={cn("flex items-center gap-1 text-[11px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
@@ -1454,7 +1466,11 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onC
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border text-[10px] font-medium text-foreground">{iniciais}</span>
+          {tarefa.profiles?.avatar_url ? (
+            <img src={tarefa.profiles.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover border border-border" />
+          ) : (
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background border border-border text-[10px] font-medium text-foreground">{iniciais}</span>
+          )}
           <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", prior.bg, prior.text)}>{prior.label}</span>
         </div>
         <span className="text-[10px] text-muted flex items-center gap-1">
