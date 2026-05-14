@@ -4,7 +4,7 @@ export interface DBTicket {
   id: string;
   numero: number;
   cliente_nome: string;
-  cliente_email: string;
+  cliente_email: string | null;
   cliente_instagram: string | null;
   cliente_telefone: string | null;
   descricao: string | null;

@@ -123,7 +123,7 @@ export function Suporte() {
 
   const filtrados = tickets.filter(t => {
     const matchBusca = t.cliente_nome.toLowerCase().includes(busca.toLowerCase()) || 
-                       t.cliente_email.toLowerCase().includes(busca.toLowerCase()) ||
+                       (t.cliente_email || '').toLowerCase().includes(busca.toLowerCase()) ||
                        t.cliente_telefone?.includes(busca);
     
     if (meusTickets && t.responsavel_id !== user?.id) return false;
@@ -245,7 +245,7 @@ export function Suporte() {
                         <td className="px-4 py-4">
                           <p className={cn("text-sm font-bold uppercase tracking-wide", (t.status === 'Resolvido' || t.status === 'Fechado') ? "text-muted line-through" : "text-foreground")}>{t.cliente_nome}</p>
                           <div className="flex items-center gap-3 mt-1 flex-wrap">
-                            <span className="flex items-center gap-1 text-[11px] text-muted"><Mail className="h-3 w-3" /> {t.cliente_email}</span>
+                            {t.cliente_email && <span className="flex items-center gap-1 text-[11px] text-muted"><Mail className="h-3 w-3" /> {t.cliente_email}</span>}
                             {t.cliente_telefone && <span className="flex items-center gap-1 text-[11px] text-muted"><Phone className="h-3 w-3" /> {t.cliente_telefone}</span>}
                           </div>
                         </td>
@@ -597,7 +597,7 @@ function TicketSidebar({ ticket, profiles: allProfiles, onClose, onStatusUpdate,
           <div className="space-y-4">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted border-b border-border/50 pb-2">Informações de Contato</h4>
             <div className="space-y-3">
-              <ContactItem icon={<Mail className="h-4 w-4" />} label="E-mail" value={ticket.cliente_email} />
+              <ContactItem icon={<Mail className="h-4 w-4" />} label="E-mail" value={ticket.cliente_email || "Não informado"} />
               <ContactItem icon={<Phone className="h-4 w-4" />} label="Telefone" value={ticket.cliente_telefone || "Não informado"} />
               <ContactItem icon={<Camera className="h-4 w-4" />} label="Instagram" value={ticket.cliente_instagram || "Não informado"} />
             </div>
@@ -905,7 +905,7 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     cliente_nome: ticket.cliente_nome,
-    cliente_email: ticket.cliente_email,
+    cliente_email: ticket.cliente_email || "",
     cliente_telefone: ticket.cliente_telefone || "",
     cliente_instagram: ticket.cliente_instagram || "",
     descricao: ticket.descricao || "",
