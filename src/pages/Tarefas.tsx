@@ -51,6 +51,11 @@ export function Tarefas() {
   const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
+  // Bulk selection state
+  const [bulkSelectMode, setBulkSelectMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
   const hoje = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
@@ -278,6 +283,88 @@ export function Tarefas() {
     }
   };
 
+  // ── Bulk selection helpers ──
+  const toggleBulkSelect = (id: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const ids = filtradas.filter(t => !(t as any).__isSubtask).map(t => t.id);
+    setSelectedTaskIds(new Set(ids));
+  };
+
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+  };
+
+  const exitBulkMode = () => {
+    setBulkSelectMode(false);
+    clearSelection();
+  };
+
+  const handleBulkStatusChange = async (status: TaskStatus) => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      await Promise.all(
+        Array.from(selectedTaskIds).map(id => updateTaskStatus(id, status))
+      );
+      clearSelection();
+      await fetchTarefas();
+    } catch (err) {
+      console.error('Erro ao atualizar tarefas em massa:', err);
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkFieldUpdate = async (updates: Partial<DBTask>) => {
+    if (selectedTaskIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      await Promise.all(
+        Array.from(selectedTaskIds).map(id => updateTask(id, updates))
+      );
+      clearSelection();
+      await fetchTarefas();
+    } catch (err) {
+      console.error('Erro ao atualizar tarefas em massa:', err);
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedTaskIds.size} tarefa(s)?`)) return;
+    setBulkUpdating(true);
+    try {
+      for (const id of selectedTaskIds) {
+        const tarefa = tarefas.find(t => t.id === id);
+        if (tarefa) {
+          saveTaskHistory({
+            tarefa_id: id, titulo: tarefa.titulo, prioridade: tarefa.prioridade,
+            status: tarefa.status, responsavel_nome: tarefa.profiles?.full_name || undefined,
+            responsavel_id: tarefa.responsavel_id, prazo: tarefa.prazo,
+            action: 'excluida', details: 'Excluída em lote',
+          });
+        }
+        await deleteTask(id);
+      }
+      clearSelection();
+      setBulkSelectMode(false);
+      await fetchTarefas();
+    } catch (err) {
+      console.error('Erro ao excluir tarefas em massa:', err);
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -312,6 +399,19 @@ export function Tarefas() {
             className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 transition-all flex items-center gap-2"
           >
             <Layers className="h-4 w-4" /> Em Massa
+          </button>
+          <button
+            onClick={() => { if (bulkSelectMode) exitBulkMode(); else setBulkSelectMode(true); }}
+            className={cn(
+              "rounded-md border px-3 py-2 text-sm font-medium transition-all flex items-center gap-2",
+              bulkSelectMode
+                ? "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-500/25"
+                : "border-border text-muted hover:text-foreground hover:bg-foreground/5"
+            )}
+            title="Selecionar tarefas em massa"
+          >
+            <CheckSquare2 className="h-4 w-4" />
+            {bulkSelectMode ? "Cancelar Seleção" : "Selecionar"}
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -450,6 +550,18 @@ export function Tarefas() {
             setIsModalOpen(true);
           }}
           busca={busca}
+          bulkSelectMode={bulkSelectMode}
+          selectedTaskIds={selectedTaskIds}
+          onBulkToggle={toggleBulkSelect}
+          onBulkSelectPerson={(ids) => {
+            setSelectedTaskIds(prev => {
+              const next = new Set(prev);
+              const allSelected = ids.every(id => next.has(id));
+              if (allSelected) { ids.forEach(id => next.delete(id)); }
+              else { ids.forEach(id => next.add(id)); }
+              return next;
+            });
+          }}
         />
       ) : view === "lista" ? (
         <div className="space-y-4">
@@ -473,7 +585,7 @@ export function Tarefas() {
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue />
+                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />
               ))}
             </TaskSection>
           )}
@@ -489,7 +601,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)
             )}
           </TaskSection>
 
@@ -501,7 +613,7 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)}
           </TaskSection>
 
           <TaskSection
@@ -512,7 +624,7 @@ export function Tarefas() {
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)}
           </TaskSection>
         </div>
       ) : (
@@ -527,7 +639,7 @@ export function Tarefas() {
                 </div>
                 <div className="flex-1 bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[200px]">
                   {colTarefas.map((t) => (
-                    <KanbanCard key={t.id} tarefa={t} onClick={() => setSelectedTarefa(t)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} />
+                    <KanbanCard key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : setSelectedTarefa(t)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />
                   ))}
                 </div>
               </div>
@@ -580,6 +692,22 @@ export function Tarefas() {
             await updateTask(selectedTarefa.id, updates);
             fetchTarefas();
           }}
+        />
+      )}
+
+      {/* ── Bulk Action Bar ── */}
+      {bulkSelectMode && (
+        <BulkActionBar
+          selectedCount={selectedTaskIds.size}
+          totalCount={filtradas.filter(t => !(t as any).__isSubtask).length}
+          onSelectAll={selectAllVisible}
+          onClearSelection={clearSelection}
+          onStatusChange={handleBulkStatusChange}
+          onFieldUpdate={handleBulkFieldUpdate}
+          onDelete={handleBulkDelete}
+          onCancel={exitBulkMode}
+          profiles={profiles}
+          isUpdating={bulkUpdating}
         />
       )}
     </div>
@@ -1348,8 +1476,9 @@ function TaskSection({ label, count, icon, color, open, onToggle, children }: {
   );
 }
 
-function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDone }: {
+function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDone, bulkSelectMode, isSelected, onBulkToggle }: {
   tarefa: DBTask; onClick: () => void; onToggle: () => void; onEdit: (t: DBTask) => void; onDelete: (id: string) => void; isOverdue?: boolean; isDone?: boolean;
+  bulkSelectMode?: boolean; isSelected?: boolean; onBulkToggle?: () => void;
 }) {
   const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
   const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
@@ -1361,22 +1490,37 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-4 py-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm group",
+        isSelected ? "border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/40" :
         isSubtask ? "border-violet-500/20 bg-violet-500/[0.03]" :
         isOverdue ? "border-red-500/30 bg-red-500/5" :
         isDone ? "border-green-500/20 bg-green-500/5" :
         "border-border bg-card hover:border-letitia-gold/30"
       )}
     >
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className="flex-shrink-0"
-      >
-        {isDone ? (
-          <CheckSquare2 className="h-5 w-5 text-green-500" />
-        ) : (
-          <Square className={cn("h-5 w-5", isOverdue ? "text-red-400" : isSubtask ? "text-violet-400" : "text-border group-hover:text-muted")} />
-        )}
-      </button>
+      {/* Bulk selection checkbox */}
+      {bulkSelectMode && !isSubtask ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onBulkToggle?.(); }}
+          className="flex-shrink-0 transition-transform hover:scale-110"
+        >
+          {isSelected ? (
+            <CheckSquare2 className="h-5 w-5 text-amber-500" />
+          ) : (
+            <Square className="h-5 w-5 text-border hover:text-amber-500/60" />
+          )}
+        </button>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="flex-shrink-0"
+        >
+          {isDone ? (
+            <CheckSquare2 className="h-5 w-5 text-green-500" />
+          ) : (
+            <Square className={cn("h-5 w-5", isOverdue ? "text-red-400" : isSubtask ? "text-violet-400" : "text-border group-hover:text-muted")} />
+          )}
+        </button>
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -1424,7 +1568,7 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
         </div>
       </div>
 
-      {!isSubtask && (
+      {!isSubtask && !bulkSelectMode && (
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button 
             onClick={(e) => { e.stopPropagation(); onEdit(tarefa); }}
@@ -1444,25 +1588,47 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
   );
 }
 
-function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onClick: () => void; onEdit: (t: DBTask) => void; onDelete: (id: string) => void }) {
+function KanbanCard({ tarefa, onClick, onEdit, onDelete, bulkSelectMode, isSelected, onBulkToggle }: {
+  tarefa: DBTask; onClick: () => void; onEdit: (t: DBTask) => void; onDelete: (id: string) => void;
+  bulkSelectMode?: boolean; isSelected?: boolean; onBulkToggle?: () => void;
+}) {
   const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
   const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
 
   return (
     <div 
       onClick={onClick}
-      className="rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer group hover:border-letitia-gold/30"
+      className={cn(
+        "rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-all cursor-pointer group",
+        isSelected ? "border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/40" : "border-border hover:border-letitia-gold/30"
+      )}
     >
       <div className="flex justify-between items-start gap-2">
-        <p className="text-sm font-medium text-foreground leading-snug">{tarefa.titulo}</p>
-        <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onEdit(tarefa); }} className="p-1 rounded hover:bg-foreground/5 text-muted">
-            <Plus className="h-3 w-3 rotate-45" />
-          </button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }} className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
-            <X className="h-3 w-3" />
-          </button>
+        <div className="flex items-start gap-2">
+          {bulkSelectMode && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onBulkToggle?.(); }}
+              className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110"
+            >
+              {isSelected ? (
+                <CheckSquare2 className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Square className="h-4 w-4 text-border hover:text-amber-500/60" />
+              )}
+            </button>
+          )}
+          <p className="text-sm font-medium text-foreground leading-snug">{tarefa.titulo}</p>
         </div>
+        {!bulkSelectMode && (
+          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={(e) => { e.stopPropagation(); onEdit(tarefa); }} className="p-1 rounded hover:bg-foreground/5 text-muted">
+              <Plus className="h-3 w-3 rotate-45" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }} className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -1490,7 +1656,7 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete }: { tarefa: DBTask; onC
 
 /* ─── Team View ──────────────────────────────────────────── */
 
-function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca }: {
+function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca, bulkSelectMode, selectedTaskIds, onBulkToggle, onBulkSelectPerson }: {
   tarefas: DBTask[];
   profiles: DBProfile[];
   view: ViewMode;
@@ -1501,6 +1667,10 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   onToggle: (id: string, status: TaskStatus) => void;
   onNewTask: (profileId: string) => void;
   busca: string;
+  bulkSelectMode?: boolean;
+  selectedTaskIds?: Set<string>;
+  onBulkToggle?: (id: string) => void;
+  onBulkSelectPerson?: (ids: string[]) => void;
 }) {
   const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({});
   const [showConcluidasMap, setShowConcluidasMap] = useState<Record<string, boolean>>({});
@@ -1542,10 +1712,37 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   };
 
   const [memberSearch, setMemberSearch] = useState("");
+  const [sortBy, setSortBy] = useState<'ativas' | 'alfabetica' | 'atrasadas' | 'taxa'>('ativas');
 
   const filteredEntries = entries.filter(([, v]) => {
     if (!memberSearch) return true;
     return (v.profile?.full_name || "Sem atribuição").toLowerCase().includes(memberSearch.toLowerCase());
+  });
+
+  // Sort entries
+  const sortedEntries = [...filteredEntries].sort((a, b) => {
+    const [, va] = a;
+    const [, vb] = b;
+    const pendA = va.tasks.filter(t => t.status !== 'concluido').length;
+    const pendB = vb.tasks.filter(t => t.status !== 'concluido').length;
+    switch (sortBy) {
+      case 'alfabetica':
+        return (va.profile?.full_name || 'ZZZ').localeCompare(vb.profile?.full_name || 'ZZZ');
+      case 'ativas':
+        return pendB - pendA;
+      case 'atrasadas': {
+        const atrA = va.tasks.filter(t => t.status !== 'concluido' && t.prazo && t.prazo < hoje).length;
+        const atrB = vb.tasks.filter(t => t.status !== 'concluido' && t.prazo && t.prazo < hoje).length;
+        return atrB - atrA;
+      }
+      case 'taxa': {
+        const taxaA = va.tasks.length > 0 ? Math.round((va.tasks.filter(t => t.status === 'concluido').length / va.tasks.length) * 100) : 0;
+        const taxaB = vb.tasks.length > 0 ? Math.round((vb.tasks.filter(t => t.status === 'concluido').length / vb.tasks.length) * 100) : 0;
+        return taxaB - taxaA;
+      }
+      default:
+        return pendB - pendA;
+    }
   });
 
   return (
@@ -1554,25 +1751,40 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
         <div className="flex items-center gap-2 text-muted">
           <User className="h-4 w-4" />
           <span className="text-sm font-semibold">Tarefas por Responsável</span>
-          <span className="text-xs bg-card border border-border px-2 py-0.5 rounded-full">{filteredEntries.length} membros</span>
+          <span className="text-xs bg-card border border-border px-2 py-0.5 rounded-full">{sortedEntries.length} membros</span>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
-          <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Buscar membro..." className="rounded-md border border-border bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none w-44" />
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+            <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Buscar membro..." className="rounded-md border border-border bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none w-44" />
+          </div>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="appearance-none rounded-md border border-border bg-card pl-3 pr-7 py-1.5 text-xs font-medium text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none cursor-pointer"
+            >
+              <option value="ativas">Mais ativas</option>
+              <option value="alfabetica">A → Z</option>
+              <option value="atrasadas">Mais atrasadas</option>
+              <option value="taxa">Maior taxa</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted pointer-events-none" />
+          </div>
         </div>
       </div>
 
       {view === "kanban" ? (
         /* ── Kanban Cards View ── */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredEntries.map(([id, { profile, tasks }]) => {
+                    {sortedEntries.map(([id, { profile, tasks }]) => {
             const pendentes = tasks.filter(t => t.status !== "concluido");
             const concluidas = tasks.filter(t => t.status === "concluido");
             const atrasadas = pendentes.filter(t => t.prazo && t.prazo < hoje);
             const alta = pendentes.filter(t => t.prioridade === "alta" || t.prioridade === "urgente");
             const taxa = tasks.length > 0 ? Math.round((concluidas.length / tasks.length) * 100) : 0;
             const iniciais = profile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
-            const isExpanded = expandedUsers[id] !== false; // default expanded
+            const isExpanded = pendentes.length > 0 ? (expandedUsers[id] !== false) : (expandedUsers[id] === true);
             const showDone = showConcluidasMap[id] || false;
 
             return (
@@ -1594,6 +1806,20 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {bulkSelectMode && pendentes.length > 0 && (
+                        <button
+                          onClick={() => onBulkSelectPerson?.(pendentes.map(t => t.id))}
+                          className={cn(
+                            "text-[10px] font-semibold px-2 py-1 rounded-md border transition-colors flex items-center gap-1",
+                            pendentes.every(t => selectedTaskIds?.has(t.id))
+                              ? "border-amber-500 bg-amber-500 text-white"
+                              : "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                          )}
+                        >
+                          {pendentes.every(t => selectedTaskIds?.has(t.id)) ? <CheckSquare2 className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                          Selecionar todas
+                        </button>
+                      )}
                       <button
                         onClick={() => onNewTask(id)}
                         className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-border hover:bg-foreground/5 transition-colors flex items-center gap-1"
@@ -1605,29 +1831,33 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 mt-3 text-[11px]">
-                    <span className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-red-500" />
-                      <span className="text-muted">Atrasadas:</span>
-                      <span className={cn("font-semibold", atrasadas.length > 0 ? "text-red-500" : "text-foreground")}>{atrasadas.length}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-amber-500" />
-                      <span className="text-muted">Alta:</span>
-                      <span className="font-semibold text-foreground">{alta.length}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                      <span className="text-muted">Taxa:</span>
-                      <span className="font-semibold text-green-600">{taxa}%</span>
-                    </span>
-                  </div>
+                  {/* Stats — only show if there are pending tasks */}
+                  {pendentes.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-4 mt-3 text-[11px]">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-red-500" />
+                          <span className="text-muted">Atrasadas:</span>
+                          <span className={cn("font-semibold", atrasadas.length > 0 ? "text-red-500" : "text-foreground")}>{atrasadas.length}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-amber-500" />
+                          <span className="text-muted">Alta:</span>
+                          <span className="font-semibold text-foreground">{alta.length}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                          <span className="text-muted">Taxa:</span>
+                          <span className="font-semibold text-green-600">{taxa}%</span>
+                        </span>
+                      </div>
 
-                  {/* Progress bar */}
-                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden mt-3">
-                    <div className="h-full bg-letitia-gold rounded-full transition-all duration-500" style={{ width: `${taxa}%` }} />
-                  </div>
+                      {/* Progress bar */}
+                      <div className="h-1.5 w-full rounded-full bg-border overflow-hidden mt-3">
+                        <div className="h-full bg-letitia-gold rounded-full transition-all duration-500" style={{ width: `${taxa}%` }} />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Tasks */}
@@ -1637,26 +1867,30 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
 
-                  {isExpanded && (
+                  {isExpanded && pendentes.length > 0 && (
                     <div className="px-3 pb-3 space-y-1 max-h-[300px] overflow-y-auto">
-                      {pendentes.length === 0 ? (
-                        <p className="text-xs text-muted italic text-center py-4">Nenhuma tarefa pendente 🎉</p>
-                      ) : (
-                        pendentes.map(t => {
+                        {pendentes.map(t => {
                           const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
                           const isOverdue = t.prazo && t.prazo < hoje;
                           return (
                             <div
                               key={t.id}
-                              onClick={() => onTaskClick(t)}
+                              onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
                               className={cn(
                                 "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-foreground/5 transition-colors group",
-                                isOverdue && "bg-red-500/5"
+                                selectedTaskIds?.has(t.id) ? "bg-amber-500/5 ring-1 ring-amber-500/30" :
+                                isOverdue ? "bg-red-500/5" : ""
                               )}
                             >
-                              <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }} className="flex-shrink-0">
-                                <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
-                              </button>
+                              {bulkSelectMode ? (
+                                <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="flex-shrink-0 transition-transform hover:scale-110">
+                                  {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
+                                </button>
+                              ) : (
+                                <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }} className="flex-shrink-0">
+                                  <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
+                                </button>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
                               </div>
@@ -1667,8 +1901,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                               </span>
                             </div>
                           );
-                        })
-                      )}
+                        })}
 
                       {concluidas.length > 0 && (
                         <button onClick={() => toggleConcluidas(id)} className="w-full text-center text-[11px] text-muted hover:text-foreground py-2 flex items-center justify-center gap-1 transition-colors">
@@ -1702,7 +1935,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
       ) : (
         /* ── List View ── */
         <div className="space-y-6">
-                    {filteredEntries.map(([id, { profile, tasks }]) => {
+                    {sortedEntries.map(([id, { profile, tasks }]) => {
             const pendentes = tasks.filter(t => t.status !== "concluido");
             const concluidas = tasks.filter(t => t.status === "concluido");
             const iniciais = profile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
@@ -1726,6 +1959,20 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     </button>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted">
+                    {bulkSelectMode && pendentes.length > 0 && (
+                      <button
+                        onClick={() => onBulkSelectPerson?.(pendentes.map(t => t.id))}
+                        className={cn(
+                          "text-[10px] font-semibold px-2 py-1 rounded-md border transition-colors flex items-center gap-1",
+                          pendentes.every(t => selectedTaskIds?.has(t.id))
+                            ? "border-amber-500 bg-amber-500 text-white"
+                            : "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                        )}
+                      >
+                        {pendentes.every(t => selectedTaskIds?.has(t.id)) ? <CheckSquare2 className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                        Todas
+                      </button>
+                    )}
                     <span>{tasks.length} tarefas</span>
                     <span className="flex items-center gap-1"><Square className="h-3 w-3" />{pendentes.length}</span>
                     <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" />{concluidas.length}</span>
@@ -1752,13 +1999,19 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     return (
                       <div
                         key={t.id}
-                        onClick={() => onTaskClick(t)}
-                        className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", isOverdue && "bg-red-500/5")}
+                        onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
+                        className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", selectedTaskIds?.has(t.id) ? "bg-amber-500/5" : isOverdue ? "bg-red-500/5" : "")}
                       >
                         <div className="col-span-1">
-                          <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
-                            <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
-                          </button>
+                          {bulkSelectMode ? (
+                            <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="transition-transform hover:scale-110">
+                              {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
+                            </button>
+                          ) : (
+                            <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
+                              <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
+                            </button>
+                          )}
                         </div>
                         <div className="col-span-5">
                           <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
@@ -2349,6 +2602,190 @@ function TaskTemplateModal({ profiles, onClose, onTaskCreated }: {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Bulk Action Bar ───────────────────────────────────── */
+
+function BulkActionBar({ selectedCount, totalCount, onSelectAll, onClearSelection, onStatusChange, onFieldUpdate, onDelete, onCancel, profiles, isUpdating }: {
+  selectedCount: number;
+  totalCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  onStatusChange: (status: TaskStatus) => Promise<void>;
+  onFieldUpdate: (updates: Partial<DBTask>) => Promise<void>;
+  onDelete: () => Promise<void>;
+  onCancel: () => void;
+  profiles: DBProfile[];
+  isUpdating: boolean;
+}) {
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const allSelected = selectedCount > 0 && selectedCount >= totalCount;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[80] flex justify-center pb-6 pointer-events-none" style={{ animation: 'bulkBarIn 0.3s ease-out' }}>
+      <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/20 max-w-3xl">
+        {/* Selection info */}
+        <div className="flex items-center gap-2 pr-3 border-r border-border">
+          <button
+            onClick={allSelected ? onClearSelection : onSelectAll}
+            className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors"
+          >
+            {allSelected ? (
+              <CheckSquare2 className="h-4 w-4 text-amber-500" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
+            {allSelected ? "Desmarcar" : "Todas"}
+          </button>
+          <span className="text-xs font-semibold bg-amber-500/10 text-amber-600 px-2.5 py-1 rounded-full border border-amber-500/20 min-w-[24px] text-center">
+            {selectedCount}
+          </span>
+          <span className="text-[11px] text-muted">selecionada{selectedCount !== 1 ? "s" : ""}</span>
+        </div>
+
+        {isUpdating ? (
+          <div className="flex items-center gap-2 px-4">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+            <span className="text-xs text-muted">Aplicando...</span>
+          </div>
+        ) : (
+          <>
+            {/* Status dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setOpenDropdown(openDropdown === "status" ? null : "status")}
+                disabled={selectedCount === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                Status
+                <ChevronDown className={cn("h-3 w-3 text-muted transition-transform", openDropdown === "status" && "rotate-180")} />
+              </button>
+              {openDropdown === "status" && (
+                <div className="absolute bottom-full left-0 mb-2 w-44 rounded-xl border border-border bg-card p-1.5 shadow-xl">
+                  {[
+                    { id: "fazer" as TaskStatus, label: "A Fazer", icon: "🔵" },
+                    { id: "progresso" as TaskStatus, label: "Em Progresso", icon: "🟡" },
+                    { id: "revisao" as TaskStatus, label: "Revisão", icon: "🟠" },
+                    { id: "concluido" as TaskStatus, label: "Concluído", icon: "🟢" },
+                  ].map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => { setOpenDropdown(null); onStatusChange(s.id); }}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium hover:bg-foreground/5 transition-colors text-left"
+                    >
+                      <span>{s.icon}</span>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Priority dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setOpenDropdown(openDropdown === "priority" ? null : "priority")}
+                disabled={selectedCount === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                Prioridade
+                <ChevronDown className={cn("h-3 w-3 text-muted transition-transform", openDropdown === "priority" && "rotate-180")} />
+              </button>
+              {openDropdown === "priority" && (
+                <div className="absolute bottom-full left-0 mb-2 w-40 rounded-xl border border-border bg-card p-1.5 shadow-xl">
+                  {[
+                    { id: "baixa" as TaskPriority, label: "Baixa" },
+                    { id: "normal" as TaskPriority, label: "Normal" },
+                    { id: "alta" as TaskPriority, label: "Alta" },
+                    { id: "urgente" as TaskPriority, label: "Urgente" },
+                  ].map(p => {
+                    const c = prioridadeColors[p.id as keyof typeof prioridadeColors];
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => { setOpenDropdown(null); onFieldUpdate({ prioridade: p.id } as any); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium hover:bg-foreground/5 transition-colors text-left"
+                      >
+                        <span className={cn("h-2 w-2 rounded-full", c.bg.replace('/10', ''))} />
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Responsible dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setOpenDropdown(openDropdown === "resp" ? null : "resp")}
+                disabled={selectedCount === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <User className="h-3.5 w-3.5" />
+                Responsável
+                <ChevronDown className={cn("h-3 w-3 text-muted transition-transform", openDropdown === "resp" && "rotate-180")} />
+              </button>
+              {openDropdown === "resp" && (
+                <div className="absolute bottom-full left-0 mb-2 w-52 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
+                  <div className="max-h-48 overflow-y-auto p-1.5">
+                    <button
+                      onClick={() => { setOpenDropdown(null); onFieldUpdate({ responsavel_id: null } as any); }}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs hover:bg-foreground/5 transition-colors text-muted"
+                    >
+                      <X className="h-3.5 w-3.5" /> Sem atribuição
+                    </button>
+                    {profiles.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setOpenDropdown(null); onFieldUpdate({ responsavel_id: p.id } as any); }}
+                        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium hover:bg-foreground/5 transition-colors text-left"
+                      >
+                        {p.avatar_url ? (
+                          <img src={p.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                        ) : (
+                          <div className="h-5 w-5 rounded-full bg-letitia-gold/20 flex items-center justify-center text-[7px] font-bold text-letitia-gold">
+                            {(p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        {p.full_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-border mx-1" />
+
+            {/* Delete */}
+            <button
+              onClick={onDelete}
+              disabled={selectedCount === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir
+            </button>
+          </>
+        )}
+
+        {/* Cancel */}
+        <div className="h-6 w-px bg-border mx-1" />
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted hover:text-foreground hover:bg-foreground/5 transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+          Fechar
+        </button>
       </div>
     </div>
   );

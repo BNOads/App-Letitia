@@ -213,6 +213,7 @@ export function Suporte() {
                 <tr className="border-b border-border bg-background/50">
                   <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">#</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Cliente</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Questão</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Categoria</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Prioridade</th>
                   <th className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Responsável</th>
@@ -222,7 +223,7 @@ export function Suporte() {
               <tbody>
                 {filtrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted italic">Nenhum ticket encontrado.</td>
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted italic">Nenhum ticket encontrado.</td>
                   </tr>
                 ) : (
                   filtrados.map((t) => {
@@ -247,6 +248,13 @@ export function Suporte() {
                             <span className="flex items-center gap-1 text-[11px] text-muted"><Mail className="h-3 w-3" /> {t.cliente_email}</span>
                             {t.cliente_telefone && <span className="flex items-center gap-1 text-[11px] text-muted"><Phone className="h-3 w-3" /> {t.cliente_telefone}</span>}
                           </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          {t.descricao ? (
+                            <p className="text-xs text-foreground leading-snug line-clamp-2 max-w-[200px]" title={t.descricao}>{t.descricao}</p>
+                          ) : (
+                            <span className="text-[11px] text-muted italic">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="relative inline-flex items-center">
@@ -717,7 +725,21 @@ function NovoTicketModal({ profiles, currentUserId, onClose, onSuccess }: { prof
     e.preventDefault();
     setLoading(true);
     try {
-      const created = await createTicket(formData);
+      // Validate at least one contact method
+      if (!formData.cliente_email && !formData.cliente_telefone && !formData.cliente_instagram) {
+        alert('Preencha pelo menos um contato: e-mail, telefone ou Instagram.');
+        setLoading(false);
+        return;
+      }
+      const payload = {
+        ...formData,
+        responsavel_id: formData.responsavel_id || null,
+        cliente_email: formData.cliente_email || null,
+        cliente_telefone: formData.cliente_telefone || null,
+        cliente_instagram: formData.cliente_instagram || null,
+        descricao: formData.descricao || null,
+      };
+      const created = await createTicket(payload);
       // Notify everyone about the new ticket
       if (created) {
         const userName = profiles.find(p => p.id === currentUserId)?.full_name || 'Alguém da equipe';
@@ -757,7 +779,6 @@ function NovoTicketModal({ profiles, currentUserId, onClose, onSuccess }: { prof
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">E-mail</label>
               <input
-                required
                 type="email"
                 value={formData.cliente_email}
                 onChange={e => setFormData({ ...formData, cliente_email: e.target.value })}
@@ -898,7 +919,15 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
     e.preventDefault();
     setLoading(true);
     try {
-      await updateTicket(ticket.id, formData);
+      const payload = {
+        ...formData,
+        responsavel_id: formData.responsavel_id || null,
+        cliente_email: formData.cliente_email || null,
+        cliente_telefone: formData.cliente_telefone || null,
+        cliente_instagram: formData.cliente_instagram || null,
+        descricao: formData.descricao || null,
+      };
+      await updateTicket(ticket.id, payload);
       onSuccess();
     } catch (error) {
       console.error("Erro ao atualizar ticket:", error);
@@ -932,7 +961,6 @@ function EditTicketModal({ ticket, profiles, onClose, onSuccess }: { ticket: DBT
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">E-mail</label>
               <input
-                required
                 type="email"
                 value={formData.cliente_email}
                 onChange={e => setFormData({ ...formData, cliente_email: e.target.value })}

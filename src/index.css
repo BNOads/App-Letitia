@@ -50,6 +50,11 @@
   to { transform: translateX(0) translateZ(0); }
 }
 
+@keyframes bulkBarIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Override: make all transition-all faster and limit properties */
 *, *::before, *::after {
   transition-duration: 100ms !important;
