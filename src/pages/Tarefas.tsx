@@ -10,7 +10,7 @@ import {
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
   Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
-  GripVertical
+  GripVertical, AlignLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -747,6 +747,9 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
   const [editSubResp, setEditSubResp] = useState<string | null>(null);
   const [editSubPrazo, setEditSubPrazo] = useState("");
+  const [expandedSubtaskId, setExpandedSubtaskId] = useState<string | null>(null);
+  const [editSubDesc, setEditSubDesc] = useState("");
+  const [editingSubDesc, setEditingSubDesc] = useState(false);
 
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
   useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
@@ -792,6 +795,31 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
       setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, responsavel_id: editSubResp, prazo: editSubPrazo || null } : s));
       setEditingSubtaskId(null);
     } catch (e) { console.error("Erro ao editar subtarefa:", e); }
+  };
+
+  const handleSaveSubtaskDesc = async (sub: DBSubtask) => {
+    try {
+      await updateSubtask(sub.id, { descricao: editSubDesc || null });
+      setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, descricao: editSubDesc || null } : s));
+      setEditingSubDesc(false);
+    } catch (e) { console.error("Erro ao salvar descrição da subtarefa:", e); }
+  };
+
+  const handleExpandSubtask = (sub: DBSubtask) => {
+    if (expandedSubtaskId === sub.id) {
+      setExpandedSubtaskId(null);
+      setEditingSubDesc(false);
+    } else {
+      setExpandedSubtaskId(sub.id);
+      setEditSubDesc(sub.descricao || "");
+      setEditingSubDesc(false);
+    }
+  };
+
+  const handleQuickAddDesc = (sub: DBSubtask) => {
+    setExpandedSubtaskId(sub.id);
+    setEditSubDesc(sub.descricao || "");
+    setEditingSubDesc(true);
   };
 
   const handleSendComment = async () => {
@@ -996,79 +1024,137 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                   const subProfile = allProfiles.find(p => p.id === sub.responsavel_id);
                   const subIniciais = subProfile?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "";
                   const isEditing = editingSubtaskId === sub.id;
+                  const isExpanded = expandedSubtaskId === sub.id;
 
                   return (
                     <div key={sub.id} className={cn(
-                      "group flex items-start gap-2.5 px-3 py-2 rounded-lg transition-all hover:bg-foreground/[0.03] border border-transparent hover:border-border/50",
+                      "group rounded-lg transition-all border",
+                      isExpanded ? "border-primary/20 bg-primary/[0.02] shadow-sm" : "border-transparent hover:border-border/50 hover:bg-foreground/[0.03]",
                       sub.concluida && "opacity-60"
                     )}>
-                      <button
-                        onClick={() => handleToggleSubtask(sub)}
-                        className="flex-shrink-0 mt-0.5"
-                      >
-                        {sub.concluida ? (
-                          <CheckSquare2 className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Square className="h-4 w-4 text-border group-hover:text-muted transition-colors" />
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className={cn("text-xs font-medium leading-snug", sub.concluida && "line-through text-muted")}>
-                          {sub.titulo}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {subProfile && (
-                            <span className="flex items-center gap-1 text-[10px] text-muted">
-                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-letitia-gold/10 border border-letitia-gold/20 text-[7px] font-bold text-letitia-gold">
-                                {subIniciais}
-                              </span>
-                              {subProfile.full_name?.split(' ')[0]}
-                            </span>
+                      <div className="flex items-start gap-2.5 px-3 py-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleToggleSubtask(sub); }}
+                          className="flex-shrink-0 mt-0.5"
+                        >
+                          {sub.concluida ? (
+                            <CheckSquare2 className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Square className="h-4 w-4 text-border group-hover:text-muted transition-colors" />
                           )}
-                          {sub.prazo && (
-                            <span className={cn("flex items-center gap-0.5 text-[10px]", sub.prazo < new Date().toISOString().split('T')[0] && !sub.concluida ? "text-red-500 font-medium" : "text-muted")}>
-                              <Clock className="h-2.5 w-2.5" />
-                              {new Date(sub.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: '2-digit', month: 'short' })}
-                            </span>
+                        </button>
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => handleExpandSubtask(sub)}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <p className={cn("text-xs font-medium leading-snug", sub.concluida && "line-through text-muted")}>
+                              {sub.titulo}
+                            </p>
+                            {sub.descricao && (
+                              <AlignLeft className="h-3 w-3 text-primary/50 flex-shrink-0" />
+                            )}
+                            <ChevronDown className={cn(
+                              "h-3 w-3 text-muted/40 flex-shrink-0 transition-transform duration-200",
+                              isExpanded && "rotate-180"
+                            )} />
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {subProfile && (
+                              <span className="flex items-center gap-1 text-[10px] text-muted">
+                                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-letitia-gold/10 border border-letitia-gold/20 text-[7px] font-bold text-letitia-gold">
+                                  {subIniciais}
+                                </span>
+                                {subProfile.full_name?.split(' ')[0]}
+                              </span>
+                            )}
+                            {sub.prazo && (
+                              <span className={cn("flex items-center gap-0.5 text-[10px]", sub.prazo < new Date().toISOString().split('T')[0] && !sub.concluida ? "text-red-500 font-medium" : "text-muted")}>
+                                <Clock className="h-2.5 w-2.5" />
+                                {new Date(sub.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: '2-digit', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Inline edit */}
+                          {isEditing && (
+                            <div className="flex items-center gap-2 mt-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                              <select
+                                value={editSubResp || ""}
+                                onChange={e => setEditSubResp(e.target.value || null)}
+                                className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                              >
+                                <option value="">Sem responsável</option>
+                                {allProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                              </select>
+                              <input
+                                type="date"
+                                value={editSubPrazo}
+                                onChange={e => setEditSubPrazo(e.target.value)}
+                                className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <button onClick={() => handleSaveSubtaskEdit(sub)} className="text-[9px] font-medium px-2 py-1 rounded bg-primary text-primary-foreground">Salvar</button>
+                              <button onClick={() => setEditingSubtaskId(null)} className="text-[9px] text-muted hover:text-foreground">Cancelar</button>
+                            </div>
                           )}
                         </div>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleQuickAddDesc(sub); }}
+                            className={cn("p-1 rounded hover:bg-primary/10 transition-colors", sub.descricao ? "text-primary/60 hover:text-primary" : "text-muted hover:text-foreground")}
+                            title="Adicionar descrição (D)"
+                          >
+                            <AlignLeft className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingSubtaskId(sub.id); setEditSubResp(sub.responsavel_id); setEditSubPrazo(sub.prazo || ""); }}
+                            className="p-1 rounded hover:bg-foreground/5 text-muted hover:text-foreground"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(sub.id); }}
+                            className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
 
-                        {/* Inline edit */}
-                        {isEditing && (
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <select
-                              value={editSubResp || ""}
-                              onChange={e => setEditSubResp(e.target.value || null)}
-                              className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                      {/* Expanded description area */}
+                      {isExpanded && (
+                        <div className="px-3 pb-3 pt-1 ml-[26px] border-t border-border/30 mt-1">
+                          {editingSubDesc ? (
+                            <div className="space-y-2" onClick={e => e.stopPropagation()}>
+                              <TiptapEditor
+                                value={editSubDesc}
+                                onChange={setEditSubDesc}
+                                placeholder="Descreva os detalhes da subtarefa..."
+                                minHeight="80px"
+                                compact
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => { setEditingSubDesc(false); setEditSubDesc(sub.descricao || ""); }} className="px-2.5 py-1 rounded text-[10px] text-muted hover:text-foreground transition-colors">Cancelar</button>
+                                <button onClick={() => handleSaveSubtaskDesc(sub)} className="px-2.5 py-1 rounded bg-primary text-primary-foreground text-[10px] font-medium hover:opacity-90 transition-opacity">Salvar</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={(e) => { e.stopPropagation(); setEditingSubDesc(true); setEditSubDesc(sub.descricao || ""); }}
+                              className="min-h-[40px] p-3 rounded-lg border border-dashed border-border/60 bg-background/40 text-xs text-foreground/70 leading-relaxed cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all"
                             >
-                              <option value="">Sem responsável</option>
-                              {allProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                            </select>
-                            <input
-                              type="date"
-                              value={editSubPrazo}
-                              onChange={e => setEditSubPrazo(e.target.value)}
-                              className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                            <button onClick={() => handleSaveSubtaskEdit(sub)} className="text-[9px] font-medium px-2 py-1 rounded bg-primary text-primary-foreground">Salvar</button>
-                            <button onClick={() => setEditingSubtaskId(null)} className="text-[9px] text-muted hover:text-foreground">Cancelar</button>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button
-                          onClick={() => { setEditingSubtaskId(sub.id); setEditSubResp(sub.responsavel_id); setEditSubPrazo(sub.prazo || ""); }}
-                          className="p-1 rounded hover:bg-foreground/5 text-muted hover:text-foreground"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSubtask(sub.id)}
-                          className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
+                              {sub.descricao ? (
+                                <div className="tiptap-display" dangerouslySetInnerHTML={{ __html: sub.descricao }} />
+                              ) : (
+                                <span className="italic opacity-50 flex items-center gap-1.5">
+                                  <AlignLeft className="h-3 w-3" />
+                                  Clique para adicionar descrição...
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

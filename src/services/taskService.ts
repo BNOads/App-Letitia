@@ -316,6 +316,7 @@ export interface DBSubtask {
   id: string;
   tarefa_id: string;
   titulo: string;
+  descricao: string | null;
   concluida: boolean;
   responsavel_id: string | null;
   prazo: string | null;
