@@ -6,7 +6,7 @@ import { markdownToHtml } from "@/lib/markdownToHtml";
 import { cn } from "@/lib/utils";
 import { 
   Search, Plus, FolderOpen, Star, FileText, ChevronDown, ChevronRight, 
-  Loader2, X, Edit2, Trash2, Save, Globe, Lock, Share2
+  Loader2, X, Edit2, Trash2, Save, Globe, Lock, Share2, ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -142,7 +142,10 @@ export function Documentos() {
 
       <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
         {/* Sidebar de documentos */}
-        <div className="w-72 flex-shrink-0 border border-border rounded-xl bg-card overflow-hidden flex flex-col shadow-sm">
+        <div className={cn(
+          "w-full md:w-72 flex-shrink-0 border border-border rounded-xl bg-card overflow-hidden flex flex-col shadow-sm",
+          docSelecionado ? "hidden md:flex" : "flex"
+        )}>
           <div className="p-3 border-b border-border flex gap-2">
             <button 
               onClick={() => setIsDocModalOpen(true)}
@@ -218,12 +221,22 @@ export function Documentos() {
         </div>
 
         {/* Área de conteúdo */}
-        <div className="flex-1 border border-border rounded-xl bg-card overflow-hidden flex flex-col shadow-sm">
+        <div className={cn(
+          "flex-1 border border-border rounded-xl bg-card overflow-hidden flex flex-col shadow-sm",
+          docSelecionado ? "flex" : "hidden md:flex"
+        )}>
           {docSelecionado ? (
             <>
               <div className="p-4 border-b border-border bg-background/30">
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setDocSelecionado(null)}
+                      className="md:hidden p-1.5 -ml-1 rounded-md hover:bg-foreground/5 text-muted hover:text-foreground transition-colors"
+                      title="Voltar"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
                     <div className="h-8 w-8 rounded-lg bg-letitia-gold/10 flex items-center justify-center">
                       <FileText className="h-5 w-5 text-letitia-gold" />
                     </div>
@@ -414,7 +427,7 @@ function NovoDocumentoModal({ pastas, onClose, onSuccess }: { pastas: DBPasta[];
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 grid grid-cols-2 gap-4">
+          <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">Título</label>
               <input
