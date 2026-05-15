@@ -121,19 +121,22 @@ export async function createEvent(event: Partial<DBEvent>) {
     const futureDates = generateRecurringDates(data.data_evento, data.recorrencia as RecurrenceType, count);
 
     const recurringEvents = futureDates.map(date => ({
-      titulo: event.titulo,
-      descricao: event.descricao,
-      hora_inicio: event.hora_inicio,
-      hora_fim: event.hora_fim,
-      tipo: event.tipo,
-      participantes: event.participantes,
-      recorrencia: event.recorrencia,
+      titulo: data.titulo,
+      descricao: data.descricao || null,
+      hora_inicio: data.hora_inicio,
+      hora_fim: data.hora_fim || null,
+      tipo: data.tipo,
+      participantes: data.participantes || [],
+      recorrencia: data.recorrencia,
       recorrencia_pai_id: data.id,
       data_evento: date,
     }));
 
     if (recurringEvents.length > 0) {
-      await supabase.from('eventos').insert(recurringEvents);
+      const { error: recError } = await supabase.from('eventos').insert(recurringEvents);
+      if (recError) {
+        console.error('Erro ao criar eventos recorrentes:', recError);
+      }
     }
   }
 

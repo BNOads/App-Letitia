@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getEvents, createEvent, updateEvent, deleteEvent, deleteRecurringSeries, recurrenceLabels, type DBEvent, type RecurrenceType } from "@/services/agendaService";
-import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Repeat } from "lucide-react";
+import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Repeat, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { UserSelector } from "@/components/UserSelector";
@@ -263,7 +263,7 @@ function ListView({ eventos, onEdit, onDelete }: { eventos: DBEvent[]; onEdit: (
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => onEdit(e)} className="p-1.5 rounded hover:bg-foreground/5 text-muted hover:text-foreground">
-                          <Plus className="h-4 w-4 rotate-45" />
+                          <Pencil className="h-4 w-4" />
                         </button>
                         <button onClick={() => onDelete(e.id)} className="p-1.5 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
                           <X className="h-4 w-4" />
@@ -400,7 +400,7 @@ function MonthView({ eventos, offset, onEdit }: { eventos: DBEvent[]; offset: nu
 function EventCard({ event, compact, onEdit, onDelete }: { event: DBEvent; compact?: boolean; onEdit: (e: DBEvent) => void; onDelete: (id: string) => void }) {
   const tipo = tipoConfig[event.tipo] || tipoConfig.reuniao;
   return (
-    <div className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-md transition-all group", tipo.color, !compact && "border border-border/20")}>
+    <div onClick={() => onEdit(event)} className={cn("rounded-lg border-l-2 p-3 cursor-pointer hover:shadow-md transition-all group", tipo.color, !compact && "border border-border/20")}>
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5 text-muted">
           {tipo.icon}
@@ -409,7 +409,7 @@ function EventCard({ event, compact, onEdit, onDelete }: { event: DBEvent; compa
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={(e) => { e.stopPropagation(); onEdit(event); }} className="p-1 rounded hover:bg-foreground/5 text-muted hover:text-foreground">
-            <Plus className="h-3 w-3 rotate-45" />
+            <Pencil className="h-3 w-3" />
           </button>
           <button onClick={(e) => { e.stopPropagation(); onDelete(event.id); }} className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500">
             <X className="h-3 w-3" />

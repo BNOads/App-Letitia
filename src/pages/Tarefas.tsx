@@ -567,6 +567,10 @@ export function Tarefas() {
             setAllSubtasks(prev => prev.map(s => s.id === subId ? { ...s, concluida: newVal } : s));
             try { await toggleSubtask(subId, newVal); } catch { fetchTarefas(); }
           }}
+          onTaskUpdate={async (taskId, updates) => {
+            await updateTask(taskId, updates);
+            fetchTarefas();
+          }}
         />
       ) : view === "lista" ? (
         <div className="space-y-4">
@@ -590,7 +594,7 @@ export function Tarefas() {
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />
+                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />
               ))}
             </TaskSection>
           )}
@@ -606,7 +610,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)
             )}
           </TaskSection>
 
@@ -618,7 +622,7 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
           </TaskSection>
 
           <TaskSection
@@ -629,7 +633,7 @@ export function Tarefas() {
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
           </TaskSection>
         </div>
       ) : (
@@ -1567,9 +1571,11 @@ function TaskSection({ label, count, icon, color, open, onToggle, children }: {
   );
 }
 
-function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDone, bulkSelectMode, isSelected, onBulkToggle }: {
+function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDone, bulkSelectMode, isSelected, onBulkToggle, onUpdate, profiles: rowProfiles }: {
   tarefa: DBTask; onClick: () => void; onToggle: () => void; onEdit: (t: DBTask) => void; onDelete: (id: string) => void; isOverdue?: boolean; isDone?: boolean;
   bulkSelectMode?: boolean; isSelected?: boolean; onBulkToggle?: () => void;
+  onUpdate?: (taskId: string, updates: Partial<DBTask>) => Promise<void>;
+  profiles?: DBProfile[];
 }) {
   const prior = prioridadeColors[tarefa.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
   const iniciais = tarefa.profiles?.full_name?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || "??";
@@ -1631,31 +1637,61 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
               ↳ {parentTitle}
             </span>
           )}
-          <span className="flex items-center gap-1.5 text-[11px] text-muted">
-            {tarefa.profiles?.avatar_url ? (
-              <img src={tarefa.profiles.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover border border-border" />
-            ) : (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
-                {iniciais}
+          {!isSubtask && onUpdate && rowProfiles ? (
+            <InlineEditCell type="responsavel" value={tarefa.responsavel_id} taskId={tarefa.id} profiles={rowProfiles} onUpdate={onUpdate}>
+              <span className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer">
+                {tarefa.profiles?.avatar_url ? (
+                  <img src={tarefa.profiles.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover border border-border" />
+                ) : (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
+                    {iniciais}
+                  </span>
+                )}
+                {tarefa.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}
               </span>
-            )}
-            {tarefa.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}
-          </span>
-          <span className={cn("flex items-center gap-1 text-[11px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
-            <Clock className="h-3 w-3" />
-            {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "Sem prazo"}
-          </span>
+            </InlineEditCell>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[11px] text-muted">
+              {tarefa.profiles?.avatar_url ? (
+                <img src={tarefa.profiles.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover border border-border" />
+              ) : (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-background border border-border text-[9px] font-medium text-foreground">
+                  {iniciais}
+                </span>
+              )}
+              {tarefa.profiles?.full_name?.split(" ")[0] || "Sem atribuição"}
+            </span>
+          )}
+          {!isSubtask && onUpdate ? (
+            <InlineEditCell type="prazo" value={tarefa.prazo} taskId={tarefa.id} onUpdate={onUpdate}>
+              <span className={cn("flex items-center gap-1 text-[11px] cursor-pointer", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
+                <Clock className="h-3 w-3" />
+                {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "Sem prazo"}
+              </span>
+            </InlineEditCell>
+          ) : (
+            <span className={cn("flex items-center gap-1 text-[11px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
+              <Clock className="h-3 w-3" />
+              {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "Sem prazo"}
+            </span>
+          )}
           {tarefa.recorrencia && (
             <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
               <Repeat className="h-2.5 w-2.5" />
               {recurrenceLabels[tarefa.recorrencia as RecurrenceType]}
             </span>
           )}
-          {!isSubtask && tarefa.prioridade !== "baixa" && (
+          {!isSubtask && onUpdate ? (
+            <InlineEditCell type="prioridade" value={tarefa.prioridade} taskId={tarefa.id} onUpdate={onUpdate}>
+              <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded cursor-pointer", prior.bg, prior.text)}>
+                {prior.label}
+              </span>
+            </InlineEditCell>
+          ) : !isSubtask && tarefa.prioridade !== "baixa" ? (
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>
               {prior.label}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1745,9 +1781,96 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete, bulkSelectMode, isSelec
   );
 }
 
+/* ─── Inline Edit Popover ────────────────────────────────── */
+
+function InlineEditCell({ type, value, taskId, profiles: editProfiles, onUpdate, children }: {
+  type: 'prioridade' | 'prazo' | 'responsavel';
+  value: string | null;
+  taskId: string;
+  profiles?: DBProfile[];
+  onUpdate: (taskId: string, updates: Partial<DBTask>) => Promise<void>;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const handleSelect = async (val: string | null) => {
+    setOpen(false);
+    if (type === 'prioridade') await onUpdate(taskId, { prioridade: val as TaskPriority });
+    else if (type === 'prazo') await onUpdate(taskId, { prazo: val });
+    else if (type === 'responsavel') await onUpdate(taskId, { responsavel_id: val });
+  };
+
+  return (
+    <div ref={ref} className="relative inline-flex">
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(!open); }}
+        className="hover:ring-2 hover:ring-letitia-gold/30 rounded transition-all"
+      >
+        {children}
+      </button>
+      {open && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 rounded-lg border border-border bg-card shadow-lg py-1 min-w-[140px] max-h-[200px] overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
+          {type === 'prioridade' && (
+            <>
+              {(['baixa', 'normal', 'alta', 'urgente'] as TaskPriority[]).map(p => {
+                const c = prioridadeColors[p];
+                return (
+                  <button key={p} onClick={() => handleSelect(p)} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-foreground/5 flex items-center gap-2", value === p && "bg-foreground/5 font-semibold")}>
+                    <span className={cn("w-2 h-2 rounded-full", c.bg)} />
+                    {c.label}
+                  </button>
+                );
+              })}
+            </>
+          )}
+          {type === 'prazo' && (
+            <div className="px-2 py-1">
+              <input
+                type="date"
+                defaultValue={value || ''}
+                onChange={e => handleSelect(e.target.value || null)}
+                className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                onClick={e => e.stopPropagation()}
+              />
+              {value && (
+                <button onClick={() => handleSelect(null)} className="w-full text-center text-[10px] text-red-500 mt-1 hover:underline">Remover prazo</button>
+              )}
+            </div>
+          )}
+          {type === 'responsavel' && editProfiles && (
+            <>
+              <button onClick={() => handleSelect(null)} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-foreground/5 text-muted italic", !value && "bg-foreground/5 font-semibold")}>Sem atribuição</button>
+              {editProfiles.map(p => (
+                <button key={p.id} onClick={() => handleSelect(p.id)} className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-foreground/5 flex items-center gap-2", value === p.id && "bg-foreground/5 font-semibold")}>
+                  {p.avatar_url ? (
+                    <img src={p.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
+                  ) : (
+                    <span className="h-4 w-4 rounded-full bg-letitia-gold/10 border border-letitia-gold/30 flex items-center justify-center text-[8px] font-bold text-letitia-gold">{p.full_name?.charAt(0)}</span>
+                  )}
+                  {p.full_name}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Team View ──────────────────────────────────────────── */
 
-function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca, bulkSelectMode, selectedTaskIds, onBulkToggle, onBulkSelectPerson, allSubtasks, onSubtaskToggle }: {
+function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca, bulkSelectMode, selectedTaskIds, onBulkToggle, onBulkSelectPerson, allSubtasks, onSubtaskToggle, onTaskUpdate }: {
   tarefas: DBTask[];
   profiles: DBProfile[];
   view: ViewMode;
@@ -1764,6 +1887,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   onBulkSelectPerson?: (ids: string[]) => void;
   allSubtasks?: (DBSubtask & { tarefas?: { titulo: string; id: string } | null })[];
   onSubtaskToggle?: (subId: string, newVal: boolean) => void;
+  onTaskUpdate?: (taskId: string, updates: Partial<DBTask>) => Promise<void>;
 }) {
   const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({});
   const [showConcluidasMap, setShowConcluidasMap] = useState<Record<string, boolean>>({});
@@ -2248,36 +2372,65 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                   <p className="text-xs text-muted italic text-center py-6">Nenhuma tarefa pendente 🎉</p>
                 ) : (
                   pendentes.map(t => {
+                    const isVirtualSub = (t as TeamTask).__isSubtask;
+                    const parentTitle = (t as TeamTask).__parentTitle;
+                    const parentId = (t as TeamTask).__parentId;
                     const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
                     const isOverdue = t.prazo && t.prazo < hoje;
                     const statusLabels: Record<string, string> = { fazer: "Pendente", progresso: "Em andamento", revisao: "Revisão", concluido: "Concluído" };
-                    const taskSubs = subtasksByTask.get(t.id) || [];
+                    const taskSubs = isVirtualSub ? [] : (subtasksByTask.get(t.id) || []);
                     const taskSubsDone = taskSubs.filter(s => s.concluida).length;
                     const filteredSubs = effectiveSubSearch
                       ? taskSubs.filter(s => s.titulo.toLowerCase().includes(effectiveSubSearch))
                       : taskSubs;
                     const isSubsExpanded = expandedTaskSubs[t.id] || (effectiveSubSearch !== '' && filteredSubs.length > 0);
+
+                    const handleClick = () => {
+                      if (bulkSelectMode && !isVirtualSub) { onBulkToggle?.(t.id); return; }
+                      if (isVirtualSub && parentId) {
+                        const parent = tarefas.find(task => task.id === parentId);
+                        if (parent) { onTaskClick(parent); return; }
+                      }
+                      onTaskClick(t);
+                    };
+
                     return (
                       <div key={t.id}>
                         <div
-                          onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
-                          className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", selectedTaskIds?.has(t.id) ? "bg-amber-500/5" : isOverdue ? "bg-red-500/5" : "")}
+                          onClick={handleClick}
+                          className={cn(
+                            "grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors",
+                            isVirtualSub ? "bg-violet-500/[0.03]" :
+                            selectedTaskIds?.has(t.id) ? "bg-amber-500/5" :
+                            isOverdue ? "bg-red-500/5" : ""
+                          )}
                         >
                           <div className="col-span-1">
-                            {bulkSelectMode ? (
+                            {!isVirtualSub && bulkSelectMode ? (
                               <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="transition-transform hover:scale-110">
                                 {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
                               </button>
                             ) : (
-                              <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
-                                <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
+                              <button onClick={e => { e.stopPropagation(); isVirtualSub ? onSubtaskToggle?.((t as TeamTask).__subtaskId!, true) : onToggle(t.id, t.status); }}>
+                                <Square className={cn("h-4 w-4", isVirtualSub ? "text-violet-400" : isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
                               </button>
                             )}
                           </div>
                           <div className="col-span-5">
                             <div className="flex items-center gap-2">
-                              <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
-                              {taskSubs.length > 0 && (
+                              {isVirtualSub && (
+                                <span className="flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20 flex-shrink-0">
+                                  <ListChecks className="h-2.5 w-2.5" />
+                                  Sub
+                                </span>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                                {isVirtualSub && parentTitle && (
+                                  <p className="text-[10px] text-muted/70 italic truncate">↳ {parentTitle}</p>
+                                )}
+                              </div>
+                              {!isVirtualSub && taskSubs.length > 0 && (
                                 <button
                                   onClick={e => { e.stopPropagation(); toggleTaskSubs(t.id); }}
                                   className={cn(
@@ -2296,19 +2449,35 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                             </div>
                           </div>
                           <div className="col-span-2 text-center">
-                            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                            {isVirtualSub ? (
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-violet-500/10 text-violet-600">Subtarefa</span>
+                            ) : onTaskUpdate ? (
+                              <InlineEditCell type="prioridade" value={t.prioridade} taskId={t.id} onUpdate={onTaskUpdate}>
+                                <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded cursor-pointer", prior.bg, prior.text)}>{prior.label}</span>
+                              </InlineEditCell>
+                            ) : (
+                              <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                            )}
                           </div>
                           <div className="col-span-2 text-center">
-                            <span className={cn("text-[11px]", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
-                              {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
-                            </span>
+                            {!isVirtualSub && onTaskUpdate ? (
+                              <InlineEditCell type="prazo" value={t.prazo} taskId={t.id} onUpdate={onTaskUpdate}>
+                                <span className={cn("text-[11px] cursor-pointer", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
+                                  {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
+                                </span>
+                              </InlineEditCell>
+                            ) : (
+                              <span className={cn("text-[11px]", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
+                                {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
+                              </span>
+                            )}
                           </div>
                           <div className="col-span-2 text-center">
                             <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-foreground/5 text-foreground">{statusLabels[t.status] || t.status}</span>
                           </div>
                         </div>
                         {/* Expandable subtasks */}
-                        {isSubsExpanded && filteredSubs.length > 0 && (
+                        {!isVirtualSub && isSubsExpanded && filteredSubs.length > 0 && (
                           <div className="border-b border-border/30 bg-violet-500/[0.02]">
                             <div className="ml-10 mr-5 py-1.5 space-y-0.5 border-l-2 border-violet-500/20 pl-3">
                               {filteredSubs.map(s => (
