@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
@@ -29,12 +29,11 @@ const kanbanColumns = [
 export function Tarefas() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tarefas, setTarefas] = useState<DBTask[]>([]);
   const [allSubtasks, setAllSubtasks] = useState<(DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>("lista");
-  const [tab, setTab] = useState<TabFilter>("minhas");
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("Todas");
   const [filtroPrioridade, setFiltroPrioridade] = useState<string>("Todas");
@@ -48,8 +47,44 @@ export function Tarefas() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<DBTask | null>(null);
-  const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  // URL-driven state: tab, view, selectedTarefa
+  const tab = (searchParams.get('tab') as TabFilter) || 'minhas';
+  const view = (searchParams.get('view') as ViewMode) || 'lista';
+  const selectedTaskId = searchParams.get('task');
+
+  const setTab = useCallback((newTab: TabFilter) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      next.delete('task');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setView = useCallback((newView: ViewMode) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('view', newView);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setSelectedTarefa = useCallback((t: DBTask | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (t) {
+        next.set('task', t.id);
+      } else {
+        next.delete('task');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Resolve selectedTarefa from URL param
+  const selectedTarefa = selectedTaskId ? tarefas.find(t => t.id === selectedTaskId) || null : null;
 
   // Bulk selection state
   const [bulkSelectMode, setBulkSelectMode] = useState(false);

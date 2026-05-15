@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   getTickets, updateTicketStatus, createTicket, updateTicket, deleteTicket, 
   getComments, createComment, transferTicket, resolveTicket, type DBTicket, type DBTicketComment 
@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserSelector } from "@/components/UserSelector";
+import { useSearchParams } from "react-router-dom";
 
 const prioridadeColors: Record<string, string> = {
   Baixa: "text-muted",
@@ -33,15 +34,41 @@ type StatusFilter = "todos" | "abertos" | "atrasados" | "resolvidos";
 
 export function Suporte() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   const [tickets, setTickets] = useState<DBTicket[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [meusTickets, setMeusTickets] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<DBTicket | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // URL-driven state
+  const statusFilter = (searchParams.get('filter') as StatusFilter) || 'todos';
+  const selectedTicketId = searchParams.get('ticket');
+
+  const setStatusFilter = useCallback((f: StatusFilter) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('filter', f);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setSelectedTicket = useCallback((t: DBTicket | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (t) {
+        next.set('ticket', t.id);
+      } else {
+        next.delete('ticket');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Resolve from URL
+  const selectedTicket = selectedTicketId ? tickets.find(t => t.id === selectedTicketId) || null : null;
   
   useEffect(() => {
     fetchData();
@@ -66,10 +93,6 @@ export function Suporte() {
     try {
       const data = await getTickets();
       setTickets(data);
-      if (selectedTicket) {
-        const updated = data.find(t => t.id === selectedTicket.id);
-        if (updated) setSelectedTicket(updated);
-      }
     } catch (error) {
       console.error("Erro ao buscar tickets:", error);
     }
@@ -78,9 +101,6 @@ export function Suporte() {
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     // Optimistic update
     setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    if (selectedTicket?.id === id) {
-      setSelectedTicket(prev => prev ? { ...prev, status: newStatus } : null);
-    }
     try {
       await updateTicketStatus(id, newStatus);
     } catch (error) {
@@ -92,9 +112,6 @@ export function Suporte() {
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
     // Optimistic update
     setTickets(prev => prev.map(t => t.id === id ? { ...t, [field]: value || null } : t));
-    if (selectedTicket?.id === id) {
-      setSelectedTicket(prev => prev ? { ...prev, [field]: value || null } : null);
-    }
     try {
       await updateTicket(id, { [field]: value || null } as Partial<DBTicket>);
     } catch (error) {

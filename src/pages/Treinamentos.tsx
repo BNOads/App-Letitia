@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Search, Plus, Play, Loader2, Edit2, Trash2, X, Save, CheckCircle2, Circle, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CursoDetailModal } from "@/components/CursoDetailModal";
 import { UserSelector } from "@/components/UserSelector";
+import { useSearchParams } from "react-router-dom";
 import { 
   getCursos, createCurso, updateCurso, deleteCurso, 
   getPdis, createPdi, updatePdi, deletePdi, 
@@ -35,7 +36,15 @@ type Tab = "cursos" | "pdis";
 
 export function Treinamentos() {
   const { user: _user } = useAuth();
-  const [tab, setTab] = useState<Tab>("cursos");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = (searchParams.get('tab') as Tab) || 'cursos';
+  const setTab = useCallback((newTab: Tab) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
 

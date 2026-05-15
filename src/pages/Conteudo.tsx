@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { getContent, updateContentStatus, createContent, type DBContent } from "@/services/contentService";
 import { notifyNewPost } from "@/services/notificationService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
@@ -26,12 +26,31 @@ const statusCols = [
 
 export function Conteudo() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pautas, setPautas] = useState<DBContent[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<ViewMode>("calendario");
-  const [calMode, setCalMode] = useState<CalMode>("semana");
+
+  // URL-driven state
+  const view = (searchParams.get('view') as ViewMode) || 'calendario';
+  const calMode = (searchParams.get('calMode') as CalMode) || 'semana';
+
+  const setView = useCallback((v: ViewMode) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('view', v);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setCalMode = useCallback((m: CalMode) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('calMode', m);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);

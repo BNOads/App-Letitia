@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getEvents, createEvent, updateEvent, deleteEvent, deleteRecurringSeries, recurrenceLabels, type DBEvent, type RecurrenceType } from "@/services/agendaService";
 import { Calendar as CalIcon, Video, Users, Mic, Loader2, Plus, X, Search, LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Repeat, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { UserSelector } from "@/components/UserSelector";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 
 type ViewMode = "grid" | "lista";
 type RangeMode = "dia" | "semana" | "mes";
@@ -19,14 +20,33 @@ const tipoConfig: Record<string, { label: string; color: string; icon: React.Rea
 
 export function Agenda() {
   const { user, loading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [eventos, setEventos] = useState<DBEvent[]>([]);
   const [profiles, setProfiles] = useState<DBProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<DBEvent | null>(null);
   
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [rangeMode, setRangeMode] = useState<RangeMode>("semana");
+  // URL-driven state
+  const viewMode = (searchParams.get('view') as ViewMode) || 'grid';
+  const rangeMode = (searchParams.get('range') as RangeMode) || 'semana';
+
+  const setViewMode = useCallback((v: ViewMode) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('view', v);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setRangeMode = useCallback((r: RangeMode) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('range', r);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const [busca, setBusca] = useState("");
   const [offset, setOffset] = useState(0);
 
