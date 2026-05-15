@@ -562,6 +562,11 @@ export function Tarefas() {
               return next;
             });
           }}
+          allSubtasks={allSubtasks}
+          onSubtaskToggle={async (subId, newVal) => {
+            setAllSubtasks(prev => prev.map(s => s.id === subId ? { ...s, concluida: newVal } : s));
+            try { await toggleSubtask(subId, newVal); } catch { fetchTarefas(); }
+          }}
         />
       ) : view === "lista" ? (
         <div className="space-y-4">
@@ -1742,7 +1747,7 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete, bulkSelectMode, isSelec
 
 /* ─── Team View ──────────────────────────────────────────── */
 
-function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca, bulkSelectMode, selectedTaskIds, onBulkToggle, onBulkSelectPerson }: {
+function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onTaskEdit, onTaskDelete: _onTaskDelete, onToggle, onNewTask, busca, bulkSelectMode, selectedTaskIds, onBulkToggle, onBulkSelectPerson, allSubtasks, onSubtaskToggle }: {
   tarefas: DBTask[];
   profiles: DBProfile[];
   view: ViewMode;
@@ -1757,12 +1762,34 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   selectedTaskIds?: Set<string>;
   onBulkToggle?: (id: string) => void;
   onBulkSelectPerson?: (ids: string[]) => void;
+  allSubtasks?: (DBSubtask & { tarefas?: { titulo: string; id: string } | null })[];
+  onSubtaskToggle?: (subId: string, newVal: boolean) => void;
 }) {
   const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({});
   const [showConcluidasMap, setShowConcluidasMap] = useState<Record<string, boolean>>({});
+  const [expandedTaskSubs, setExpandedTaskSubs] = useState<Record<string, boolean>>({});
+  const [subtaskSearch, setSubtaskSearch] = useState("");
+
+  // Build a map of taskId -> subtasks
+  const subtasksByTask = new Map<string, (DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]>();
+  (allSubtasks || []).forEach(s => {
+    const list = subtasksByTask.get(s.tarefa_id) || [];
+    list.push(s);
+    subtasksByTask.set(s.tarefa_id, list);
+  });
+
+  const toggleTaskSubs = (taskId: string) => {
+    setExpandedTaskSubs(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  // Combined search: main search bar + subtask search
+  const effectiveSubSearch = subtaskSearch.toLowerCase();
+
+  // Extended task type for subtask virtual entries
+  type TeamTask = DBTask & { __isSubtask?: boolean; __parentTitle?: string; __parentId?: string; __subtaskId?: string };
 
   // Group tasks by responsible
-  const grouped = new Map<string, { profile: DBProfile | null; tasks: DBTask[] }>();
+  const grouped = new Map<string, { profile: DBProfile | null; tasks: TeamTask[] }>();
   
   // Add all profiles first
   profiles.forEach(p => {
@@ -1779,11 +1806,72 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
     grouped.get(key)!.tasks.push(t);
   });
 
+  // Add subtasks as virtual entries under their responsible person
+  (allSubtasks || []).filter(s => s.responsavel_id && !s.concluida).forEach(s => {
+    const key = s.responsavel_id!;
+    // Skip if the subtask is already shown under a parent task with the same responsible
+    // (avoid duplication when parent task responsible == subtask responsible)
+    const parentTask = tarefas.find(t => t.id === s.tarefa_id);
+    if (parentTask && parentTask.responsavel_id === s.responsavel_id) return;
+    if (!grouped.has(key)) {
+      const prof = profiles.find(p => p.id === key);
+      grouped.set(key, { profile: prof || null, tasks: [] });
+    }
+    const virtualTask: TeamTask = {
+      id: `sub_${s.id}`,
+      titulo: s.titulo,
+      descricao: '',
+      prioridade: 'normal' as TaskPriority,
+      status: (s.concluida ? 'concluido' : 'fazer') as TaskStatus,
+      responsavel_id: s.responsavel_id,
+      prazo: s.prazo,
+      created_at: s.created_at,
+      updated_at: s.created_at,
+      profiles: s.profiles || null,
+      __isSubtask: true,
+      __parentTitle: s.tarefas?.titulo || '',
+      __parentId: s.tarefa_id,
+      __subtaskId: s.id,
+    };
+    grouped.get(key)!.tasks.push(virtualTask);
+  });
+
+  // Also add subtasks matching the subtask search, even if responsavel matches parent
+  if (effectiveSubSearch) {
+    (allSubtasks || []).filter(s => s.responsavel_id && !s.concluida && s.titulo.toLowerCase().includes(effectiveSubSearch)).forEach(s => {
+      const key = s.responsavel_id!;
+      const virtualId = `sub_${s.id}`;
+      // Check if already added
+      if (grouped.has(key) && grouped.get(key)!.tasks.some(t => t.id === virtualId)) return;
+      if (!grouped.has(key)) {
+        const prof = profiles.find(p => p.id === key);
+        grouped.set(key, { profile: prof || null, tasks: [] });
+      }
+      const virtualTask: TeamTask = {
+        id: virtualId,
+        titulo: s.titulo,
+        descricao: '',
+        prioridade: 'normal' as TaskPriority,
+        status: (s.concluida ? 'concluido' : 'fazer') as TaskStatus,
+        responsavel_id: s.responsavel_id,
+        prazo: s.prazo,
+        created_at: s.created_at,
+        updated_at: s.created_at,
+        profiles: s.profiles || null,
+        __isSubtask: true,
+        __parentTitle: s.tarefas?.titulo || '',
+        __parentId: s.tarefa_id,
+        __subtaskId: s.id,
+      };
+      grouped.get(key)!.tasks.push(virtualTask);
+    });
+  }
+
   // Filter out profiles with no tasks (unless searching)
   const entries = Array.from(grouped.entries())
     .filter(([, v]) => v.tasks.length > 0 || busca)
     .filter(([, v]) => {
-      if (!busca) return v.tasks.length > 0;
+      if (!busca && !effectiveSubSearch) return v.tasks.length > 0;
       const nameMatch = v.profile?.full_name?.toLowerCase().includes(busca.toLowerCase());
       return nameMatch || v.tasks.length > 0;
     })
@@ -1843,6 +1931,15 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
             <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Buscar membro..." className="rounded-md border border-border bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none w-44" />
+          </div>
+          <div className="relative">
+            <ListChecks className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-violet-400" />
+            <input type="text" value={subtaskSearch} onChange={e => setSubtaskSearch(e.target.value)} placeholder="Buscar subtarefas..." className="rounded-md border border-violet-500/20 bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-violet-500/40 focus:outline-none w-48" />
+            {subtaskSearch && (
+              <button onClick={() => setSubtaskSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2">
+                <X className="h-3 w-3 text-muted hover:text-foreground" />
+              </button>
+            )}
           </div>
           <div className="relative">
             <select
@@ -1956,35 +2053,107 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                   {isExpanded && pendentes.length > 0 && (
                     <div className="px-3 pb-3 space-y-1 max-h-[300px] overflow-y-auto">
                         {pendentes.map(t => {
+                          const isVirtualSub = (t as TeamTask).__isSubtask;
+                          const parentTitle = (t as TeamTask).__parentTitle;
+                          const parentId = (t as TeamTask).__parentId;
                           const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
                           const isOverdue = t.prazo && t.prazo < hoje;
+                          const taskSubs = isVirtualSub ? [] : (subtasksByTask.get(t.id) || []);
+                          const taskSubsDone = taskSubs.filter(s => s.concluida).length;
+                          const filteredSubs = effectiveSubSearch
+                            ? taskSubs.filter(s => s.titulo.toLowerCase().includes(effectiveSubSearch))
+                            : taskSubs;
+                          const isSubsExpanded = expandedTaskSubs[t.id] || (effectiveSubSearch !== '' && filteredSubs.length > 0);
+
+                          const handleClick = () => {
+                            if (bulkSelectMode && !isVirtualSub) { onBulkToggle?.(t.id); return; }
+                            if (isVirtualSub && parentId) {
+                              const parent = tarefas.find(task => task.id === parentId);
+                              if (parent) { onTaskClick(parent); return; }
+                            }
+                            onTaskClick(t);
+                          };
+
                           return (
-                            <div
-                              key={t.id}
-                              onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
-                              className={cn(
-                                "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-foreground/5 transition-colors group",
-                                selectedTaskIds?.has(t.id) ? "bg-amber-500/5 ring-1 ring-amber-500/30" :
-                                isOverdue ? "bg-red-500/5" : ""
-                              )}
-                            >
-                              {bulkSelectMode ? (
-                                <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="flex-shrink-0 transition-transform hover:scale-110">
-                                  {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
-                                </button>
-                              ) : (
-                                <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }} className="flex-shrink-0">
-                                  <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
-                                </button>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                            <div key={t.id}>
+                              <div
+                                onClick={handleClick}
+                                className={cn(
+                                  "flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer hover:bg-foreground/5 transition-colors group",
+                                  isVirtualSub ? "bg-violet-500/[0.03] border border-violet-500/15 ml-2" :
+                                  selectedTaskIds?.has(t.id) ? "bg-amber-500/5 ring-1 ring-amber-500/30" :
+                                  isOverdue ? "bg-red-500/5" : ""
+                                )}
+                              >
+                                {!isVirtualSub && bulkSelectMode ? (
+                                  <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="flex-shrink-0 transition-transform hover:scale-110">
+                                    {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
+                                  </button>
+                                ) : (
+                                  <button onClick={e => { e.stopPropagation(); isVirtualSub ? onSubtaskToggle?.((t as TeamTask).__subtaskId!, true) : onToggle(t.id, t.status); }} className="flex-shrink-0">
+                                    <Square className={cn("h-4 w-4", isVirtualSub ? "text-violet-400" : isOverdue ? "text-red-400" : "text-border group-hover:text-muted")} />
+                                  </button>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  {isVirtualSub && (
+                                    <span className="flex items-center gap-1 text-[9px] font-semibold text-violet-500 mb-0.5">
+                                      <ListChecks className="h-2.5 w-2.5" />
+                                      Subtarefa · {parentTitle}
+                                    </span>
+                                  )}
+                                  <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                                </div>
+                                {!isVirtualSub && taskSubs.length > 0 && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); toggleTaskSubs(t.id); }}
+                                    className={cn(
+                                      "flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0",
+                                      taskSubsDone === taskSubs.length
+                                        ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                        : "bg-violet-500/10 text-violet-600 border-violet-500/20 hover:bg-violet-500/20"
+                                    )}
+                                    title={`${taskSubsDone}/${taskSubs.length} subtarefas`}
+                                  >
+                                    <ListChecks className="h-2.5 w-2.5" />
+                                    {taskSubsDone}/{taskSubs.length}
+                                    {expandedTaskSubs[t.id] ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+                                  </button>
+                                )}
+                                {!isVirtualSub && <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>}
+                                <span className={cn("text-[10px] flex items-center gap-0.5", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
+                                  <Clock className="h-2.5 w-2.5" />
+                                  {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"}
+                                </span>
                               </div>
-                              <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
-                              <span className={cn("text-[10px] flex items-center gap-0.5", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
-                                <Clock className="h-2.5 w-2.5" />
-                                {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "—"}
-                              </span>
+                              {/* Expandable subtasks */}
+                              {!isVirtualSub && isSubsExpanded && filteredSubs.length > 0 && (
+                                <div className="ml-8 mr-2 mb-1 mt-0.5 space-y-0.5 border-l-2 border-violet-500/20 pl-3">
+                                  {filteredSubs.map(s => (
+                                    <div key={s.id} className="flex items-center gap-2 py-1 group/sub">
+                                      <button
+                                        onClick={e => { e.stopPropagation(); onSubtaskToggle?.(s.id, !s.concluida); }}
+                                        className="flex-shrink-0"
+                                      >
+                                        {s.concluida
+                                          ? <CheckSquare2 className="h-3.5 w-3.5 text-green-500" />
+                                          : <Square className="h-3.5 w-3.5 text-violet-400 hover:text-violet-600" />
+                                        }
+                                      </button>
+                                      <span className={cn("text-[11px] truncate flex-1", s.concluida ? "line-through text-muted" : "text-foreground")}>
+                                        {s.titulo}
+                                      </span>
+                                      {s.profiles?.full_name && (
+                                        <span className="text-[9px] text-muted flex-shrink-0">{s.profiles.full_name.split(' ')[0]}</span>
+                                      )}
+                                      {s.prazo && (
+                                        <span className={cn("text-[9px] flex-shrink-0", s.prazo < hoje && !s.concluida ? "text-red-500" : "text-muted")}>
+                                          {new Date(s.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2082,37 +2251,93 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
                     const isOverdue = t.prazo && t.prazo < hoje;
                     const statusLabels: Record<string, string> = { fazer: "Pendente", progresso: "Em andamento", revisao: "Revisão", concluido: "Concluído" };
+                    const taskSubs = subtasksByTask.get(t.id) || [];
+                    const taskSubsDone = taskSubs.filter(s => s.concluida).length;
+                    const filteredSubs = effectiveSubSearch
+                      ? taskSubs.filter(s => s.titulo.toLowerCase().includes(effectiveSubSearch))
+                      : taskSubs;
+                    const isSubsExpanded = expandedTaskSubs[t.id] || (effectiveSubSearch !== '' && filteredSubs.length > 0);
                     return (
-                      <div
-                        key={t.id}
-                        onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
-                        className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", selectedTaskIds?.has(t.id) ? "bg-amber-500/5" : isOverdue ? "bg-red-500/5" : "")}
-                      >
-                        <div className="col-span-1">
-                          {bulkSelectMode ? (
-                            <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="transition-transform hover:scale-110">
-                              {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
-                            </button>
-                          ) : (
-                            <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
-                              <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
-                            </button>
-                          )}
+                      <div key={t.id}>
+                        <div
+                          onClick={() => bulkSelectMode ? onBulkToggle?.(t.id) : onTaskClick(t)}
+                          className={cn("grid grid-cols-12 gap-2 items-center px-5 py-3 border-b border-border/30 cursor-pointer hover:bg-foreground/5 transition-colors", selectedTaskIds?.has(t.id) ? "bg-amber-500/5" : isOverdue ? "bg-red-500/5" : "")}
+                        >
+                          <div className="col-span-1">
+                            {bulkSelectMode ? (
+                              <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="transition-transform hover:scale-110">
+                                {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
+                              </button>
+                            ) : (
+                              <button onClick={e => { e.stopPropagation(); onToggle(t.id, t.status); }}>
+                                <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : "text-border hover:text-muted")} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="col-span-5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
+                              {taskSubs.length > 0 && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); toggleTaskSubs(t.id); }}
+                                  className={cn(
+                                    "flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full border transition-colors flex-shrink-0",
+                                    taskSubsDone === taskSubs.length
+                                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                      : "bg-violet-500/10 text-violet-600 border-violet-500/20 hover:bg-violet-500/20"
+                                  )}
+                                  title={`${taskSubsDone}/${taskSubs.length} subtarefas`}
+                                >
+                                  <ListChecks className="h-2.5 w-2.5" />
+                                  {taskSubsDone}/{taskSubs.length}
+                                  {expandedTaskSubs[t.id] ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className={cn("text-[11px]", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
+                              {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
+                            </span>
+                          </div>
+                          <div className="col-span-2 text-center">
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-foreground/5 text-foreground">{statusLabels[t.status] || t.status}</span>
+                          </div>
                         </div>
-                        <div className="col-span-5">
-                          <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded", prior.bg, prior.text)}>{prior.label}</span>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          <span className={cn("text-[11px]", isOverdue ? "text-red-500 font-semibold" : "text-muted")}>
-                            {t.prazo ? new Date(t.prazo + 'T00:00:00').toLocaleDateString("pt-BR") : "—"}
-                          </span>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-foreground/5 text-foreground">{statusLabels[t.status] || t.status}</span>
-                        </div>
+                        {/* Expandable subtasks */}
+                        {isSubsExpanded && filteredSubs.length > 0 && (
+                          <div className="border-b border-border/30 bg-violet-500/[0.02]">
+                            <div className="ml-10 mr-5 py-1.5 space-y-0.5 border-l-2 border-violet-500/20 pl-3">
+                              {filteredSubs.map(s => (
+                                <div key={s.id} className="flex items-center gap-2 py-1">
+                                  <button
+                                    onClick={e => { e.stopPropagation(); onSubtaskToggle?.(s.id, !s.concluida); }}
+                                    className="flex-shrink-0"
+                                  >
+                                    {s.concluida
+                                      ? <CheckSquare2 className="h-3.5 w-3.5 text-green-500" />
+                                      : <Square className="h-3.5 w-3.5 text-violet-400 hover:text-violet-600" />
+                                    }
+                                  </button>
+                                  <span className={cn("text-[11px] truncate flex-1", s.concluida ? "line-through text-muted" : "text-foreground")}>
+                                    {s.titulo}
+                                  </span>
+                                  {s.profiles?.full_name && (
+                                    <span className="text-[9px] text-muted flex-shrink-0">{s.profiles.full_name.split(' ')[0]}</span>
+                                  )}
+                                  {s.prazo && (
+                                    <span className={cn("text-[9px] flex-shrink-0", s.prazo < hoje && !s.concluida ? "text-red-500" : "text-muted")}>
+                                      {new Date(s.prazo + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })
