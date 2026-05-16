@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardStats } from "@/services/dashboardService";
 import { 
-  FileText, Clock, 
-  Loader2, ChevronRight, Video, Camera,
-  Calendar, Headset, Plus, List as ListIcon, CalendarDays,
-  Circle, CheckCircle2, Send, Repeat
+  Clock, 
+  Loader2, ChevronRight, ChevronDown, Video, Camera,
+  Calendar, Headset, Plus, List as ListIcon, CalendarDays, CalendarClock,
+  Circle, CheckCircle2, Send, Repeat, ArrowRight, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ type Stats = {
   tarefas: {
     total: number;
     concluidas: number;
+    atrasadas: any[];
+    hoje: any[];
     proximas: any[];
   };
   eventos: any[];
@@ -28,6 +30,8 @@ type Stats = {
   ticketsResolvidos: number;
   pautas: any[];
 };
+
+
 
 
 export function Dashboard() {
@@ -40,6 +44,9 @@ export function Dashboard() {
   const [addingTask, setAddingTask] = useState(false);
   const [selectedTarefa, setSelectedTarefa] = useState<DBTask | null>(null);
   const [allTasks, setAllTasks] = useState<DBTask[]>([]);
+  const [showDashAtrasadas, setShowDashAtrasadas] = useState(true);
+  const [showDashHoje, setShowDashHoje] = useState(true);
+  const [showDashProximas, setShowDashProximas] = useState(false);
 
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia";
@@ -256,9 +263,9 @@ export function Dashboard() {
                 >
                   <Plus className="h-4 w-4" /> Nova Tarefa
                 </button>
-                <button className="p-2 border border-border rounded-xl text-muted hover:text-foreground">
-                  <FileText className="h-4 w-4" />
-                </button>
+                <a href="/tarefas" className="p-2 border border-border rounded-xl text-muted hover:text-letitia-gold hover:border-letitia-gold/30 transition-all" title="Ver todas as tarefas">
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </div>
 
@@ -275,74 +282,83 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-letitia-gold mb-4">
-                <ChevronRight className="h-4 w-4 rotate-90" />
-                <Clock className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-widest">Próximas ({stats?.tarefas.proximas.length})</span>
+            {/* Input de Criação Rápida */}
+            <form onSubmit={handleQuickTask} className="relative mb-4">
+              <input 
+                type="text"
+                value={quickTask}
+                onChange={e => setQuickTask(e.target.value)}
+                placeholder="Criar tarefa rápida... (Aperte Enter)"
+                disabled={addingTask}
+                className="w-full bg-background border border-border rounded-2xl pl-5 pr-12 py-3 text-sm focus:ring-2 focus:ring-letitia-gold focus:outline-none transition-all placeholder:text-muted/50"
+              />
+              <button 
+                type="button"
+                onClick={() => handleQuickTask()}
+                disabled={!quickTask.trim() || addingTask}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-letitia-gold text-white disabled:opacity-30 transition-all z-10"
+              >
+                {addingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </form>
+
+            <div className="space-y-3">
+              {/* Seção: Em atraso */}
+              {(stats?.tarefas.atrasadas.length || 0) > 0 && (
+                <div>
+                  <button onClick={() => setShowDashAtrasadas(!showDashAtrasadas)} className="flex items-center gap-2 hover:opacity-80 transition-opacity mb-2 w-full">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                    <span className="text-sm font-semibold text-red-500">Em atraso</span>
+                    <span className="text-xs font-medium text-white bg-red-500 px-2 py-0.5 rounded-full">{stats?.tarefas.atrasadas.length}</span>
+                    <ChevronDown className={cn("h-3.5 w-3.5 text-muted ml-auto transition-transform", showDashAtrasadas && "rotate-180")} />
+                  </button>
+                  {showDashAtrasadas && (
+                    <div className="max-h-[340px] overflow-y-auto pr-1">
+                      {stats?.tarefas.atrasadas.map((tarefa: any, idx: number) => (
+                        <DashboardTaskCard key={tarefa.id || idx} tarefa={tarefa} allTasks={allTasks} onSelect={setSelectedTarefa} onToggle={handleToggleTask} isOverdue />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Seção: Hoje */}
+              <div>
+                <button onClick={() => setShowDashHoje(!showDashHoje)} className="flex items-center gap-2 hover:opacity-80 transition-opacity mb-2 w-full">
+                  <CalendarClock className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-semibold text-foreground">Hoje</span>
+                  <span className="text-xs font-medium text-muted bg-card border border-border px-2 py-0.5 rounded-full">{stats?.tarefas.hoje.length || 0}</span>
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted ml-auto transition-transform", showDashHoje && "rotate-180")} />
+                </button>
+                {showDashHoje && (
+                  (stats?.tarefas.hoje.length || 0) === 0 ? (
+                    <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
+                  ) : (
+                    <div className="max-h-[340px] overflow-y-auto pr-1">
+                      {stats?.tarefas.hoje.map((tarefa: any, idx: number) => (
+                        <DashboardTaskCard key={tarefa.id || idx} tarefa={tarefa} allTasks={allTasks} onSelect={setSelectedTarefa} onToggle={handleToggleTask} />
+                      ))}
+                    </div>
+                  )
+                )}
               </div>
 
-              {/* Input de Criação Rápida */}
-              <form onSubmit={handleQuickTask} className="relative mb-6">
-                <input 
-                  type="text"
-                  value={quickTask}
-                  onChange={e => setQuickTask(e.target.value)}
-                  placeholder="Criar tarefa rápida... (Aperte Enter)"
-                  disabled={addingTask}
-                  className="w-full bg-background border border-border rounded-2xl pl-5 pr-12 py-3 text-sm focus:ring-2 focus:ring-letitia-gold focus:outline-none transition-all placeholder:text-muted/50"
-                />
-                <button 
-                  type="button"
-                  onClick={() => handleQuickTask()}
-                  disabled={!quickTask.trim() || addingTask}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-letitia-gold text-white disabled:opacity-30 transition-all z-10"
-                >
-                  {addingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {/* Seção: Próximas */}
+              <div>
+                <button onClick={() => setShowDashProximas(!showDashProximas)} className="flex items-center gap-2 hover:opacity-80 transition-opacity mb-2 w-full">
+                  <Clock className="h-4 w-4 text-muted" />
+                  <span className="text-sm font-semibold text-foreground">Próximas e Sem Prazo</span>
+                  <span className="text-xs font-medium text-muted bg-card border border-border px-2 py-0.5 rounded-full">{stats?.tarefas.proximas.length || 0}</span>
+                  <ChevronDown className={cn("h-3.5 w-3.5 text-muted ml-auto transition-transform", showDashProximas && "rotate-180")} />
                 </button>
-              </form>
-
-              <>
-                {stats?.tarefas.proximas.map((tarefa, idx) => (
-                  <div 
-                    key={tarefa.id || idx}
-                    onClick={() => {
-                      const fullTask = allTasks.find(t => t.id === tarefa.id);
-                      if (fullTask) setSelectedTarefa(fullTask);
-                    }}
-                    className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-background/50 hover:border-letitia-gold/20 transition-colors group cursor-pointer"
-                  >
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleToggleTask(tarefa.id, tarefa.status); }}
-                      className="p-1 hover:bg-foreground/5 rounded-full transition-colors"
-                    >
-                      {tarefa.status === 'concluido' ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted group-hover:text-letitia-gold" />
-                      )}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={cn("text-sm font-medium text-foreground truncate", tarefa.status === 'concluido' && "line-through text-muted")}>
-                        {tarefa.titulo}
-                      </h4>
-                      <div className="flex items-center gap-3 mt-1">
-                         <div className="flex items-center gap-1 text-[10px] text-muted">
-                           <Calendar className="h-3 w-3" />
-                           {tarefa.prazo ? new Date(tarefa.prazo).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem prazo'}
-                         </div>
-                      </div>
-                    </div>
-                    <span className={cn(
-                      "text-[8px] font-bold px-2 py-1 rounded-lg uppercase tracking-widest",
-                      tarefa.prioridade === 'urgente' ? "bg-red-500/10 text-red-500" :
-                      tarefa.prioridade === 'alta' ? "bg-orange-500/10 text-orange-500" : "bg-letitia-gold/10 text-letitia-gold"
-                    )}>
-                      {tarefa.prioridade}
-                    </span>
+                {showDashProximas && (
+                  <div className="max-h-[340px] overflow-y-auto pr-1">
+                    {stats?.tarefas.proximas.map((tarefa: any, idx: number) => (
+                      <DashboardTaskCard key={tarefa.id || idx} tarefa={tarefa} allTasks={allTasks} onSelect={setSelectedTarefa} onToggle={handleToggleTask} />
+                    ))}
                   </div>
-                ))}
-              </>
+                )}
+              </div>
             </div>
 
             {/* Concluídas Hoje */}
@@ -455,6 +471,66 @@ export function Dashboard() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/* ── Dashboard Task Card ── */
+function DashboardTaskCard({ tarefa, allTasks, onSelect, onToggle, isOverdue }: {
+  tarefa: any;
+  allTasks: DBTask[];
+  onSelect: (t: DBTask) => void;
+  onToggle: (id: string, status: string) => void;
+  isOverdue?: boolean;
+}) {
+  return (
+    <div 
+      onClick={() => {
+        const fullTask = allTasks.find(t => t.id === tarefa.id);
+        if (fullTask) onSelect(fullTask);
+      }}
+      className={cn(
+        "flex items-center gap-4 p-4 rounded-2xl border transition-colors group cursor-pointer mb-2",
+        isOverdue
+          ? "border-red-500/20 bg-red-500/[0.03] shadow-[0_0_12px_-3px_rgba(239,68,68,0.25)] hover:border-red-500/40"
+          : "border-border bg-background/50 hover:border-letitia-gold/20"
+      )}
+    >
+      <button 
+        onClick={(e) => { e.stopPropagation(); onToggle(tarefa.id, tarefa.status); }}
+        className="p-1 hover:bg-foreground/5 rounded-full transition-colors"
+      >
+        {tarefa.status === 'concluido' ? (
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+        ) : (
+          <Circle className={cn("h-5 w-5", isOverdue ? "text-red-400 group-hover:text-red-500" : "text-muted group-hover:text-letitia-gold")} />
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className={cn("text-sm font-medium text-foreground truncate", tarefa.status === 'concluido' && "line-through text-muted")}>
+            {tarefa.titulo}
+          </h4>
+          {isOverdue && (
+            <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white uppercase tracking-wider">
+              Atrasada
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <div className={cn("flex items-center gap-1 text-[10px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
+            <Calendar className="h-3 w-3" />
+            {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem prazo'}
+          </div>
+        </div>
+      </div>
+      <span className={cn(
+        "text-[8px] font-bold px-2 py-1 rounded-lg uppercase tracking-widest",
+        tarefa.prioridade === 'urgente' ? "bg-red-500/10 text-red-500" :
+        tarefa.prioridade === 'alta' ? "bg-orange-500/10 text-orange-500" : "bg-letitia-gold/10 text-letitia-gold"
+      )}>
+        {tarefa.prioridade}
+      </span>
     </div>
   );
 }

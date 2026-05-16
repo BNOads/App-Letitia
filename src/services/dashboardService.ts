@@ -9,10 +9,16 @@ export async function getDashboardStats(userId?: string) {
   const { data: allTarefas } = await tarefasQuery;
   const totalTarefas = allTarefas?.length || 0;
   const concluidasTarefas = allTarefas?.filter(t => t.status === 'concluido').length || 0;
-  const proximasTarefas = allTarefas
-    ?.filter(t => t.status !== 'concluido')
-    .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''))
-    .slice(0, 5) || [];
+  const pendentes = allTarefas?.filter(t => t.status !== 'concluido') || [];
+  const atrasadasTarefas = pendentes
+    .filter(t => t.prazo && t.prazo < today)
+    .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''));
+  const hojeTarefas = pendentes
+    .filter(t => t.prazo === today)
+    .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''));
+  const proximasTarefas = pendentes
+    .filter(t => !t.prazo || t.prazo > today)
+    .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''));
 
   // 2. Agenda (Eventos)
   const { data: eventos } = await supabase
@@ -50,6 +56,8 @@ export async function getDashboardStats(userId?: string) {
     tarefas: {
       total: totalTarefas,
       concluidas: concluidasTarefas,
+      atrasadas: atrasadasTarefas,
+      hoje: hojeTarefas,
       proximas: proximasTarefas
     },
     eventos: eventos || [],

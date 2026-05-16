@@ -63,17 +63,17 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
             {selectedUsers.length > 0 ? (
               selectedUsers.map(u => (
                 <div key={u.id} className={cn(
-                  "flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
+                  "flex items-center gap-2 rounded-full px-2 py-0.5 text-sm font-medium",
                   multiple ? "bg-letitia-gold/10 text-letitia-gold border border-letitia-gold/20" : ""
                 )}>
                   {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="h-4 w-4 rounded-full object-cover" />
+                    <img src={u.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-letitia-gold/20 text-[8px] font-bold">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-letitia-gold/20 text-[9px] font-bold">
                       {(u.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                     </div>
                   )}
-                  <span className="truncate max-w-[120px]">{u.full_name || "Usuário"}</span>
+                  <span className="truncate">{u.full_name || "Usuário"}</span>
                   {multiple && (
                     <X 
                       className="h-3 w-3 cursor-pointer hover:text-letitia-clay" 
@@ -93,7 +93,7 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
         </div>
 
         {isOpen && (
-          <div className="absolute z-[100] mt-1 w-full rounded-lg border border-border bg-card p-1 shadow-lg modal-content">
+          <div className="absolute z-[100] mt-1 w-full min-w-[280px] rounded-lg border border-border bg-card p-1.5 shadow-xl modal-content">
             <div className="relative mb-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
               <input
@@ -123,24 +123,24 @@ export function UserSelector({ users, selectedIds, onSelect, label, placeholder 
                         handleSelect(u.id);
                       }}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-md px-2 py-2 text-sm transition-colors hover:bg-letitia-gold/10 group",
+                        "flex w-full items-center justify-between rounded-md px-2.5 py-2.5 text-sm transition-colors hover:bg-letitia-gold/10 group",
                         isSelected && "bg-letitia-gold/5 text-letitia-gold font-medium"
                       )}
                     >
-                      <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
                         {u.avatar_url ? (
-                          <img src={u.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                          <img src={u.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
                         ) : (
                           <div className={cn(
-                            "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold transition-colors",
+                            "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors flex-shrink-0",
                             isSelected ? "bg-letitia-gold text-white" : "bg-letitia-gold/10 text-letitia-gold group-hover:bg-letitia-gold group-hover:text-white"
                           )}>
                             {initials}
                           </div>
                         )}
                         <div className="flex flex-col items-start overflow-hidden text-left">
-                          <span className="truncate">{u.full_name || "Usuário"}</span>
-                          <span className="text-[9px] text-muted truncate uppercase tracking-tighter">{u.role}</span>
+                          <span className="text-sm font-medium truncate w-full">{u.full_name || "Usuário"}</span>
+                          <span className="text-[10px] text-muted truncate uppercase tracking-wider">{u.role}</span>
                         </div>
                       </div>
                       {isSelected && <Check className="h-4 w-4 text-letitia-gold" />}

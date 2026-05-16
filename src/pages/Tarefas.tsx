@@ -48,6 +48,7 @@ export function Tarefas() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<DBTask | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [defaultResponsavelId, setDefaultResponsavelId] = useState<string | undefined>(undefined);
 
   // URL-driven state: tab, view, selectedTarefa
   const tab = (searchParams.get('tab') as TabFilter) || 'minhas';
@@ -581,7 +582,8 @@ export function Tarefas() {
           onTaskEdit={setEditingTarefa}
           onTaskDelete={handleDeleteTask}
           onToggle={toggleConcluida}
-          onNewTask={(_profileId) => {
+          onNewTask={(profileId) => {
+            setDefaultResponsavelId(profileId !== '__none__' ? profileId : undefined);
             setIsModalOpen(true);
           }}
           busca={busca}
@@ -694,10 +696,11 @@ export function Tarefas() {
 
       {(isModalOpen || editingTarefa) && (
         <NovoTarefaModal 
-          onClose={() => { setIsModalOpen(false); setEditingTarefa(null); }} 
-          onSuccess={() => { setIsModalOpen(false); setEditingTarefa(null); fetchTarefas(); }} 
+          onClose={() => { setIsModalOpen(false); setEditingTarefa(null); setDefaultResponsavelId(undefined); }} 
+          onSuccess={() => { setIsModalOpen(false); setEditingTarefa(null); setDefaultResponsavelId(undefined); fetchTarefas(); }} 
           tarefa={editingTarefa}
           profiles={profiles}
+          defaultResponsavelId={defaultResponsavelId}
         />
       )}
 
@@ -1321,11 +1324,12 @@ function Property({ label, children }: { label: string; children: React.ReactNod
 
 
 
-export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: { 
+export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa, defaultResponsavelId }: { 
   profiles: DBProfile[]; 
   onClose: () => void; 
   onSuccess: () => void;
   tarefa?: DBTask | null;
+  defaultResponsavelId?: string;
 }) {
   const { user } = useAuth();
   const hoje = new Date().toISOString().split("T")[0];
@@ -1335,7 +1339,7 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa }: {
     descricao: tarefa?.descricao || "",
     prioridade: (tarefa?.prioridade as TaskPriority) || "normal",
     status: (tarefa?.status as TaskStatus) || "fazer",
-    responsavel_id: tarefa?.responsavel_id || user?.id || "",
+    responsavel_id: tarefa?.responsavel_id || defaultResponsavelId || user?.id || "",
     prazo: tarefa?.prazo || hoje,
     recorrencia: (tarefa?.recorrencia || null) as RecurrenceType | null
   });
