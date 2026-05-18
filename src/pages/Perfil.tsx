@@ -5,7 +5,7 @@ import {
 } from "@/services/profileService";
 import { 
   User, Mail, Shield, Info, Camera, 
-  Lock, Save, Loader2, CheckCircle2, AlertCircle, X, Bell
+  Lock, Save, Loader2, CheckCircle2, AlertCircle, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sendEmail, emailTemplates } from "@/services/emailService";

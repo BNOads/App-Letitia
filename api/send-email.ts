@@ -26,7 +26,7 @@ export default async function handler(req: any, res: any) {
     const { to, subject, html } = req.body;
     
     const data = await resend.emails.send({
-      from: 'Sistema <onboarding@resend.dev>', // Importante: Mude para um e-mail verificado no Resend ex: suporte@seudominio.com
+      from: 'Sistema Laetitia <notificacoes@app.laetitiaeducacao.com>', // Domínio configurado!
       to,
       subject,
       html
