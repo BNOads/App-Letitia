@@ -16,6 +16,7 @@ export interface DBTask {
   updated_at: string;
   recorrencia?: RecurrenceType | null;
   recorrencia_pai_id?: string | null;
+  em_aprovacao?: boolean;
   profiles?: {
     full_name: string | null;
     avatar_url: string | null;

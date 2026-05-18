@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
-import { getProfiles, type DBProfile } from "@/services/profileService";
+import { getProfiles, updateProfile, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted, notifyNewTaskAssigned } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
@@ -17,7 +17,7 @@ import { UserSelector } from "@/components/UserSelector";
 import { TiptapEditor } from "@/components/TiptapEditor";
 
 type ViewMode = "lista" | "kanban";
-type TabFilter = "minhas" | "time";
+type TabFilter = "minhas" | "time" | "aprovacoes";
 
 const kanbanColumns = [
   { id: "fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
@@ -230,12 +230,26 @@ export function Tarefas() {
   const progresso = totalTarefas > 0 ? Math.round((concluidas.length / totalTarefas) * 100) : 0;
 
   const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
-    // Handle subtask toggle
     if (id.startsWith('sub_')) {
       const realId = id.replace('sub_', '');
       const newVal = currentStatus !== 'concluido';
       setAllSubtasks(prev => prev.map(s => s.id === realId ? { ...s, concluida: newVal } : s));
-      try { await toggleSubtask(realId, newVal); } catch { fetchTarefas(); }
+      try { 
+        await toggleSubtask(realId, newVal); 
+        const sub = allSubtasks.find(s => s.id === realId);
+        if (sub && sub.titulo.startsWith('Aprovação:') && newVal === true) {
+          await updateTask(sub.tarefa_id, { em_aprovacao: false });
+          saveTaskHistory({
+             tarefa_id: sub.tarefa_id,
+             titulo: sub.tarefas?.titulo || 'Tarefa',
+             prioridade: 'normal',
+             status: 'fazer',
+             action: 'editada',
+             details: `Aprovação concluída`
+          });
+          fetchTarefas();
+        }
+      } catch { fetchTarefas(); }
       return;
     }
 
@@ -265,6 +279,67 @@ export function Tarefas() {
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       fetchTarefas();
+    }
+  };
+
+  const handleSendToApproval = async (tarefa: DBTask) => {
+    const approvers = profiles.filter(p => p.metadata?.is_approver);
+    if (approvers.length === 0) {
+      alert("Nenhum gerente de aprovações configurado. Peça para a Diretoria/CEO configurar na aba Aprovações.");
+      return;
+    }
+    
+    try {
+      await updateTask(tarefa.id, { em_aprovacao: true });
+      
+      // Cria sub-tarefa para cada aprovador (ou apenas o primeiro)
+      const approver = approvers[0]; // Pega o primeiro por padrão
+      await createSubtask({
+        tarefa_id: tarefa.id,
+        titulo: `Aprovação: ${tarefa.titulo}`,
+        concluida: false,
+        responsavel_id: approver.id,
+        ordem: 0,
+      });
+
+      saveTaskHistory({
+        tarefa_id: tarefa.id,
+        titulo: tarefa.titulo,
+        prioridade: tarefa.prioridade,
+        status: tarefa.status,
+        responsavel_nome: tarefa.profiles?.full_name || undefined,
+        responsavel_id: tarefa.responsavel_id,
+        prazo: tarefa.prazo,
+        action: 'editada',
+        details: `Enviada para aprovação de ${approver.full_name}`,
+      });
+
+      fetchTarefas();
+      setTab("aprovacoes");
+      setSelectedTarefa(null);
+    } catch (error) {
+      console.error("Erro ao enviar para aprovação:", error);
+    }
+  };
+
+  const toggleApprover = async (profileId: string) => {
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) return;
+    const isCurrentlyApprover = profile.metadata?.is_approver;
+    const newMetadata = profile.metadata ? { ...profile.metadata, is_approver: !isCurrentlyApprover } : { is_approver: !isCurrentlyApprover };
+    
+    // Atualização otimista na interface para não parecer que travou
+    setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, metadata: newMetadata } : p));
+    
+    try {
+      await updateProfile(profileId, { metadata: newMetadata });
+      // Se tiver sucesso, revalida silenciosamente
+      fetchTarefas();
+    } catch (e: any) {
+      console.error("Erro ao atualizar aprovador:", e);
+      // Reverte
+      setProfiles(prev => prev.map(p => p.id === profileId ? { ...p, metadata: profile.metadata } : p));
+      alert("Falha ao salvar aprovador. Verifique as permissões do banco de dados: " + e.message);
     }
   };
 
@@ -534,6 +609,9 @@ export function Tarefas() {
             <button onClick={() => setTab("time")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "time" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
               Time
             </button>
+            <button onClick={() => setTab("aprovacoes")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1", tab === "aprovacoes" ? "bg-red-500 text-white" : "text-muted hover:text-foreground")}>
+              <CheckCircle2 className="h-4 w-4" /> Aprovações
+            </button>
           </div>
 
           {/* Filtro por Pessoa */}
@@ -572,7 +650,14 @@ export function Tarefas() {
         <KPIBox icon={<CalendarClock className="h-4 w-4 text-amber-500" />} label="Alta prioridade" value={altaPrioridade.length} />
       </div>
 
-      {tab === "time" ? (
+      {tab === "aprovacoes" ? (
+        <AprovacoesView
+          tarefas={tarefas.filter(t => t.em_aprovacao)}
+          profiles={profiles}
+          onTaskClick={setSelectedTarefa}
+          onToggleApprover={toggleApprover}
+        />
+      ) : tab === "time" ? (
         <TeamView
           tarefas={filtradas}
           profiles={profiles}
@@ -731,6 +816,7 @@ export function Tarefas() {
           onClose={() => setSelectedTarefa(null)}
           onEdit={(t) => { setSelectedTarefa(null); setEditingTarefa(t); }}
           onDelete={handleDeleteTask}
+          onSendToApproval={handleSendToApproval}
           onStatusChange={async (status) => {
             await updateTaskStatus(selectedTarefa.id, status);
             fetchTarefas();
@@ -761,9 +847,101 @@ export function Tarefas() {
   );
 }
 
+function AprovacoesView({ tarefas, profiles, onTaskClick, onToggleApprover }: any) {
+  const { user } = useAuth();
+  const currentUser = profiles.find((p: any) => p.id === user?.id);
+  const isAdmin = currentUser?.role === "CEO" || currentUser?.role === "Diretoria" || currentUser?.role === "Admin" || currentUser?.role === "Administrador" || currentUser?.role === "Administração";
+  
+  const approvers = profiles.filter((p: any) => p.metadata?.is_approver);
+
+  return (
+    <div className="space-y-6">
+      {(isAdmin || true) && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-red-500" />
+            <h3 className="text-lg font-medium">Configuração de Aprovações</h3>
+          </div>
+          <p className="text-sm text-muted">Selecione os gerentes de projeto que receberão as subtarefas de aprovação.</p>
+          <div className="flex flex-wrap gap-2">
+            {profiles.map((p: any) => {
+              const isApprover = p.metadata?.is_approver;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onToggleApprover(p.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-2 border",
+                    isApprover 
+                      ? "bg-red-500/10 text-red-600 border-red-500/30" 
+                      : "bg-background text-muted hover:bg-foreground/5 border-border"
+                  )}
+                >
+                  <img src={p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || "")}&background=random`} alt="" className="w-5 h-5 rounded-full" />
+                  {p.full_name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
+          Tarefas Aguardando Aprovação
+          <span className="bg-red-100 text-red-700 text-xs py-0.5 px-2 rounded-full dark:bg-red-900/30 dark:text-red-400">
+            {tarefas.length}
+          </span>
+        </h3>
+        
+        {tarefas.length === 0 ? (
+          <div className="p-8 text-center text-muted border border-dashed border-border rounded-xl">
+            Nenhuma tarefa pendente de aprovação.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {tarefas.map((t: any) => (
+              <div 
+                key={t.id} 
+                onClick={() => onTaskClick(t)}
+                className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 cursor-pointer hover:bg-amber-500/10 transition-all flex flex-col gap-3 relative overflow-hidden group"
+              >
+                <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                <div className="flex items-start justify-between">
+                  <h4 className="font-medium text-foreground text-sm line-clamp-2">{t.titulo}</h4>
+                  <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-500/20 px-2 py-1 rounded">Em Aprovação</span>
+                </div>
+                {t.descricao && (
+                  <p className="text-xs text-muted line-clamp-2" dangerouslySetInnerHTML={{ __html: t.descricao }} />
+                )}
+                <div className="mt-auto flex items-center justify-between pt-2">
+                  <div className="flex items-center gap-2">
+                    {t.profiles && (
+                      <div className="flex items-center gap-1.5">
+                        <img src={t.profiles.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.profiles.full_name || "")}&background=random`} alt="" className="w-5 h-5 rounded-full" />
+                        <span className="text-xs text-muted truncate max-w-[100px]">{t.profiles.full_name}</span>
+                      </div>
+                    )}
+                  </div>
+                  {t.prazo && (
+                    <span className="text-xs text-muted flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(t.prazo + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Modals ────────────────────────────────────────────── */
 
-export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onStatusChange, onUpdate }: {
+export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onStatusChange, onUpdate, onSendToApproval }: {
   tarefa: DBTask;
   profiles: DBProfile[];
   onClose: () => void;
@@ -771,6 +949,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   onDelete: (id: string) => void;
   onStatusChange: (status: TaskStatus) => Promise<void>;
   onUpdate: (updates: Partial<DBTask>) => Promise<void>;
+  onSendToApproval?: (t: DBTask) => void;
 }) {
   const { user } = useAuth();
   const prior = prioridadeColors[tarefa.prioridade] || prioridadeColors.normal;
@@ -828,7 +1007,20 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const handleToggleSubtask = async (sub: DBSubtask) => {
     const newVal = !sub.concluida;
     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, concluida: newVal } : s));
-    try { await toggleSubtask(sub.id, newVal); } catch { getSubtasks(tarefa.id).then(setSubtasks); }
+    try { 
+      await toggleSubtask(sub.id, newVal); 
+      if (sub.titulo.startsWith('Aprovação:') && newVal === true) {
+        await onUpdate({ em_aprovacao: false });
+        saveTaskHistory({
+             tarefa_id: tarefa.id,
+             titulo: tarefa.titulo,
+             prioridade: tarefa.prioridade,
+             status: tarefa.status,
+             action: 'editada',
+             details: `Aprovação concluída`
+        });
+      }
+    } catch { getSubtasks(tarefa.id).then(setSubtasks); }
   };
 
   const handleDeleteSubtask = async (id: string) => {
@@ -936,12 +1128,34 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
             {/* Editable Properties */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-6 md:gap-x-12 md:gap-y-6">
               <Property label="Status">
-                <select value={tarefa.status} onChange={(e) => onStatusChange(e.target.value as TaskStatus)} className="bg-foreground/5 hover:bg-foreground/10 px-3 py-1 rounded text-xs font-bold uppercase tracking-tight focus:outline-none transition-colors border-none cursor-pointer">
-                  <option value="fazer">A Fazer</option>
-                  <option value="progresso">Em Progresso</option>
-                  <option value="revisao">Revisão</option>
-                  <option value="concluido">Concluído</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={tarefa.em_aprovacao ? 'aprovacao' : tarefa.status} 
+                    onChange={(e) => {
+                      if (e.target.value === 'aprovacao') {
+                        if (onSendToApproval && !tarefa.em_aprovacao) onSendToApproval(tarefa);
+                      } else {
+                        if (tarefa.em_aprovacao) {
+                          onUpdate({ em_aprovacao: false, status: e.target.value as TaskStatus });
+                        } else {
+                          onStatusChange(e.target.value as TaskStatus);
+                        }
+                      }
+                    }} 
+                    className="bg-foreground/5 hover:bg-foreground/10 px-3 py-1 rounded text-xs font-bold uppercase tracking-tight focus:outline-none transition-colors border-none cursor-pointer"
+                  >
+                    <option value="fazer">A Fazer</option>
+                    <option value="progresso">Em Progresso</option>
+                    <option value="revisao">Revisão</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="aprovacao">Aprovação</option>
+                  </select>
+                  {onSendToApproval && !tarefa.em_aprovacao && (
+                    <button onClick={() => onSendToApproval(tarefa)} className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-500 hover:bg-red-600 shadow-sm shadow-red-500/20 text-white text-[10px] font-bold uppercase tracking-tight transition-colors">
+                      <Clock className="h-3 w-3" /> <span className="hidden sm:inline">Aprovação</span>
+                    </button>
+                  )}
+                </div>
               </Property>
               
               <Property label="Responsável">
