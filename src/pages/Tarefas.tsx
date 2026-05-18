@@ -851,8 +851,6 @@ function AprovacoesView({ tarefas, profiles, onTaskClick, onToggleApprover }: an
   const { user } = useAuth();
   const currentUser = profiles.find((p: any) => p.id === user?.id);
   const isAdmin = currentUser?.role === "CEO" || currentUser?.role === "Diretoria" || currentUser?.role === "Admin" || currentUser?.role === "Administrador" || currentUser?.role === "Administração";
-  
-  const approvers = profiles.filter((p: any) => p.metadata?.is_approver);
 
   return (
     <div className="space-y-6">
