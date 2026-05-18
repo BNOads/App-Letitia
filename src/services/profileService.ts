@@ -47,21 +47,21 @@ export async function updateProfile(id: string, updates: Partial<DBProfile>) {
     updated_at: new Date().toISOString(),
   };
 
-  // Tenta via RPC (bypassa RLS para editar perfil de outros usuários)
-  const { error: rpcError } = await supabase.rpc('update_profile', {
-    target_user_id: id,
-    profile_data: payload,
-  });
+  // Tenta atualizar via query direta (funciona para o próprio usuário devido ao RLS)
+  const { error: directError } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', id);
 
-  if (rpcError) {
-    // Fallback: query direta (funciona apenas se RLS permitir)
-    console.warn('RPC update_profile falhou, tentando query direta:', rpcError.message);
-    const { error } = await supabase
-      .from('profiles')
-      .update(payload)
-      .eq('id', id);
+  if (directError) {
+    console.warn('Query direta falhou (possível restrição de RLS), tentando RPC:', directError.message);
+    // Tenta via RPC (bypassa RLS para editar perfil de outros usuários)
+    const { error: rpcError } = await supabase.rpc('update_profile', {
+      target_user_id: id,
+      profile_data: payload,
+    });
 
-    if (error) throw error;
+    if (rpcError) throw rpcError;
   }
 }
 
