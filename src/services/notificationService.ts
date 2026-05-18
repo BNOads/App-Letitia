@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { sendEmail, emailTemplates } from './emailService';
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -112,7 +113,54 @@ export async function createNotification(params: CreateNotificationParams) {
       user_id: params.user_id !== undefined ? params.user_id : null,
     }]);
 
-  if (error) console.warn('Erro ao criar notificação:', error.message);
+  if (error) {
+    console.warn('Erro ao criar notificação:', error.message);
+    return;
+  }
+
+  // Dispara e-mail se necessário (não bloqueia)
+  setTimeout(async () => {
+    try {
+      if (params.user_id) {
+        // Notificação para usuário específico
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name, receber_notificacoes_email')
+          .eq('id', params.user_id)
+          .single();
+
+        if (profile?.receber_notificacoes_email && profile?.email) {
+          await sendEmail({
+            to: profile.email,
+            subject: params.titulo,
+            html: emailTemplates.generalNotification(params.titulo, params.descricao)
+          });
+        }
+      } else {
+        // Broadcast para todos os usuários com email ativado
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('receber_notificacoes_email', true);
+
+        if (profiles && profiles.length > 0) {
+          const emails = profiles.map(p => p.email).filter(Boolean) as string[];
+          if (emails.length > 0) {
+            // Em produção, o ideal é usar batch ou Bcc, Resend suporta array de to: mas até 50.
+            for (const email of emails) {
+              await sendEmail({
+                to: email,
+                subject: params.titulo,
+                html: emailTemplates.generalNotification(params.titulo, params.descricao)
+              }).catch(e => console.warn('Erro ao enviar email em massa', e));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro na rotina de email da notificação', err);
+    }
+  }, 0);
 }
 
 /** Create a notification for multiple users at once */
@@ -134,7 +182,35 @@ export async function createNotificationForUsers(
   }));
 
   const { error } = await supabase.from('notificacoes').insert(rows);
-  if (error) console.warn('Erro ao criar notificações em massa:', error.message);
+  if (error) {
+    console.warn('Erro ao criar notificações em massa:', error.message);
+    return;
+  }
+
+  // Dispara e-mail se necessário (não bloqueia)
+  setTimeout(async () => {
+    try {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, receber_notificacoes_email')
+        .in('id', userIds)
+        .eq('receber_notificacoes_email', true);
+
+      if (profiles && profiles.length > 0) {
+        for (const profile of profiles) {
+          if (profile.email) {
+            await sendEmail({
+              to: profile.email,
+              subject: params.titulo,
+              html: emailTemplates.generalNotification(params.titulo, params.descricao)
+            }).catch(e => console.warn('Erro ao enviar email notificação em massa', e));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro na rotina de email em massa', err);
+    }
+  }, 0);
 }
 
 // ─── Convenience Helpers (call from existing services) ────

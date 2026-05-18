@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendEmail, emailTemplates } from "@/services/emailService";
 
 const ROLES = ["CEO", "Diretoria", "Parceiro", "Vendas", "Suporte"];
 
@@ -460,7 +461,15 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
         email: email,
         avatar_url: avatarUrl,
         role: role,
+        receber_notificacoes_email: true // Enable by default
       });
+
+      // Envia o e-mail de boas-vindas
+      await sendEmail({
+        to: email,
+        subject: 'Bem-vindo(a) ao sistema Letitia',
+        html: emailTemplates.userCreated(fullName, password)
+      }).catch(err => console.error('Erro ao enviar email de boas vindas', err));
 
       alert("Membro criado com sucesso! Ele já pode fazer login.");
       onSuccess();

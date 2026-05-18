@@ -5,9 +5,10 @@ import {
 } from "@/services/profileService";
 import { 
   User, Mail, Shield, Info, Camera, 
-  Lock, Save, Loader2, CheckCircle2, AlertCircle, X
+  Lock, Save, Loader2, CheckCircle2, AlertCircle, X, Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sendEmail, emailTemplates } from "@/services/emailService";
 
 
 const ROLES = ["CEO", "Diretoria", "Parceiro", "Vendas", "Suporte"];
@@ -25,6 +26,7 @@ export function Perfil() {
     email: "",
     phone: "",
     role: "Suporte",
+    receber_notificacoes_email: false,
     metadata: {
       bio: "",
       departamento: "",
@@ -53,6 +55,7 @@ export function Perfil() {
         email: data.email || user?.email || "",
         phone: data.phone || "",
         role: data.role || "Suporte",
+        receber_notificacoes_email: data.receber_notificacoes_email || false,
         metadata: {
           bio: data.metadata?.bio || "",
           departamento: data.metadata?.departamento || "",
@@ -89,8 +92,21 @@ export function Perfil() {
 
     try {
       setSaving(true);
+      
+      const enabledNotificationsNow = !profile?.receber_notificacoes_email && formData.receber_notificacoes_email;
+      
       await updateProfile(user.id, formData);
       await refreshUser(); // Sync name
+      
+      if (enabledNotificationsNow && formData.email) {
+        // Send email confirming that notifications were enabled
+        await sendEmail({
+          to: formData.email,
+          subject: 'Notificações por E-mail Ativadas',
+          html: emailTemplates.notificationsEnabled(formData.full_name)
+        }).catch(err => console.error('Erro ao enviar email de notificação', err));
+      }
+      
       setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
       fetchProfile();
     } catch (error: any) {
@@ -110,6 +126,15 @@ export function Perfil() {
     try {
       setSaving(true);
       await changePassword(passwords.new);
+      
+      if (formData.email) {
+        await sendEmail({
+          to: formData.email,
+          subject: 'Senha alterada com sucesso',
+          html: emailTemplates.passwordChanged(formData.full_name)
+        }).catch(err => console.error('Erro ao enviar email de senha', err));
+      }
+      
       setMessage({ type: 'success', text: 'Senha alterada com sucesso!' });
       setPasswords({ current: "", new: "", confirm: "" });
     } catch (error: any) {
@@ -277,6 +302,25 @@ export function Perfil() {
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-letitia-gold outline-none resize-none"
                   placeholder="Conte um pouco sobre sua atuação na equipe..."
                 />
+              </div>
+
+              <div className="md:col-span-2 pt-4 border-t border-border mt-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div className="relative">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only" 
+                      checked={formData.receber_notificacoes_email}
+                      onChange={e => setFormData({...formData, receber_notificacoes_email: e.target.checked})}
+                    />
+                    <div className={cn("block w-14 h-8 rounded-full transition-colors", formData.receber_notificacoes_email ? "bg-letitia-gold" : "bg-muted")}></div>
+                    <div className={cn("absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform", formData.receber_notificacoes_email ? "transform translate-x-6" : "")}></div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-foreground">Receber Notificações por E-mail</div>
+                    <div className="text-xs text-muted">Avisos do sistema serão enviados para o seu endereço de e-mail.</div>
+                  </div>
+                </label>
               </div>
 
               <div className="md:col-span-2 flex justify-end pt-4">

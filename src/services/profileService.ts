@@ -8,6 +8,7 @@ export interface DBProfile {
   phone: string | null;
   role: string;
   metadata: any;
+  receber_notificacoes_email: boolean;
   updated_at: string;
 }
 
@@ -76,6 +77,7 @@ export async function ensureProfileExists(
     email?: string;
     avatar_url?: string;
     role?: string;
+    receber_notificacoes_email?: boolean;
   },
   maxRetries = 5
 ): Promise<void> {
@@ -90,6 +92,7 @@ export async function ensureProfileExists(
           email: profileData.email || null,
           avatar_url: profileData.avatar_url || null,
           role: profileData.role || 'Suporte',
+          receber_notificacoes_email: profileData.receber_notificacoes_email ?? false,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }
@@ -117,6 +120,7 @@ export async function ensureProfileExists(
       email: profileData.email || null,
       avatar_url: profileData.avatar_url || null,
       role: profileData.role || 'Suporte',
+      receber_notificacoes_email: profileData.receber_notificacoes_email ?? false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId);
