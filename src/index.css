@@ -103,6 +103,18 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif tracking-tight;
   }
+  select {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='rgba(26,26,26,0.6)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5em center;
+    background-size: 1.2em 1.2em;
+    padding-right: 2em !important;
+  }
 }
 
 /* ─── TipTap Editor Styles ─────────────────────────────── */
