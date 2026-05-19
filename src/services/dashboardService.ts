@@ -6,10 +6,33 @@ export async function getDashboardStats(userId?: string) {
   // 1. Tarefas (filtradas pelo usuário logado)
   let tarefasQuery = supabase.from('tarefas').select('id, status, titulo, prazo, prioridade, responsavel_id');
   if (userId) tarefasQuery = tarefasQuery.eq('responsavel_id', userId);
-  const { data: allTarefas } = await tarefasQuery;
-  const totalTarefas = allTarefas?.length || 0;
-  const concluidasTarefas = allTarefas?.filter(t => t.status === 'concluido').length || 0;
-  const pendentes = allTarefas?.filter(t => t.status !== 'concluido') || [];
+  const { data: rawTarefas } = await tarefasQuery;
+  const allTarefas = (rawTarefas || []) as any[];
+
+  // Also fetch subtasks assigned to the user
+  let subtarefasQuery = supabase.from('subtarefas').select('id, concluida, titulo, prazo, responsavel_id, tarefa_id, tarefas(titulo)');
+  if (userId) subtarefasQuery = subtarefasQuery.eq('responsavel_id', userId);
+  const { data: rawSubtarefas } = await subtarefasQuery;
+
+  if (rawSubtarefas) {
+    rawSubtarefas.forEach((s: any) => {
+      allTarefas.push({
+        id: `sub_${s.id}`,
+        titulo: s.titulo,
+        status: s.concluida ? 'concluido' : 'fazer',
+        prazo: s.prazo,
+        prioridade: 'normal',
+        responsavel_id: s.responsavel_id,
+        __isSubtask: true,
+        __parentId: s.tarefa_id,
+        __parentTitle: s.tarefas?.titulo || ''
+      });
+    });
+  }
+
+  const totalTarefas = allTarefas.length;
+  const concluidasTarefas = allTarefas.filter(t => t.status === 'concluido').length;
+  const pendentes = allTarefas.filter(t => t.status !== 'concluido');
   const atrasadasTarefas = pendentes
     .filter(t => t.prazo && t.prazo < today)
     .sort((a, b) => (a.prazo || '').localeCompare(b.prazo || ''));

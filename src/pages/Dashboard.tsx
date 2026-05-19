@@ -5,13 +5,15 @@ import {
   Clock, 
   Loader2, ChevronRight, ChevronDown, Video, Camera,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays, CalendarClock,
-  Circle, CheckCircle2, Send, Repeat, ArrowRight, AlertCircle
+  Circle, CheckCircle2, Send, Repeat, ArrowRight, AlertCircle,
+  Bell, BellDot, X, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { createTask, updateTaskStatus, updateTask, getTasks, type DBTask } from "@/services/taskService";
+import { createTask, updateTaskStatus, updateTask, updateSubtask, getTasks, type DBTask } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted } from "@/services/notificationService";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { NovoTarefaModal, TaskDetailModal } from "./Tarefas";
 
 
@@ -47,6 +49,10 @@ export function Dashboard() {
   const [showDashAtrasadas, setShowDashAtrasadas] = useState(true);
   const [showDashHoje, setShowDashHoje] = useState(true);
   const [showDashProximas, setShowDashProximas] = useState(false);
+  
+  const { notifications, unreadCount, markAsRead, markAllAsRead, loading: notifLoading } = useNotifications();
+  const [hasCheckedUnread, setHasCheckedUnread] = useState(false);
+  const [showUnreadModal, setShowUnreadModal] = useState(false);
 
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Letícia";
@@ -73,6 +79,15 @@ export function Dashboard() {
   useEffect(() => {
     loadStats();
   }, []);
+
+  useEffect(() => {
+    if (!notifLoading && !hasCheckedUnread) {
+      if (unreadCount > 0) {
+        setShowUnreadModal(true);
+      }
+      setHasCheckedUnread(true);
+    }
+  }, [notifLoading, unreadCount, hasCheckedUnread]);
 
   const handleQuickTask = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -101,11 +116,16 @@ export function Dashboard() {
   const handleToggleTask = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'concluido' ? 'fazer' : 'concluido';
     try {
-      await updateTaskStatus(id, newStatus as any);
+      if (id.startsWith('sub_')) {
+        await updateSubtask(id.replace('sub_', ''), { concluida: newStatus === 'concluido' });
+      } else {
+        await updateTaskStatus(id, newStatus as any);
+      }
+      
       // Notify everyone when a task is completed from the dashboard
       if (newStatus === 'concluido' && user) {
         const tarefa = allTasks.find(t => t.id === id);
-        if (tarefa) {
+        if (tarefa && !id.startsWith('sub_')) {
           const uName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
           notifyTaskCompleted(tarefa.titulo, tarefa.id, user.id, uName);
         }
@@ -394,51 +414,185 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* EDITORIAL - Bottom row (12/12) */}
+        {/* NOTIFICATIONS - Bottom row (12/12) */}
         <div className="lg:col-span-12">
           <div className="bg-card border border-border rounded-[2rem] p-8 shadow-sm">
              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <Camera className="h-5 w-5 text-purple-500" />
+                  <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", unreadCount > 0 ? "bg-amber-500/20 animate-pulse" : "bg-blue-500/10")}>
+                    {unreadCount > 0 ? (
+                      <BellDot className="h-5 w-5 text-amber-500" />
+                    ) : (
+                      <Bell className="h-5 w-5 text-blue-500" />
+                    )}
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground">Editorial & Pautas</h3>
-                    <p className="text-xs text-muted">Próximas publicações agendadas</p>
+                    <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      Resumo de Notificações
+                      {unreadCount > 0 && (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white animate-pulse">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-muted">Acompanhe as últimas atualizações do seu ecossistema</p>
                   </div>
                 </div>
-                <a href="/conteudo" className="text-sm font-medium text-purple-500 hover:underline">Ir para Editorial</a>
+                <a href="/notificacoes" className="text-sm font-medium text-blue-500 hover:underline">Ir para Notificações</a>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {stats?.pautas.map((pauta) => (
-                  <div 
-                    key={pauta.id}
-                    className="p-5 rounded-3xl border border-border bg-background/40 hover:border-purple-500/30 hover:-translate-y-1 transition-[border-color,transform] flex flex-col gap-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className={cn("p-2 rounded-xl", pauta.formato === 'youtube' ? "bg-red-500/10 text-red-500" : "bg-pink-500/10 text-pink-500")}>
-                        {pauta.formato === 'youtube' ? <Video className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+             <div className="flex flex-col gap-3">
+                {notifications.slice(0, 5).map((notif) => {
+                  const creator = notif.profiles;
+                  const initials = creator?.full_name ? creator.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : null;
+
+                  return (
+                    <div 
+                      key={notif.id}
+                      onClick={() => { if (!notif.lida) markAsRead(notif.id); }}
+                      className={cn(
+                        "flex items-start gap-4 p-4 rounded-2xl border transition-colors cursor-pointer group relative overflow-hidden",
+                        notif.lida ? "border-border bg-background/40 hover:bg-muted/30 hover:border-border/80" : "border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/60"
+                      )}
+                    >
+                      {!notif.lida && (
+                        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 group-hover:w-1.5 transition-all" />
+                      )}
+                      
+                      <div className="flex-shrink-0 mt-0.5 relative">
+                        {creator?.avatar_url ? (
+                          <img src={creator.avatar_url} alt={creator.full_name || ""} className="h-10 w-10 rounded-xl object-cover border border-border" />
+                        ) : initials ? (
+                          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs", notif.lida ? "bg-blue-500/10 text-blue-600" : "bg-amber-500/10 text-amber-600")}>
+                            {initials}
+                          </div>
+                        ) : (
+                          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", notif.lida ? "bg-blue-500/10 text-blue-500" : "bg-amber-500/10 text-amber-500")}>
+                            <Info className="h-5 w-5" />
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">{pauta.plataforma}</span>
-                    </div>
-                    <h4 className="font-medium text-foreground text-sm line-clamp-2 min-h-[2.5rem]">{pauta.titulo}</h4>
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
-                      <div className="flex items-center gap-1.5 text-xs text-muted font-medium">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(pauta.data_prevista).toLocaleDateString('pt-BR')}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h4 className="font-medium text-foreground text-sm line-clamp-1">{notif.titulo}</h4>
+                          <div className="flex items-center gap-2 text-[10px] text-muted whitespace-nowrap">
+                            <span>{new Date(notif.created_at).toLocaleDateString('pt-BR')}</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(notif.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted line-clamp-1">{notif.descricao}</p>
+                        {creator?.full_name && (
+                          <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-muted">
+                            <span className="px-2 py-0.5 rounded-md bg-muted/10 border border-border/50">De: {creator.full_name.split(' ')[0]}</span>
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-600 uppercase tracking-tighter">
-                        {pauta.pilar}
-                      </span>
+                      
+                      {!notif.lida && (
+                        <span className="flex-shrink-0 self-center ml-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600 uppercase tracking-tighter">
+                          Não lida
+                        </span>
+                      )}
                     </div>
+                  );
+                })}
+                {notifications.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted">Você não tem notificações no momento.</p>
                   </div>
-                ))}
+                )}
              </div>
           </div>
         </div>
 
       </div>
+
+      {showUnreadModal && unreadCount > 0 && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse">
+                  <BellDot className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Notificações Não Lidas</h3>
+                  <p className="text-xs text-muted">Você tem {unreadCount} {unreadCount === 1 ? 'notificação' : 'notificações'} aguardando.</p>
+                </div>
+              </div>
+              <button onClick={() => setShowUnreadModal(false)} className="rounded-full p-2 hover:bg-muted transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="space-y-1">
+                {notifications.filter(n => !n.lida).map(notif => {
+                  const creator = notif.profiles;
+                  const initials = creator?.full_name ? creator.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : null;
+                  
+                  return (
+                    <div key={notif.id} className="p-4 rounded-xl hover:bg-muted/50 transition-colors border border-transparent hover:border-border group flex gap-3">
+                      <div className="flex-shrink-0 mt-0.5 relative">
+                        {creator?.avatar_url ? (
+                          <img src={creator.avatar_url} alt={creator.full_name || ""} className="h-8 w-8 rounded-full object-cover border border-border" />
+                        ) : initials ? (
+                          <div className="h-8 w-8 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-[10px]">
+                            {initials}
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                            <Info className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-amber-500 border-2 border-card" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-medium text-foreground">{notif.titulo}</h4>
+                          <span className="text-[10px] text-muted whitespace-nowrap">{new Date(notif.created_at).toLocaleDateString('pt-BR')} às {new Date(notif.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p className="text-xs text-muted mt-1 leading-relaxed">{notif.descricao}</p>
+                        {creator?.full_name && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted">
+                            <span className="font-medium">De: {creator.full_name}</span>
+                          </div>
+                        )}
+                        <button 
+                          onClick={() => markAsRead(notif.id)}
+                          className="mt-3 text-xs font-medium text-amber-600 hover:text-amber-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Marcar como lida
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-3">
+              <button 
+                onClick={() => setShowUnreadModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-muted hover:text-foreground transition-colors"
+              >
+                Sair
+              </button>
+              <button 
+                onClick={async () => { await markAllAsRead(); setShowUnreadModal(false); }}
+                className="px-5 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors shadow-sm"
+              >
+                Marcar todas como lidas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <NovoTarefaModal 
@@ -486,6 +640,11 @@ function DashboardTaskCard({ tarefa, allTasks, onSelect, onToggle, isOverdue }: 
   return (
     <div 
       onClick={() => {
+        if (tarefa.__isSubtask && tarefa.__parentId) {
+          const parent = allTasks.find(t => t.id === tarefa.__parentId);
+          if (parent) onSelect(parent);
+          return;
+        }
         const fullTask = allTasks.find(t => t.id === tarefa.id);
         if (fullTask) onSelect(fullTask);
       }}
@@ -498,7 +657,7 @@ function DashboardTaskCard({ tarefa, allTasks, onSelect, onToggle, isOverdue }: 
     >
       <button 
         onClick={(e) => { e.stopPropagation(); onToggle(tarefa.id, tarefa.status); }}
-        className="p-1 hover:bg-foreground/5 rounded-full transition-colors"
+        className="p-1 hover:bg-foreground/5 rounded-full transition-colors self-start mt-0.5"
       >
         {tarefa.status === 'concluido' ? (
           <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -508,6 +667,11 @@ function DashboardTaskCard({ tarefa, allTasks, onSelect, onToggle, isOverdue }: 
       </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
+          {tarefa.__isSubtask && (
+            <span className="flex-shrink-0 flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 uppercase tracking-widest border border-purple-500/20">
+              <ListIcon className="h-2 w-2" /> Subtarefa
+            </span>
+          )}
           <h4 className={cn("text-sm font-medium text-foreground truncate", tarefa.status === 'concluido' && "line-through text-muted")}>
             {tarefa.titulo}
           </h4>
@@ -517,20 +681,27 @@ function DashboardTaskCard({ tarefa, allTasks, onSelect, onToggle, isOverdue }: 
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-center gap-3 mt-1.5">
+          {tarefa.__isSubtask && tarefa.__parentTitle && (
+            <div className="flex items-center gap-1 text-[10px] font-medium text-muted truncate max-w-[50%]">
+              <span className="opacity-50">↳</span> {tarefa.__parentTitle}
+            </div>
+          )}
           <div className={cn("flex items-center gap-1 text-[10px]", isOverdue ? "text-red-500 font-medium" : "text-muted")}>
             <Calendar className="h-3 w-3" />
             {tarefa.prazo ? new Date(tarefa.prazo + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem prazo'}
           </div>
         </div>
       </div>
-      <span className={cn(
-        "text-[8px] font-bold px-2 py-1 rounded-lg uppercase tracking-widest",
-        tarefa.prioridade === 'urgente' ? "bg-red-500/10 text-red-500" :
-        tarefa.prioridade === 'alta' ? "bg-orange-500/10 text-orange-500" : "bg-letitia-gold/10 text-letitia-gold"
-      )}>
-        {tarefa.prioridade}
-      </span>
+      {!tarefa.__isSubtask && (
+        <span className={cn(
+          "text-[8px] font-bold px-2 py-1 rounded-lg uppercase tracking-widest flex-shrink-0",
+          tarefa.prioridade === 'urgente' ? "bg-red-500/10 text-red-500" :
+          tarefa.prioridade === 'alta' ? "bg-orange-500/10 text-orange-500" : "bg-letitia-gold/10 text-letitia-gold"
+        )}>
+          {tarefa.prioridade}
+        </span>
+      )}
     </div>
   );
 }
