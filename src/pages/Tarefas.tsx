@@ -147,7 +147,7 @@ export function Tarefas() {
 
   // Convert subtasks to virtual task entries for display in lists
   const subtasksAsTasks: (DBTask & { __isSubtask?: boolean; __parentTitle?: string; __parentId?: string; __subtaskId?: string })[] = allSubtasks
-    .filter(s => s.responsavel_id && !s.concluida)
+    .filter(s => !s.concluida)
     .map(s => ({
       id: `sub_${s.id}`,
       titulo: s.titulo,
@@ -404,7 +404,7 @@ export function Tarefas() {
   };
 
   const selectAllVisible = () => {
-    const ids = filtradas.filter(t => !(t as any).__isSubtask).map(t => t.id);
+    const ids = allItems.map(t => t.id);
     setSelectedTaskIds(new Set(ids));
   };
 
@@ -422,7 +422,13 @@ export function Tarefas() {
     setBulkUpdating(true);
     try {
       await Promise.all(
-        Array.from(selectedTaskIds).map(id => updateTaskStatus(id, status))
+        Array.from(selectedTaskIds).map(id => {
+          if (id.startsWith('sub_')) {
+            const realId = id.replace('sub_', '');
+            return updateSubtask(realId, { concluida: status === 'concluido' });
+          }
+          return updateTaskStatus(id, status);
+        })
       );
       clearSelection();
       await fetchTarefas();
@@ -438,7 +444,19 @@ export function Tarefas() {
     setBulkUpdating(true);
     try {
       await Promise.all(
-        Array.from(selectedTaskIds).map(id => updateTask(id, updates))
+        Array.from(selectedTaskIds).map(id => {
+          if (id.startsWith('sub_')) {
+            const realId = id.replace('sub_', '');
+            const subUpdates: any = {};
+            if (updates.responsavel_id !== undefined) subUpdates.responsavel_id = updates.responsavel_id;
+            if (updates.prazo !== undefined) subUpdates.prazo = updates.prazo;
+            if (Object.keys(subUpdates).length > 0) {
+              return updateSubtask(realId, subUpdates);
+            }
+            return Promise.resolve();
+          }
+          return updateTask(id, updates);
+        })
       );
       clearSelection();
       await fetchTarefas();
@@ -451,10 +469,15 @@ export function Tarefas() {
 
   const handleBulkDelete = async () => {
     if (selectedTaskIds.size === 0) return;
-    if (!confirm(`Tem certeza que deseja excluir ${selectedTaskIds.size} tarefa(s)?`)) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedTaskIds.size} item(ns)?`)) return;
     setBulkUpdating(true);
     try {
       for (const id of selectedTaskIds) {
+        if (id.startsWith('sub_')) {
+          const realId = id.replace('sub_', '');
+          await deleteSubtask(realId);
+          continue;
+        }
         const tarefa = tarefas.find(t => t.id === id);
         if (tarefa) {
           saveTaskHistory({
@@ -716,7 +739,7 @@ export function Tarefas() {
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />
+                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />
               ))}
             </TaskSection>
           )}
@@ -732,7 +755,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)
             )}
           </TaskSection>
 
@@ -744,7 +767,7 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
           </TaskSection>
 
           <TaskSection
@@ -755,7 +778,7 @@ export function Tarefas() {
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode && !(t as any).__isSubtask ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
           </TaskSection>
         </div>
       ) : (
@@ -770,7 +793,7 @@ export function Tarefas() {
                 </div>
                 <div className="flex-1 bg-background/30 border border-t-0 border-border rounded-b-lg p-2 space-y-2 min-h-[200px]">
                   {colTarefas.map((t) => (
-                    <KanbanCard key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : setSelectedTarefa(t)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />
+                    <KanbanCard key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} />
                   ))}
                 </div>
               </div>
@@ -832,7 +855,7 @@ export function Tarefas() {
       {bulkSelectMode && (
         <BulkActionBar
           selectedCount={selectedTaskIds.size}
-          totalCount={filtradas.filter(t => !(t as any).__isSubtask).length}
+          totalCount={allItems.length}
           onSelectAll={selectAllVisible}
           onClearSelection={clearSelection}
           onStatusChange={handleBulkStatusChange}
@@ -1846,7 +1869,7 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
       )}
     >
       {/* Bulk selection checkbox */}
-      {bulkSelectMode && !isSubtask ? (
+      {bulkSelectMode ? (
         <button
           onClick={(e) => { e.stopPropagation(); onBulkToggle?.(); }}
           className="flex-shrink-0 transition-transform hover:scale-110"
@@ -2182,8 +2205,8 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   });
 
   // Add subtasks as virtual entries under their responsible person
-  (allSubtasks || []).filter(s => s.responsavel_id && !s.concluida).forEach(s => {
-    const key = s.responsavel_id!;
+  (allSubtasks || []).filter(s => !s.concluida).forEach(s => {
+    const key = s.responsavel_id || "__none__";
     // Skip if the subtask is already shown under a parent task with the same responsible
     // (avoid duplication when parent task responsible == subtask responsible)
     const parentTask = tarefas.find(t => t.id === s.tarefa_id);
@@ -2213,8 +2236,8 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
 
   // Also add subtasks matching the subtask search, even if responsavel matches parent
   if (effectiveSubSearch) {
-    (allSubtasks || []).filter(s => s.responsavel_id && !s.concluida && s.titulo.toLowerCase().includes(effectiveSubSearch)).forEach(s => {
-      const key = s.responsavel_id!;
+    (allSubtasks || []).filter(s => !s.concluida && s.titulo.toLowerCase().includes(effectiveSubSearch)).forEach(s => {
+      const key = s.responsavel_id || "__none__";
       const virtualId = `sub_${s.id}`;
       // Check if already added
       if (grouped.has(key) && grouped.get(key)!.tasks.some(t => t.id === virtualId)) return;
@@ -2441,7 +2464,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                           const isSubsExpanded = expandedTaskSubs[t.id] || (effectiveSubSearch !== '' && filteredSubs.length > 0);
 
                           const handleClick = () => {
-                            if (bulkSelectMode && !isVirtualSub) { onBulkToggle?.(t.id); return; }
+                            if (bulkSelectMode) { onBulkToggle?.(t.id); return; }
                             if (isVirtualSub && parentId) {
                               const parent = tarefas.find(task => task.id === parentId);
                               if (parent) { onTaskClick(parent); return; }
@@ -2460,7 +2483,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                                   isOverdue ? "bg-red-500/5" : ""
                                 )}
                               >
-                                {!isVirtualSub && bulkSelectMode ? (
+                                {bulkSelectMode ? (
                                   <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="flex-shrink-0 transition-transform hover:scale-110">
                                     {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
                                   </button>
@@ -2637,7 +2660,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                     const isSubsExpanded = expandedTaskSubs[t.id] || (effectiveSubSearch !== '' && filteredSubs.length > 0);
 
                     const handleClick = () => {
-                      if (bulkSelectMode && !isVirtualSub) { onBulkToggle?.(t.id); return; }
+                      if (bulkSelectMode) { onBulkToggle?.(t.id); return; }
                       if (isVirtualSub && parentId) {
                         const parent = tarefas.find(task => task.id === parentId);
                         if (parent) { onTaskClick(parent); return; }
@@ -2657,7 +2680,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                           )}
                         >
                           <div className="col-span-1">
-                            {!isVirtualSub && bulkSelectMode ? (
+                            {bulkSelectMode ? (
                               <button onClick={e => { e.stopPropagation(); onBulkToggle?.(t.id); }} className="transition-transform hover:scale-110">
                                 {selectedTaskIds?.has(t.id) ? <CheckSquare2 className="h-4 w-4 text-amber-500" /> : <Square className="h-4 w-4 text-border hover:text-amber-500/60" />}
                               </button>
