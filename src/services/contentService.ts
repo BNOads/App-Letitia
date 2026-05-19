@@ -89,3 +89,12 @@ export async function addConteudoComentario(conteudoId: string, userId: string, 
   if (error) throw error;
   return data as DBConteudoComentario;
 }
+
+export async function deleteContent(id: string) {
+  const { error } = await supabase
+    .from('conteudo_pautas')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}

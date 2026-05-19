@@ -73,17 +73,31 @@ export function Conteudo() {
     fetchData();
   }, []);
 
-  // Handle navigation from global search
+  // Handle navigation from global search or share link
   useEffect(() => {
     const state = location.state as { openConteudoId?: string } | null;
-    if (state?.openConteudoId && pautas.length > 0) {
-      const target = pautas.find(p => p.id === state.openConteudoId);
+    const urlId = searchParams.get('id');
+    const targetId = state?.openConteudoId || urlId;
+
+    if (targetId && pautas.length > 0) {
+      const target = pautas.find(p => p.id === targetId);
       if (target) {
         setSelectedConteudo(target);
       }
-      window.history.replaceState({}, document.title);
+      
+      if (urlId) {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.delete('id');
+          return next;
+        }, { replace: true });
+      }
+      
+      if (state?.openConteudoId) {
+        window.history.replaceState({}, document.title);
+      }
     }
-  }, [location.state, pautas]);
+  }, [location.state, searchParams, pautas, setSearchParams]);
 
   async function fetchData() {
     try {

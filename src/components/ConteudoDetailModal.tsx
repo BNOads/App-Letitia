@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  updateContent,
+  updateContent, deleteContent,
   getConteudoComentarios, addConteudoComentario,
   type DBContent, type DBConteudoComentario
 } from "@/services/contentService";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   X, Save, Loader2, Send, MessageSquare, AlertTriangle,
   Calendar, Clock, Link2, Trash2, Plus, Lightbulb, FileText,
-  ArrowRight, RefreshCw
+  ArrowRight, RefreshCw, Share2
 } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -47,6 +47,9 @@ interface ConteudoDetailModalProps {
 export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClose, onUpdate }: ConteudoDetailModalProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [historico, setHistorico] = useState<DBConteudoComentario[]>([]);
   const [novoComentario, setNovoComentario] = useState("");
   const [tipoComentario, setTipoComentario] = useState<"comentario" | "ajuste">("comentario");
@@ -155,6 +158,29 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteContent(conteudo.id);
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error("Erro ao deletar:", error);
+      setDeleting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/editorial?id=${conteudo.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (e) {
+      console.error("Erro ao copiar link", e);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!novoComentario.trim() || !user) return;
     try {
@@ -221,8 +247,30 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <span className="font-mono">ID: {conteudo.id.substring(0, 8)}</span>
+            <div className="flex items-center gap-1.5 text-xs text-muted">
+              {confirmDelete ? (
+                <div className="flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded-md border border-red-100">
+                  <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider">Certeza?</span>
+                  <button onClick={handleDelete} className="p-1 rounded text-white bg-red-500 hover:bg-red-600" title="Sim, Excluir">
+                    {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  </button>
+                  <button onClick={() => setConfirmDelete(false)} className="p-1 rounded text-red-700 bg-red-100 hover:bg-red-200">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button onClick={handleShare} className="p-1.5 rounded-md hover:bg-foreground/5 text-muted hover:text-foreground transition-colors relative" title="Compartilhar">
+                    <Share2 className="h-4 w-4" />
+                    {copiedLink && (
+                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-1 rounded whitespace-nowrap shadow-md z-10">Copiado!</span>
+                    )}
+                  </button>
+                  <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded-md hover:bg-red-50 text-muted hover:text-red-500 transition-colors" title="Excluir">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -350,7 +398,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
               <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay">Conteúdo do Post</h3>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || deleting}
                 className="flex items-center gap-1.5 bg-letitia-gold text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-md shadow-letitia-gold/20 hover:opacity-90 disabled:opacity-50 transition-all"
               >
                 {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
