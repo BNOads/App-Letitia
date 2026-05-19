@@ -873,12 +873,12 @@ export function Tarefas() {
           onDelete={handleDeleteTask}
           onSendToApproval={handleSendToApproval}
           onStatusChange={async (status) => {
-            setSelectedTarefa(prev => prev ? { ...prev, status } : null);
+            setTarefas(prev => prev.map(t => t.id === selectedTarefa.id ? { ...t, status } : t));
             await updateTaskStatus(selectedTarefa.id, status);
             fetchTarefas();
           }}
           onUpdate={async (updates) => {
-            setSelectedTarefa(prev => prev ? { ...prev, ...updates } : null);
+            setTarefas(prev => prev.map(t => t.id === selectedTarefa.id ? { ...t, ...updates } : t));
             await updateTask(selectedTarefa.id, updates);
             fetchTarefas();
           }}
