@@ -26,6 +26,17 @@ const kanbanColumns = [
   { id: "concluido" as const, label: "Concluído", color: "border-t-green-400" },
 ];
 
+export const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'concluido': return { label: 'Concluído', color: 'bg-green-500/10 text-green-600 border-green-500/20' };
+    case 'progresso': return { label: 'Em Andamento', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' };
+    case 'revisao': return { label: 'Revisão', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' };
+    case 'aprovacao': return { label: 'Aprovação', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' };
+    case 'fazer':
+    default: return { label: 'Pendente', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' };
+  }
+};
+
 export function Tarefas() {
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
@@ -153,7 +164,7 @@ export function Tarefas() {
       titulo: s.titulo,
       descricao: '',
       prioridade: 'normal' as TaskPriority,
-      status: (s.concluida ? 'concluido' : 'fazer') as TaskStatus,
+      status: (s.status || (s.concluida ? 'concluido' : 'fazer')) as TaskStatus,
       responsavel_id: s.responsavel_id,
       prazo: s.prazo,
       created_at: s.created_at,
@@ -228,6 +239,27 @@ export function Tarefas() {
 
   const totalTarefas = allItems.length;
   const progresso = totalTarefas > 0 ? Math.round((concluidas.length / totalTarefas) * 100) : 0;
+
+  const handleTaskUpdate = async (id: string, updates: Partial<DBTask>) => {
+    if (id.startsWith('sub_')) {
+      const realId = id.replace('sub_', '');
+      const subUpdates: any = {};
+      if (updates.status !== undefined) {
+        subUpdates.status = updates.status;
+        subUpdates.concluida = updates.status === 'concluido';
+      }
+      if (updates.prazo !== undefined) subUpdates.prazo = updates.prazo;
+      if (updates.responsavel_id !== undefined) subUpdates.responsavel_id = updates.responsavel_id;
+      if (updates.descricao !== undefined) subUpdates.descricao = updates.descricao;
+      if (Object.keys(subUpdates).length > 0) {
+        await updateSubtask(realId, subUpdates);
+        fetchTarefas();
+      }
+    } else {
+      await updateTask(id, updates);
+      fetchTarefas();
+    }
+  };
 
   const toggleConcluida = async (id: string, currentStatus: TaskStatus) => {
     if (id.startsWith('sub_')) {
@@ -739,7 +771,7 @@ export function Tarefas() {
               onToggle={() => setShowAtrasadas(!showAtrasadas)}
             >
               {atrasadas.map((t) => (
-                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />
+                <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isOverdue bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={handleTaskUpdate} profiles={profiles} />
               ))}
             </TaskSection>
           )}
@@ -755,7 +787,7 @@ export function Tarefas() {
             {paraHoje.length === 0 ? (
               <p className="text-sm text-muted italic py-3 px-4">Nenhuma tarefa para hoje.</p>
             ) : (
-              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)
+              paraHoje.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={handleTaskUpdate} profiles={profiles} />)
             )}
           </TaskSection>
 
@@ -767,7 +799,7 @@ export function Tarefas() {
             open={showProximas}
             onToggle={() => setShowProximas(!showProximas)}
           >
-            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
+            {proximas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={handleTaskUpdate} profiles={profiles} />)}
           </TaskSection>
 
           <TaskSection
@@ -778,7 +810,7 @@ export function Tarefas() {
             open={showConcluidas}
             onToggle={() => setShowConcluidas(!showConcluidas)}
           >
-            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={async (id, u) => { await updateTask(id, u); fetchTarefas(); }} profiles={profiles} />)}
+            {concluidas.map((t) => <TaskRow key={t.id} tarefa={t} onClick={() => bulkSelectMode ? toggleBulkSelect(t.id) : handleTaskClick(t)} onToggle={() => toggleConcluida(t.id, t.status)} onEdit={setEditingTarefa} onDelete={handleDeleteTask} isDone bulkSelectMode={bulkSelectMode} isSelected={selectedTaskIds.has(t.id)} onBulkToggle={() => toggleBulkSelect(t.id)} onUpdate={handleTaskUpdate} profiles={profiles} />)}
           </TaskSection>
         </div>
       ) : (
@@ -1377,6 +1409,32 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                           onClick={() => handleExpandSubtask(sub)}
                         >
                           <div className="flex items-center gap-1.5">
+                            <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
+                              <span className={cn(
+                                "flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest flex-shrink-0 transition-colors border cursor-pointer",
+                                getStatusBadge(sub.status || (sub.concluida ? 'concluido' : 'fazer')).color
+                              )}>
+                                {getStatusBadge(sub.status || (sub.concluida ? 'concluido' : 'fazer')).label}
+                                <ChevronDown className="h-2 w-2 opacity-70" />
+                              </span>
+                              <select 
+                                value={sub.status || (sub.concluida ? 'concluido' : 'fazer')}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  try {
+                                    await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
+                                    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                  } catch (err) { console.error(err); }
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              >
+                                <option value="fazer">A Fazer</option>
+                                <option value="progresso">Em Andamento</option>
+                                <option value="revisao">Revisão</option>
+                                <option value="aprovacao">Aprovação</option>
+                                <option value="concluido">Concluído</option>
+                              </select>
+                            </div>
                             <p className={cn("text-xs font-medium leading-snug", sub.concluida && "line-through text-muted")}>
                               {sub.titulo}
                             </p>
@@ -1408,6 +1466,23 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                           {/* Inline edit */}
                           {isEditing && (
                             <div className="flex items-center gap-2 mt-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                              <select
+                                value={sub.status || 'fazer'}
+                                onChange={async (e) => {
+                                  const val = e.target.value;
+                                  try {
+                                    await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
+                                    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                  } catch (err) { console.error(err); }
+                                }}
+                                className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                              >
+                                <option value="fazer">A Fazer</option>
+                                <option value="progresso">Em Andamento</option>
+                                <option value="revisao">Revisão</option>
+                                <option value="aprovacao">Aprovação</option>
+                                <option value="concluido">Concluído</option>
+                              </select>
                               <select
                                 value={editSubResp || ""}
                                 onChange={e => setEditSubResp(e.target.value || null)}
@@ -1941,7 +2016,29 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
+            <span className={cn(
+              "flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 transition-colors border underline decoration-transparent hover:decoration-current underline-offset-2 cursor-pointer",
+              getStatusBadge(tarefa.status).color
+            )}>
+              {getStatusBadge(tarefa.status).label}
+              {onUpdate && <ChevronDown className="h-2.5 w-2.5 opacity-70" />}
+            </span>
+            {onUpdate && (
+              <select 
+                value={tarefa.status}
+                onChange={(e) => onUpdate(tarefa.id, { status: e.target.value as TaskStatus })}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              >
+                <option value="fazer">Fazer</option>
+                <option value="progresso">Em andamento</option>
+                <option value="aprovacao">Aprovação</option>
+                <option value="revisao">Revisão</option>
+                <option value="concluido">Concluído</option>
+              </select>
+            )}
+          </div>
           {isSubtask && (
             <span className="flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20 flex-shrink-0">
               <ListChecks className="h-2.5 w-2.5" />
@@ -2077,6 +2174,14 @@ function KanbanCard({ tarefa, onClick, onEdit, onDelete, bulkSelectMode, isSelec
             </button>
           </div>
         )}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <span className={cn(
+          "flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest border",
+          getStatusBadge(tarefa.status).color
+        )}>
+          {getStatusBadge(tarefa.status).label}
+        </span>
       </div>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
