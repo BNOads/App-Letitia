@@ -101,7 +101,8 @@ export function Dashboard() {
         status: 'fazer',
         prioridade: 'normal',
         responsavel_id: user.id,
-        prazo: new Date().toISOString().split('T')[0]
+        prazo: new Date().toISOString().split('T')[0],
+        created_by: user.id
       });
       setQuickTask("");
       await loadStats();

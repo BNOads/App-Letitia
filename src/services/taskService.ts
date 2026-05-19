@@ -21,6 +21,7 @@ export interface DBTask {
     full_name: string | null;
     avatar_url: string | null;
   } | null;
+  created_by?: string | null;
 }
 
 export interface TaskComment {
@@ -145,6 +146,7 @@ export async function createTask(task: Partial<DBTask>) {
       recorrencia: task.recorrencia,
       recorrencia_pai_id: data.id,
       prazo: date,
+      created_by: task.created_by,
     }));
 
     if (recurringTasks.length > 0) {
@@ -570,6 +572,7 @@ export async function createTaskFromTemplate(
     prazo?: string | null;
     responsavel_id?: string | null;
     prioridade?: TaskPriority;
+    created_by?: string | null;
   } = {}
 ): Promise<DBTask> {
   const taskData = {
@@ -579,6 +582,7 @@ export async function createTaskFromTemplate(
     status: 'fazer' as TaskStatus,
     responsavel_id: overrides.responsavel_id !== undefined ? overrides.responsavel_id : template.responsavel_id,
     prazo: overrides.prazo || null,
+    created_by: overrides.created_by || null,
   };
 
   const { data, error } = await supabase

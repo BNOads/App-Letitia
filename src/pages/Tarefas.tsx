@@ -63,6 +63,7 @@ export function Tarefas() {
 
   // URL-driven state: tab, view, selectedTarefa
   const tab = (searchParams.get('tab') as TabFilter) || 'minhas';
+  const subTab = (searchParams.get('subTab') as 'atribuidas' | 'criadas') || 'atribuidas';
   const view = (searchParams.get('view') as ViewMode) || 'lista';
   const selectedTaskId = searchParams.get('task');
 
@@ -71,6 +72,14 @@ export function Tarefas() {
       const next = new URLSearchParams(prev);
       next.set('tab', newTab);
       next.delete('task');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setSubTab = useCallback((newSubTab: 'atribuidas' | 'criadas') => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('subTab', newSubTab);
       return next;
     }, { replace: true });
   }, [setSearchParams]);
@@ -180,7 +189,11 @@ export function Tarefas() {
     const matchBusca = t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
                        t.profiles?.full_name?.toLowerCase().includes(busca.toLowerCase()) || false;
     
-    if (tab === "minhas" && t.responsavel_id !== user?.id) return false;
+    if (tab === "minhas") {
+      if (subTab === 'atribuidas' && t.responsavel_id !== user?.id) return false;
+      if (subTab === 'criadas' && t.created_by !== user?.id) return false;
+    }
+    
     if (!matchBusca) return false;
 
     // Filtro de status
@@ -221,7 +234,11 @@ export function Tarefas() {
 
   // Filter subtasks the same way as tasks (tab + person filter)
   const filteredSubtasks = subtasksAsTasks.filter(s => {
-    if (tab === "minhas" && s.responsavel_id !== user?.id) return false;
+    if (tab === "minhas") {
+      if (subTab === 'atribuidas' && s.responsavel_id !== user?.id) return false;
+      // Subtasks don't currently support created_by tracking as robustly, but we hide them from 'criadas' for now unless they implement it.
+      if (subTab === 'criadas') return false; 
+    }
     if (filtroPessoa !== "Todas" && s.responsavel_id !== filtroPessoa) return false;
     const matchBusca = s.titulo.toLowerCase().includes(busca.toLowerCase()) ||
                        s.profiles?.full_name?.toLowerCase().includes(busca.toLowerCase()) || false;
@@ -656,7 +673,7 @@ export function Tarefas() {
 
       {/* Tabs + View mode + Filtro Pessoa */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-border pb-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1">
             <button onClick={() => setTab("minhas")} className={cn("px-4 py-1.5 rounded-md text-sm font-medium transition-all", tab === "minhas" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")}>
               Minhas Tarefas
@@ -668,6 +685,17 @@ export function Tarefas() {
               <CheckCircle2 className="h-4 w-4" /> Aprovações
             </button>
           </div>
+
+          {tab === "minhas" && (
+            <div className="flex items-center gap-1 bg-card border border-border rounded-lg p-1 w-max">
+              <button onClick={() => setSubTab("atribuidas")} className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-all", subTab === "atribuidas" ? "bg-muted/10 text-foreground" : "text-muted hover:text-foreground")}>
+                Atribuídas a mim
+              </button>
+              <button onClick={() => setSubTab("criadas")} className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-all", subTab === "criadas" ? "bg-muted/10 text-foreground" : "text-muted hover:text-foreground")}>
+                Criadas por mim
+              </button>
+            </div>
+          )}
 
           {/* Filtro por Pessoa */}
           {tab === "time" && (
@@ -853,7 +881,16 @@ export function Tarefas() {
       )}
 
       {isHistoryOpen && (
-        <TaskHistoryModal onClose={() => setIsHistoryOpen(false)} />
+        <TaskHistoryModal 
+          onClose={() => setIsHistoryOpen(false)} 
+          onTaskClick={(id) => {
+            const task = tarefas.find(t => t.id === id);
+            if (task) {
+              setSelectedTarefa(task);
+              setIsHistoryOpen(false);
+            }
+          }}
+        />
       )}
 
       {isTemplateModalOpen && (
@@ -1735,7 +1772,8 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa, defaultR
     const taskData = {
       ...formData,
       responsavel_id: formData.responsavel_id || null,
-      prazo: formData.prazo || null
+      prazo: formData.prazo || null,
+      created_by: user?.id || null,
     };
 
     try {
@@ -3118,7 +3156,7 @@ function BulkTaskModal({ profiles, onClose, onSuccess }: {
 
 /* ─── Task History Modal ───────────────────────────────────── */
 
-function TaskHistoryModal({ onClose }: { onClose: () => void }) {
+function TaskHistoryModal({ onClose, onTaskClick }: { onClose: () => void; onTaskClick?: (id: string) => void }) {
   const [history] = useState<TaskHistoryEntry[]>(() => getTaskHistory());
   const [busca, setBusca] = useState("");
   const filteredHistory = history.filter(h =>
@@ -3183,7 +3221,14 @@ function TaskHistoryModal({ onClose }: { onClose: () => void }) {
             filteredHistory.map((entry) => {
               const info = actionLabels[entry.action] || actionLabels.editada;
               return (
-                <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-foreground/[0.02] transition-colors">
+                <div 
+                  key={entry.id} 
+                  onClick={() => onTaskClick && onTaskClick(entry.tarefa_id)}
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border border-border transition-colors",
+                    onTaskClick ? "cursor-pointer hover:border-letitia-gold/30 hover:bg-letitia-gold/5" : "hover:bg-foreground/[0.02]"
+                  )}
+                >
                   <div className={cn("flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center", info.color)}>{info.icon}</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{entry.titulo}</p>
