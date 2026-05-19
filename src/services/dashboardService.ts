@@ -10,7 +10,7 @@ export async function getDashboardStats(userId?: string) {
   const allTarefas = (rawTarefas || []) as any[];
 
   // Also fetch subtasks assigned to the user
-  let subtarefasQuery = supabase.from('subtarefas').select('id, concluida, titulo, prazo, responsavel_id, tarefa_id, tarefas(titulo)');
+  let subtarefasQuery = supabase.from('subtarefas').select('id, concluida, titulo, prazo, responsavel_id, tarefa_id, tarefas(titulo, status, prioridade)');
   if (userId) subtarefasQuery = subtarefasQuery.eq('responsavel_id', userId);
   const { data: rawSubtarefas } = await subtarefasQuery;
 
@@ -19,9 +19,9 @@ export async function getDashboardStats(userId?: string) {
       allTarefas.push({
         id: `sub_${s.id}`,
         titulo: s.titulo,
-        status: s.concluida ? 'concluido' : 'fazer',
+        status: s.concluida ? 'concluido' : (s.tarefas?.status || 'fazer'),
         prazo: s.prazo,
-        prioridade: 'normal',
+        prioridade: s.tarefas?.prioridade || 'normal',
         responsavel_id: s.responsavel_id,
         __isSubtask: true,
         __parentId: s.tarefa_id,
