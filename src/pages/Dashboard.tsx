@@ -629,10 +629,12 @@ export function Dashboard() {
             if (confirm("Excluir tarefa?")) { await deleteTask(id); setSelectedTarefa(null); loadStats(); }
           }}
           onStatusChange={async (status) => {
+            setSelectedTarefa(prev => prev ? { ...prev, status } : null);
             await updateTaskStatus(selectedTarefa.id, status);
             loadStats();
           }}
           onUpdate={async (updates) => {
+            setSelectedTarefa(prev => prev ? { ...prev, ...updates } : null);
             await updateTask(selectedTarefa.id, updates);
             loadStats();
           }}
@@ -669,7 +671,7 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
     if (field === 'prioridade') setOptimisticPrio(val);
     
     if (field === 'status' && tarefa.__isSubtask) {
-      onUpdate(tarefa.id, { concluida: val === 'concluido' });
+      onUpdate(tarefa.id, { status: val, concluida: val === 'concluido' });
     } else {
       onUpdate(tarefa.id, { [field]: val });
     }
@@ -682,7 +684,7 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
       case 'revisao': return { label: 'Revisão', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' };
       case 'aprovacao': return { label: 'Aprovação', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' };
       case 'fazer':
-      default: return { label: 'Pendente', color: 'bg-muted/10 text-muted-foreground border-border' };
+      default: return { label: 'Pendente', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' };
     }
   };
 
@@ -738,13 +740,9 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               >
                 <option value="fazer">Fazer</option>
-                {!tarefa.__isSubtask && (
-                  <>
-                    <option value="progresso">Em andamento</option>
-                    <option value="aprovacao">Aprovação</option>
-                    <option value="revisao">Revisão</option>
-                  </>
-                )}
+                <option value="progresso">Em andamento</option>
+                <option value="aprovacao">Aprovação</option>
+                <option value="revisao">Revisão</option>
                 <option value="concluido">Concluído</option>
               </select>
             </div>

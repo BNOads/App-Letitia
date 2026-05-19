@@ -319,6 +319,7 @@ export interface DBSubtask {
   titulo: string;
   descricao: string | null;
   concluida: boolean;
+  status?: string;
   responsavel_id: string | null;
   prazo: string | null;
   ordem: number;

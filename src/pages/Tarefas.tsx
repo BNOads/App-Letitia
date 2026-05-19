@@ -841,10 +841,12 @@ export function Tarefas() {
           onDelete={handleDeleteTask}
           onSendToApproval={handleSendToApproval}
           onStatusChange={async (status) => {
+            setSelectedTarefa(prev => prev ? { ...prev, status } : null);
             await updateTaskStatus(selectedTarefa.id, status);
             fetchTarefas();
           }}
           onUpdate={async (updates) => {
+            setSelectedTarefa(prev => prev ? { ...prev, ...updates } : null);
             await updateTask(selectedTarefa.id, updates);
             fetchTarefas();
           }}
@@ -1018,6 +1020,14 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
         ordem: subtasks.length,
       });
       setSubtasks(prev => [...prev, sub]);
+      saveTaskHistory({
+         tarefa_id: tarefa.id,
+         titulo: tarefa.titulo,
+         prioridade: tarefa.prioridade,
+         status: tarefa.status,
+         action: 'editada',
+         details: `Subtarefa criada: "${sub.titulo}"`
+      });
       setNewSubtaskTitle("");
       setNewSubtaskResp(null);
       setNewSubtaskPrazo("");
@@ -1030,6 +1040,14 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, concluida: newVal } : s));
     try { 
       await toggleSubtask(sub.id, newVal); 
+      saveTaskHistory({
+         tarefa_id: tarefa.id,
+         titulo: tarefa.titulo,
+         prioridade: tarefa.prioridade,
+         status: tarefa.status,
+         action: 'editada',
+         details: `Subtarefa "${sub.titulo}" marcada como ${newVal ? 'Concluída' : 'Pendente'}`
+      });
       if (sub.titulo.startsWith('Aprovação:') && newVal === true) {
         await onUpdate({ em_aprovacao: false });
         saveTaskHistory({
@@ -1045,8 +1063,21 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   };
 
   const handleDeleteSubtask = async (id: string) => {
+    const sub = subtasks.find(s => s.id === id);
     setSubtasks(prev => prev.filter(s => s.id !== id));
-    try { await deleteSubtask(id); } catch { getSubtasks(tarefa.id).then(setSubtasks); }
+    try { 
+      await deleteSubtask(id); 
+      if (sub) {
+        saveTaskHistory({
+           tarefa_id: tarefa.id,
+           titulo: tarefa.titulo,
+           prioridade: tarefa.prioridade,
+           status: tarefa.status,
+           action: 'editada',
+           details: `Subtarefa excluída: "${sub.titulo}"`
+        });
+      }
+    } catch { getSubtasks(tarefa.id).then(setSubtasks); }
   };
 
   const handleSaveSubtaskEdit = async (sub: DBSubtask) => {
@@ -1054,6 +1085,14 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
       await updateSubtask(sub.id, { responsavel_id: editSubResp, prazo: editSubPrazo || null });
       setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, responsavel_id: editSubResp, prazo: editSubPrazo || null } : s));
       setEditingSubtaskId(null);
+      saveTaskHistory({
+         tarefa_id: tarefa.id,
+         titulo: tarefa.titulo,
+         prioridade: tarefa.prioridade,
+         status: tarefa.status,
+         action: 'editada',
+         details: `Subtarefa editada: "${sub.titulo}"`
+      });
     } catch (e) { console.error("Erro ao editar subtarefa:", e); }
   };
 
@@ -1062,6 +1101,14 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
       await updateSubtask(sub.id, { descricao: editSubDesc || null });
       setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, descricao: editSubDesc || null } : s));
       setEditingSubDesc(false);
+      saveTaskHistory({
+         tarefa_id: tarefa.id,
+         titulo: tarefa.titulo,
+         prioridade: tarefa.prioridade,
+         status: tarefa.status,
+         action: 'editada',
+         details: `Descrição da subtarefa atualizada: "${sub.titulo}"`
+      });
     } catch (e) { console.error("Erro ao salvar descrição da subtarefa:", e); }
   };
 
