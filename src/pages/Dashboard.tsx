@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardStats } from "@/services/dashboardService";
 import { 
   Clock, 
-  Loader2, ChevronRight, ChevronDown, Video, Camera,
+  Loader2, ChevronRight, ChevronDown,
   Calendar, Headset, Plus, List as ListIcon, CalendarDays, CalendarClock,
   Circle, CheckCircle2, Send, Repeat, ArrowRight, AlertCircle,
   Bell, BellDot, X, Info
@@ -724,28 +724,30 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 flex-wrap pt-0.5">
-            {!tarefa.__isSubtask && (
-              <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
-                <span className={cn(
-                  "flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 transition-colors border underline decoration-transparent hover:decoration-current underline-offset-2",
-                  badge.color
-                )}>
-                  {badge.label}
-                  <ChevronDown className="h-2.5 w-2.5 opacity-70" />
-                </span>
-                <select 
-                  value={optimisticStatus}
-                  onChange={(e) => handleLocalUpdate('status', e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                >
-                  <option value="fazer">Fazer</option>
-                  <option value="progresso">Em andamento</option>
-                  <option value="aprovacao">Aprovação</option>
-                  <option value="revisao">Revisão</option>
-                  <option value="concluido">Concluído</option>
-                </select>
-              </div>
-            )}
+            <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
+              <span className={cn(
+                "flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 transition-colors border underline decoration-transparent hover:decoration-current underline-offset-2",
+                badge.color
+              )}>
+                {badge.label}
+                <ChevronDown className="h-2.5 w-2.5 opacity-70" />
+              </span>
+              <select 
+                value={optimisticStatus}
+                onChange={(e) => handleLocalUpdate('status', e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              >
+                <option value="fazer">Fazer</option>
+                {!tarefa.__isSubtask && (
+                  <>
+                    <option value="progresso">Em andamento</option>
+                    <option value="aprovacao">Aprovação</option>
+                    <option value="revisao">Revisão</option>
+                  </>
+                )}
+                <option value="concluido">Concluído</option>
+              </select>
+            </div>
             
             {tarefa.__isSubtask && (
               <span className="flex-shrink-0 flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 uppercase tracking-widest border border-purple-500/20">
@@ -793,7 +795,7 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
             <div className="h-4 w-4 rounded-full bg-muted/20 border border-border flex items-center justify-center overflow-hidden">
               {optimisticResp ? (
                 profiles.find(p => p.id === optimisticResp)?.avatar_url ? (
-                  <img src={profiles.find(p => p.id === optimisticResp)?.avatar_url} className="h-full w-full object-cover" />
+                  <img src={profiles.find(p => p.id === optimisticResp)?.avatar_url || undefined} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-[8px] font-bold text-muted">{profiles.find(p => p.id === optimisticResp)?.full_name?.charAt(0) || '?'}</span>
                 )
