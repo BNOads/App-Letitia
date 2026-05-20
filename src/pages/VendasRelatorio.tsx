@@ -1,0 +1,1174 @@
+import { useState, useEffect } from "react";
+import { fetchLiveSalesData, MONTHS_METADATA, type LeadRecord } from "@/data/salesData";
+import {
+  TrendingUp,
+  ShoppingBag,
+  DollarSign,
+  Loader2,
+  Search,
+  Filter,
+  Target,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  AlertCircle,
+  FileText,
+  Calendar
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  AreaChart,
+  Area
+} from "recharts";
+import { cn } from "@/lib/utils";
+
+// Cores do Design System do LaetitiAPP
+const GOLD_COLOR = "#C4A47C";
+const CLAY_COLOR = "#8A8275";
+const CHARCOAL_COLOR = "#1A1A1A";
+
+const COLORS = [GOLD_COLOR, "#A88B63", "#D9C3A5", "#8A8275", "#5C564D", "#403B35", "#C4907C", "#7C98C4"];
+
+export function VendasRelatorio() {
+  const [loading, setLoading] = useState(true);
+  const [allLeads, setAllLeads] = useState<LeadRecord[]>([]);
+  const [isLive, setIsLive] = useState(false);
+
+  // Filtros de Período e Aba (Mês)
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // Filtros Operacionais
+  const [search, setSearch] = useState("");
+  const [vendedoraFilter, setVendedoraFilter] = useState("all");
+  const [origemFilter, setOrigemFilter] = useState("all");
+  const [produtoFilter, setProdutoFilter] = useState("all");
+  const [resultadoFilter, setResultadoFilter] = useState("all");
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // Lead selecionado para detalhes
+  const [selectedLead, setSelectedLead] = useState<LeadRecord | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const start = Date.now();
+      try {
+        const leads = await fetchLiveSalesData();
+        setAllLeads(leads);
+        // Se conseguimos puxar leads de múltiplos meses e o tamanho bate, deduzimos live
+        setIsLive(leads.length > 0);
+      } catch (err) {
+        console.warn("Falha no fetch live, usando fallback estático", err);
+      }
+      
+      const elapsed = Date.now() - start;
+      if (elapsed < 600) {
+        await new Promise((r) => setTimeout(r, 600 - elapsed));
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-[75vh] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-letitia-gold" style={{ color: GOLD_COLOR }} />
+        <div className="text-center">
+          <h3 className="font-serif text-lg font-medium text-foreground">Carregando Relatório de Vendas</h3>
+          <p className="text-xs text-muted">Processando dados de múltiplos meses e gerando painel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper para conversão rápida de data da planilha (DD/MM/YYYY) para Objeto Date do JavaScript
+  const parseLeadDate = (dateStr: string) => {
+    if (!dateStr) return null;
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+  };
+
+  // ─── PROCESSAMENTO E FILTRAGEM DOS LEADS ─────────────────────────────────
+
+  const filteredLeads = allLeads.filter((l) => {
+    // 1. Filtro da aba de mês da planilha
+    if (monthFilter !== "all" && l.mes !== monthFilter) {
+      return false;
+    }
+
+    // 2. Filtro de data personalizado (Start/End Date)
+    if (startDate || endDate) {
+      const leadDate = parseLeadDate(l.dataEntrada);
+      if (leadDate) {
+        if (startDate) {
+          const start = new Date(startDate + "T00:00:00");
+          if (leadDate < start) return false;
+        }
+        if (endDate) {
+          const end = new Date(endDate + "T23:59:59");
+          if (leadDate > end) return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    // 3. Busca textual
+    const matchesSearch =
+      l.nome.toLowerCase().includes(search.toLowerCase()) ||
+      l.telefone.includes(search) ||
+      l.origem.toLowerCase().includes(search.toLowerCase()) ||
+      l.produto.toLowerCase().includes(search.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // 4. Outros filtros dropdown
+    if (vendedoraFilter !== "all" && l.vendedora !== vendedoraFilter) return false;
+    if (origemFilter !== "all" && l.origem !== origemFilter) return false;
+    if (produtoFilter !== "all" && l.produto !== produtoFilter) return false;
+
+    if (resultadoFilter !== "all") {
+      if (resultadoFilter === "ganha" && l.resultado !== "Venda Ganha") return false;
+      if (resultadoFilter === "perdida" && l.resultado !== "Venda Perdida") return false;
+      if (resultadoFilter === "conversando") {
+        const lowerRes = (l.resultado || "").toLowerCase();
+        if (lowerRes.includes("ganha") || lowerRes.includes("perdida")) return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Lista dinâmica de filtros únicos com base no dataset filtrado por mês/data
+  const vendedorasUnicas = Array.from(new Set(allLeads.map((l) => l.vendedora).filter(Boolean)));
+  const origensUnicas = Array.from(new Set(allLeads.map((l) => l.origem).filter(Boolean)));
+  const produtosUnicos = Array.from(new Set(allLeads.map((l) => l.produto).filter(Boolean)));
+
+  // ─── CÁLCULO DE MÉTRICAS OPERACIONAIS E FINANCEIRAS ──────────────────────
+
+  const filteredRevenue = filteredLeads.reduce((acc, l) => acc + (l.resultado === "Venda Ganha" ? l.valorVenda : 0), 0);
+  const filteredSalesCount = filteredLeads.filter((l) => l.resultado === "Venda Ganha").length;
+  const filteredTicketMedio = filteredSalesCount > 0 ? filteredRevenue / filteredSalesCount : 0;
+  const filteredConversionRate = filteredLeads.length > 0 ? (filteredSalesCount / filteredLeads.length) * 100 : 0;
+
+  // Estatísticas do Funil com base nos leads ativos
+  const filteredLeadsContactados = filteredLeads.length;
+  const filteredCallsAgendadas = filteredLeads.filter((l) => l.callAgendada === "Sim").length;
+  const filteredCallsRealizadas = filteredLeads.filter((l) => l.callAgendada === "Sim" && l.apareceuCall === "Sim").length;
+
+  // Meta Comercial Dinâmica com base no mês selecionado
+  const activeMonthMeta = (() => {
+    if (monthFilter === "all") {
+      // Se for todos os meses, somamos as metas dos meses ativos com dados no filtro
+      const activeMonths = Array.from(new Set(filteredLeads.map((l) => l.mes)));
+      if (activeMonths.length === 0) return 200000.0;
+      return MONTHS_METADATA.filter((m) => activeMonths.includes(m.label)).reduce((acc, m) => acc + m.meta, 0);
+    } else {
+      const match = MONTHS_METADATA.find((m) => m.label === monthFilter);
+      return match ? match.meta : 200000.0;
+    }
+  })();
+
+  const metaAchievedPercent = Math.min(100, (filteredRevenue / activeMonthMeta) * 100);
+
+  // ─── MODELAGEM DOS DADOS PARA GRÁFICOS ───────────────────────────────────
+
+  // 1. Gráfico de Evolução de Faturamento Diário e Acumulado
+  const salesByDateMap: { [date: string]: { faturamento: number; volume: number } } = {};
+  filteredLeads.forEach((l) => {
+    if (l.resultado === "Venda Ganha" && l.valorVenda > 0) {
+      const dateStr = l.dataEntrada; // DD/MM/YYYY
+      if (!salesByDateMap[dateStr]) {
+        salesByDateMap[dateStr] = { faturamento: 0, volume: 0 };
+      }
+      salesByDateMap[dateStr].faturamento += l.valorVenda;
+      salesByDateMap[dateStr].volume += 1;
+    }
+  });
+
+  const sortedDates = Object.keys(salesByDateMap).sort((a, b) => {
+    const [dayA, monthA, yearA] = a.split("/").map(Number);
+    const [dayB, monthB, yearB] = b.split("/").map(Number);
+    return new Date(yearA, monthA - 1, dayA).getTime() - new Date(yearB, monthB - 1, dayB).getTime();
+  });
+
+  let accumFaturamento = 0;
+  const timelineData = sortedDates.map((dateStr) => {
+    const day = dateStr.split("/")[0] + "/" + dateStr.split("/")[1];
+    accumFaturamento += salesByDateMap[dateStr].faturamento;
+    return {
+      data: day,
+      faturamento: salesByDateMap[dateStr].faturamento,
+      acumulado: accumFaturamento,
+      volume: salesByDateMap[dateStr].volume
+    };
+  });
+
+  // 2. Estatísticas de Captação e Fechamento por Origem
+  const sourceStatsMap: { [source: string]: { leads: number; faturamento: number; vendas: number } } = {};
+  filteredLeads.forEach((l) => {
+    const src = l.origem || "Não Informada";
+    if (!sourceStatsMap[src]) {
+      sourceStatsMap[src] = { leads: 0, faturamento: 0, vendas: 0 };
+    }
+    sourceStatsMap[src].leads += 1;
+    if (l.resultado === "Venda Ganha") {
+      sourceStatsMap[src].faturamento += l.valorVenda;
+      sourceStatsMap[src].vendas += 1;
+    }
+  });
+
+  const sourceData = Object.keys(sourceStatsMap)
+    .map((src) => ({
+      origem: src,
+      leads: sourceStatsMap[src].leads,
+      vendas: sourceStatsMap[src].vendas,
+      faturamento: Math.round(sourceStatsMap[src].faturamento),
+      conversao: sourceStatsMap[src].leads > 0 ? parseFloat(((sourceStatsMap[src].vendas / sourceStatsMap[src].leads) * 100).toFixed(1)) : 0
+    }))
+    .sort((a, b) => b.faturamento - a.faturamento);
+
+  // 3. Faturamento por Produto
+  const productStatsMap: { [prod: string]: { volume: number; faturamento: number } } = {};
+  filteredLeads.forEach((l) => {
+    if (l.resultado === "Venda Ganha" && l.valorVenda > 0) {
+      const prod = l.produto || "Outros";
+      if (!productStatsMap[prod]) {
+        productStatsMap[prod] = { volume: 0, faturamento: 0 };
+      }
+      productStatsMap[prod].volume += 1;
+      productStatsMap[prod].faturamento += l.valorVenda;
+    }
+  });
+
+  const productData = Object.keys(productStatsMap)
+    .map((prod) => ({
+      name: prod,
+      value: Math.round(productStatsMap[prod].faturamento),
+      vendas: productStatsMap[prod].volume
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  // 4. Comparativo Vendedoras
+  const sellerStatsMap: { [seller: string]: { leads: number; faturamento: number; vendas: number } } = {};
+  filteredLeads.forEach((l) => {
+    const seller = l.vendedora || "Outro/Letícia";
+    if (!sellerStatsMap[seller]) {
+      sellerStatsMap[seller] = { leads: 0, faturamento: 0, vendas: 0 };
+    }
+    sellerStatsMap[seller].leads += 1;
+    if (l.resultado === "Venda Ganha") {
+      sellerStatsMap[seller].faturamento += l.valorVenda;
+      sellerStatsMap[seller].vendas += 1;
+    }
+  });
+
+  const sellerData = Object.keys(sellerStatsMap).map((seller) => ({
+    vendedora: seller,
+    leads: sellerStatsMap[seller].leads,
+    vendas: sellerStatsMap[seller].vendas,
+    faturamento: Math.round(sellerStatsMap[seller].faturamento),
+    ticketMedio: sellerStatsMap[seller].vendas > 0 ? Math.round(sellerStatsMap[seller].faturamento / sellerStatsMap[seller].vendas) : 0,
+    conversao: sellerStatsMap[seller].leads > 0 ? parseFloat(((sellerStatsMap[seller].vendas / sellerStatsMap[seller].leads) * 100).toFixed(1)) : 0
+  }));
+
+  // 5. Motivos de Perda
+  const lossStatsMap: { [reason: string]: number } = {};
+  filteredLeads.forEach((l) => {
+    if (l.resultado === "Venda Perdida" || (l.pipeline === "FINALIZADO" && l.resultado !== "Venda Ganha")) {
+      let r = l.motivoPerda || l.detalhes;
+      if (!r) {
+        if (l.pipeline === "SEM RETORNO") r = "Sem resposta / Sem retorno";
+        else r = "Não especificado";
+      }
+
+      let groupedReason = r;
+      const lower = r.toLowerCase();
+      if (lower.includes("financeir") || lower.includes("dinheir") || lower.includes("investir") || lower.includes("custo") || lower.includes("preço") || lower.includes("valor")) {
+        groupedReason = "Financeiro / Falta de Verba";
+      } else if (lower.includes("tempo") || lower.includes("agenda") || lower.includes("momento") || lower.includes("viagem") || lower.includes("viajar")) {
+        groupedReason = "Falta de Tempo / Momento Inadequado";
+      } else if (lower.includes("marido") || lower.includes("consultar")) {
+        groupedReason = "Depende de Terceiros (Marido)";
+      } else if (lower.includes("interesse") || lower.includes("não quer") || lower.includes("perfil")) {
+        groupedReason = "Falta de Interesse / Fora do Perfil";
+      } else if (lower.includes("número") || lower.includes("errado") || lower.includes("mensagem") || lower.includes("contato")) {
+        groupedReason = "Erro de Contato (Número/Mensagem)";
+      } else if (groupedReason.length > 35) {
+        groupedReason = groupedReason.substring(0, 35) + "...";
+      }
+
+      lossStatsMap[groupedReason] = (lossStatsMap[groupedReason] || 0) + 1;
+    }
+  });
+
+  const lossData = Object.keys(lossStatsMap)
+    .map((r) => ({
+      motivo: r,
+      quantidade: lossStatsMap[r]
+    }))
+    .sort((a, b) => b.quantidade - a.quantidade)
+    .slice(0, 5);
+
+  // Paginação dos Leads
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedLeads = filteredLeads.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+
+  // Período de Análise dinâmico para exibição amigável
+  const periodLabel = (() => {
+    if (startDate || endDate) {
+      const startFmt = startDate ? startDate.split("-").reverse().join("/") : "Início";
+      const endFmt = endDate ? endDate.split("-").reverse().join("/") : "Fim";
+      return `${startFmt} a ${endFmt}`;
+    }
+    if (monthFilter !== "all") {
+      const match = MONTHS_METADATA.find((m) => m.label === monthFilter);
+      return match ? `${match.name} de 2026` : monthFilter;
+    }
+    return "Consolidado 2026 (Todos os Meses)";
+  })();
+
+  return (
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+      {/* ─── CABEÇALHO DO RELATÓRIO ──────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-border pb-6">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-letitia-gold/15 text-letitia-gold text-[10px] font-bold uppercase tracking-wider border border-letitia-gold/20 flex items-center gap-1">
+              <Sparkles className="h-3 w-3" /> Relatório Executivo Multi-Abas
+            </span>
+            <span className="text-xs text-muted flex items-center gap-1">
+              • Planilha: {isLive ? "Conectada em tempo real 🟢" : "Local Fallback 🟡"}
+            </span>
+          </div>
+          <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground mt-2">
+            Dashboard de Vendas & Performance
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Relatório de leads, faturamento e metas extraído das abas mensais da planilha para a liderança.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="text-left bg-background/50 border border-border/60 rounded-lg px-4 py-2 min-w-[180px]">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted flex items-center gap-1">
+              <Calendar className="h-3 w-3 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Período Ativo
+            </p>
+            <p className="text-xs font-semibold text-foreground mt-0.5">{periodLabel}</p>
+          </div>
+          <button
+            onClick={() => window.print()}
+            className="rounded-md border border-border bg-card px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-foreground hover:bg-foreground/5 transition-all flex items-center gap-2"
+          >
+            <FileText className="h-4 w-4 text-muted" /> Imprimir Relatório
+          </button>
+        </div>
+      </div>
+
+      {/* ─── TABS DE SELEÇÃO RÁPIDA DE MÊSES (ABAS DA PLANILHA) ────────────── */}
+      <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Selecione a aba mensal da planilha para analisar
+        </h3>
+        <div className="flex items-center overflow-x-auto pb-1 gap-2 scrollbar-none">
+          <button
+            onClick={() => {
+              setMonthFilter("all");
+              setStartDate("");
+              setEndDate("");
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all whitespace-nowrap border border-border/80 uppercase",
+              monthFilter === "all"
+                ? "bg-letitia-gold text-white shadow-sm border-letitia-gold"
+                : "bg-background hover:bg-foreground/5 text-foreground/80"
+            )}
+            style={monthFilter === "all" ? { backgroundColor: GOLD_COLOR } : {}}
+          >
+            Todos os Meses (Consolidado)
+          </button>
+          
+          {MONTHS_METADATA.map((month) => {
+            const hasData = allLeads.some((l) => l.mes === month.label);
+            return (
+              <button
+                key={month.label}
+                disabled={!hasData}
+                onClick={() => {
+                  setMonthFilter(month.label);
+                  setStartDate("");
+                  setEndDate("");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all whitespace-nowrap border uppercase flex items-center gap-1.5",
+                  !hasData && "opacity-40 cursor-not-allowed hover:bg-transparent",
+                  monthFilter === month.label
+                    ? "bg-letitia-gold text-white shadow-sm border-letitia-gold"
+                    : "bg-background hover:bg-foreground/5 text-foreground/80 border-border/80"
+                )}
+                style={monthFilter === month.label ? { backgroundColor: GOLD_COLOR, borderColor: GOLD_COLOR } : {}}
+              >
+                {month.name}
+                {hasData && (
+                  <span className="text-[9px] px-1.5 py-0.25 rounded-full bg-foreground/10 text-foreground/70 font-normal">
+                    {allLeads.filter((l) => l.mes === month.label).length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ─── FILTROS COM DATA PERSONALIZADA E OPÇÕES OPERACIONAIS ─────────── */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-muted">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+            <span className="text-xs font-semibold uppercase tracking-wider">Filtros de Período e Qualificação</span>
+          </div>
+          {(startDate || endDate || vendedoraFilter !== "all" || origemFilter !== "all" || produtoFilter !== "all" || resultadoFilter !== "all" || search) && (
+            <button
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                setVendedoraFilter("all");
+                setOrigemFilter("all");
+                setProdutoFilter("all");
+                setResultadoFilter("all");
+                setSearch("");
+                setCurrentPage(1);
+              }}
+              className="text-[10px] font-bold uppercase tracking-wider text-letitia-gold hover:underline"
+              style={{ color: GOLD_COLOR }}
+            >
+              Limpar Filtros ✕
+            </button>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          {/* Custom Date: Start */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Data Início</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setMonthFilter("all"); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            />
+          </div>
+
+          {/* Custom Date: End */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Data Fim</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setMonthFilter("all"); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            />
+          </div>
+
+          {/* Busca Textual */}
+          <div className="space-y-1 md:col-span-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Buscar Contato</label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted" />
+              <input
+                type="text"
+                placeholder="Nome, origem..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="w-full rounded-md border border-border bg-background pl-7 pr-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Vendedora */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Vendedora</label>
+            <select
+              value={vendedoraFilter}
+              onChange={(e) => { setVendedoraFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="all">Todas ({vendedorasUnicas.length})</option>
+              {vendedorasUnicas.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Origem */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Origem (Fonte)</label>
+            <select
+              value={origemFilter}
+              onChange={(e) => { setOrigemFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="all">Todas Fontes ({origensUnicas.length})</option>
+              {origensUnicas.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Produto */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Produto</label>
+            <select
+              value={produtoFilter}
+              onChange={(e) => { setProdutoFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="all">Todos ({produtosUnicos.length})</option>
+              {produtosUnicos.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Resultado */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Resultado</label>
+            <select
+              value={resultadoFilter}
+              onChange={(e) => { setResultadoFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="all">Todos</option>
+              <option value="ganha">Venda Ganha</option>
+              <option value="perdida">Venda Perdida</option>
+              <option value="conversando">Em Andamento</option>
+            </select>
+          </div>
+
+          {/* Seletor Dropdown de Mês extra */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Filtro de Aba</label>
+            <select
+              value={monthFilter}
+              onChange={(e) => { setMonthFilter(e.target.value); setStartDate(""); setEndDate(""); setCurrentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none uppercase"
+            >
+              <option value="all">Todas as Abas</option>
+              {MONTHS_METADATA.map((month) => (
+                <option key={month.label} value={month.label}>{month.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── GRID DE CARDS KPI DINÂMICOS ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Faturamento */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Faturado
+            </span>
+            <span className="text-xs font-bold text-letitia-gold">{metaAchievedPercent.toFixed(1)}% da Meta</span>
+          </div>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              R$ {filteredRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="w-full bg-foreground/5 rounded-full h-2 mt-1 overflow-hidden">
+            <div
+              className="bg-letitia-gold h-full rounded-full transition-all duration-500"
+              style={{ width: `${metaAchievedPercent}%`, backgroundColor: GOLD_COLOR }}
+            />
+          </div>
+        </div>
+
+        {/* KPI 2: Quantas Vendas */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <ShoppingBag className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Vendas Ganhas
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              {filteredSalesCount} <span className="text-sm font-sans text-muted font-normal">conversões</span>
+            </p>
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Do total de {filteredLeadsContactados} leads contactados
+          </p>
+        </div>
+
+        {/* KPI 3: Ticket Médio */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Ticket Médio
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              R$ {filteredTicketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Média por conversão ganha no período
+          </p>
+        </div>
+
+        {/* KPI 4: Meta e Necessário */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <Target className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Meta Comercial
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-2xl font-medium text-foreground">
+              R$ {activeMonthMeta.toLocaleString("pt-BR")}
+            </p>
+            {filteredRevenue >= activeMonthMeta ? (
+              <p className="text-xs text-green-600 font-medium mt-1">✓ Meta Batida!</p>
+            ) : (
+              <p className="text-[11px] text-muted mt-1">
+                Faltam <span className="font-bold text-foreground">R$ {(activeMonthMeta - filteredRevenue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              </p>
+            )}
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Meta Ajustada para o Período
+          </p>
+        </div>
+      </div>
+
+      {/* ─── FUNIL DE CONVERSÃO DINÂMICO ─────────────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Funil de Conversão Comercial Dinâmico
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div className="bg-background/40 p-4 rounded-lg border border-border/50">
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">1. Contatados</p>
+            <p className="font-serif text-2xl font-medium text-foreground mt-1">{filteredLeadsContactados}</p>
+            <p className="text-[10px] text-muted mt-1">100% dos Leads</p>
+          </div>
+          <div className="bg-background/40 p-4 rounded-lg border border-border/50">
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">2. Calls Agendadas</p>
+            <p className="font-serif text-2xl font-medium text-foreground mt-1">
+              {filteredCallsAgendadas}
+            </p>
+            <p className="text-[10px] text-muted mt-1 font-medium">
+              {filteredLeadsContactados > 0
+                ? ((filteredCallsAgendadas / filteredLeadsContactados) * 100).toFixed(1)
+                : "0"}% Taxa de Agenda
+            </p>
+          </div>
+          <div className="bg-background/40 p-4 rounded-lg border border-border/50">
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">3. Calls Realizadas</p>
+            <p className="font-serif text-2xl font-medium text-foreground mt-1">
+              {filteredCallsRealizadas}
+            </p>
+            <p className="text-[10px] text-muted mt-1 font-medium">
+              {filteredCallsAgendadas > 0
+                ? ((filteredCallsRealizadas / filteredCallsAgendadas) * 100).toFixed(0)
+                : "0"}% Presença
+            </p>
+          </div>
+          <div className="bg-background/40 p-4 rounded-lg border border-border/50">
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-widest">4. Vendas Ganhas</p>
+            <p className="font-serif text-2xl font-medium text-foreground mt-1">{filteredSalesCount}</p>
+            <p className="text-[10px] text-muted mt-1 font-bold text-letitia-gold" style={{ color: GOLD_COLOR }}>
+              {filteredConversionRate.toFixed(1)}% Conversão Geral
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── SEÇÃO DE GRÁFICOS ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Gráfico 1: Evolução Mensal/Diária */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center justify-between">
+            <span>Evolução do Faturamento e Vendas Acumuladas</span>
+            <span className="text-[10px] font-sans font-normal text-muted lowercase">período ativo</span>
+          </h3>
+          <div className="h-72">
+            {timelineData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted italic">
+                Sem dados de vendas para os filtros aplicados.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={timelineData}>
+                  <defs>
+                    <linearGradient id="colorFaturamento" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={GOLD_COLOR} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={GOLD_COLOR} stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                  <XAxis dataKey="data" tick={{ fontSize: 10, fill: "var(--muted)" }} minTickGap={30} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      color: "var(--foreground)"
+                    }}
+                    formatter={(value: any, name: any) => [
+                      `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+                      name === "faturamento" ? "Faturamento Dia" : "Faturamento Acumulado"
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "10px", marginTop: "10px" }} />
+                  <Area
+                    type="monotone"
+                    dataKey="acumulado"
+                    stroke={GOLD_COLOR}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorFaturamento)"
+                    name="Faturamento Acumulado"
+                  />
+                  <Bar dataKey="faturamento" fill={CHARCOAL_COLOR} name="Faturamento Dia" opacity={0.15} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Gráfico 2: Faturamento por Produto */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
+            Participação no Faturamento por Produto
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div className="h-64">
+              {productData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted italic">
+                  Sem dados de produtos.
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={productData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {productData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        fontSize: "11px"
+                      }}
+                      formatter={(value) => `R$ ${Number(value).toLocaleString("pt-BR")}`}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            {/* Legenda detalhada */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted">Detalhamento Financeiro</h4>
+              <div className="max-h-52 overflow-y-auto space-y-2 pr-2">
+                {productData.map((item, idx) => (
+                  <div key={item.name} className="flex flex-col text-xs border-b border-border/30 pb-1.5 last:border-0">
+                    <div className="flex items-center justify-between font-medium">
+                      <span className="flex items-center gap-2 truncate">
+                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
+                        <span className="truncate">{item.name || "Outros"}</span>
+                      </span>
+                      <span>R$ {item.value.toLocaleString("pt-BR")}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted ml-4">
+                      <span>{item.vendas} vendas ganhas</span>
+                      <span>{filteredRevenue > 0 ? ((item.value / filteredRevenue) * 100).toFixed(0) : "0"}% do total</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Gráfico 3: Faturamento por Origem (Lead Source) */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center justify-between">
+            <span>Volume de Leads e Faturamento por Fonte de Captação</span>
+          </h3>
+          <div className="h-72">
+            {sourceData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted italic">
+                Sem dados de origens.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sourceData.slice(0, 7)} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 9, fill: "var(--muted)" }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <YAxis dataKey="origem" type="category" tick={{ fontSize: 9, fill: "var(--muted)" }} width={120} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "8px",
+                      fontSize: "11px"
+                    }}
+                    formatter={(value: any, name: any) => [
+                      name === "faturamento" ? `R$ ${Number(value).toLocaleString("pt-BR")}` : `${value} leads`,
+                      name === "faturamento" ? "Faturamento Ganho" : "Leads Gerados"
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "10px" }} />
+                  <Bar dataKey="faturamento" fill={GOLD_COLOR} name="Faturamento Ganho" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="leads" fill={CLAY_COLOR} name="Leads Gerados" radius={[0, 4, 4, 0]} opacity={0.4} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Gráfico 4: Performance Vendedoras + Motivos de Perda */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
+              Comparativo de Eficiência Comercial (Vendedoras)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {sellerData.map((sd) => (
+                <div key={sd.vendedora} className="bg-background/30 border border-border p-4 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-serif text-lg font-medium text-foreground">{sd.vendedora}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-letitia-gold/10 text-letitia-gold" style={{ color: GOLD_COLOR }}>
+                      {sd.conversao}% Conv.
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="border-r border-border/50">
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Contatos</p>
+                      <p className="font-semibold text-foreground mt-0.5">{sd.leads}</p>
+                    </div>
+                    <div className="border-r border-border/50">
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Vendas</p>
+                      <p className="font-semibold text-foreground mt-0.5">{sd.vendas}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Ticket Médio</p>
+                      <p className="font-semibold text-foreground mt-0.5">R$ {sd.ticketMedio.toLocaleString("pt-BR")}</p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-border/30 flex justify-between items-center text-xs">
+                    <span className="text-muted text-[10px] uppercase font-semibold">Total Faturado:</span>
+                    <span className="font-serif font-semibold text-foreground">R$ {sd.faturamento.toLocaleString("pt-BR")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-border">
+            <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted mb-3 flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Análise dos Principais Motivos de Perda de Vendas
+            </h4>
+            <div className="space-y-2">
+              {lossData.length === 0 ? (
+                <p className="text-xs text-muted italic">Sem perdas registradas para este filtro.</p>
+              ) : (
+                lossData.map((item) => (
+                  <div key={item.motivo} className="space-y-1">
+                    <div className="flex justify-between text-xs font-medium text-foreground">
+                      <span>{item.motivo}</span>
+                      <span className="text-muted">{item.quantidade} leads ({((item.quantidade / Math.max(1, filteredLeadsContactados - filteredSalesCount)) * 100).toFixed(0)}%)</span>
+                    </div>
+                    <div className="w-full bg-foreground/5 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-muted h-full rounded-full transition-all duration-300"
+                        style={{ width: `${(item.quantidade / Math.max(1, lossData[0].quantidade)) * 100}%`, backgroundColor: CLAY_COLOR }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ─── TABELA DE LEADS DETALHADA E PAGINADA ─────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="border-b border-border p-4 bg-background/25 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="font-serif text-xl font-medium text-foreground">Relatório Analítico de Contatos</h3>
+            <p className="text-xs text-muted mt-0.5">Mostrando {filteredLeads.length} de {allLeads.length} leads</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted">Legenda status:</span>
+            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-green-500/10 text-green-700">Ganha</span>
+            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-red-500/10 text-red-700">Perdida</span>
+            <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-700">Em aberto</span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-background/10 text-left">
+                {["Aba", "Data", "Nome Cliente", "Vendedora", "Origem (Fonte)", "Produto", "Resultado", "Valor"].map((h) => (
+                  <th
+                    key={h}
+                    className={cn(
+                      "px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted",
+                      h === "Valor" ? "text-right" : "text-left"
+                    )}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-muted italic">
+                    Nenhum registro encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                paginatedLeads.map((l, index) => {
+                  const isGanha = l.resultado === "Venda Ganha";
+                  const isPerdida = l.resultado === "Venda Perdida";
+                  
+                  return (
+                    <tr
+                      key={index}
+                      onClick={() => setSelectedLead(l)}
+                      className="border-b border-border last:border-0 hover:bg-background/40 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3 text-[10px] font-bold text-letitia-gold uppercase tracking-wider whitespace-nowrap">
+                        {l.mes.split("/")[0]}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.dataEntrada}</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-foreground">
+                        {l.nome || "Cliente Sem Nome"}
+                        {l.detalhes && (
+                          <span className="block font-normal text-[10px] text-muted truncate max-w-[180px]">
+                            {l.detalhes}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.vendedora}</td>
+                      <td className="px-4 py-3 text-xs text-muted truncate max-w-[140px]">{l.origem}</td>
+                      <td className="px-4 py-3 text-xs text-foreground font-medium whitespace-nowrap">
+                        {l.produto || <span className="text-[10px] text-muted italic">Nenhum</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        {isGanha ? (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-700">
+                            Venda Ganha
+                          </span>
+                        ) : isPerdida ? (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-700">
+                            Venda Perdida
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-700">
+                            {l.pipeline || "Em aberto"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs font-semibold text-foreground whitespace-nowrap">
+                        {l.valorVenda > 0
+                          ? `R$ ${l.valorVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINAÇÃO */}
+        {totalPages > 1 && (
+          <div className="border-t border-border px-4 py-3 bg-background/10 flex items-center justify-between">
+            <span className="text-xs text-muted">
+              Página <span className="font-bold text-foreground">{currentPage}</span> de <span className="font-bold">{totalPages}</span> ({filteredLeads.length} leads no total)
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1 rounded border border-border bg-card text-muted hover:text-foreground hover:bg-foreground/5 disabled:opacity-40 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1 rounded border border-border bg-card text-muted hover:text-foreground hover:bg-foreground/5 disabled:opacity-40 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── SIDE MODAL / DRAWER COM DETALHES DO LEAD SELECIONADO ─────────── */}
+      {selectedLead && (
+        <div className="modal-overlay items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg modal-content relative">
+            <button
+              onClick={() => setSelectedLead(null)}
+              className="absolute right-4 top-4 rounded-full p-1 hover:bg-foreground/10 transition-colors text-muted"
+            >
+              <ChevronRight className="h-5 w-5 transform rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-2 mb-4">
+              <span className="px-2 py-0.5 rounded bg-letitia-gold/10 text-letitia-gold text-[9px] font-bold uppercase tracking-wider">
+                Detalhes do Registro
+              </span>
+              <span className="text-xs text-muted">• Entrada: {selectedLead.dataEntrada} em {selectedLead.mes}</span>
+            </div>
+
+            <h3 className="font-serif text-2xl font-medium text-foreground pr-8 mb-4 border-b border-border/50 pb-2">
+              {selectedLead.nome || "Cliente Sem Nome"}
+            </h3>
+
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Vendedora</p>
+                  <p className="font-medium text-foreground mt-0.5 text-sm">{selectedLead.vendedora || "Não atribuída"}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Contato Telefone</p>
+                  <p className="font-medium text-foreground mt-0.5 text-sm">{selectedLead.telefone || "Sem telefone"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Origem (Fonte)</p>
+                  <p className="font-medium text-foreground mt-0.5">{selectedLead.origem || "Não informada"}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Status (Pipeline)</p>
+                  <p className="font-medium text-foreground mt-0.5">{selectedLead.pipeline || "Em aberto"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Produto Oferecido</p>
+                  <p className="font-medium text-foreground mt-0.5 font-semibold">{selectedLead.produto || "Nenhum"}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Resultado</p>
+                  <p className="font-medium text-foreground mt-0.5">
+                    {selectedLead.resultado === "Venda Ganha" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-green-500/10 text-green-700">Venda Ganha</span>
+                    ) : selectedLead.resultado === "Venda Perdida" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-700">Venda Perdida</span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-700">Em andamento</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 border-t border-border/30 pt-3">
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Valor da Venda</p>
+                  <p className="font-medium text-foreground mt-0.5 text-sm font-semibold">
+                    {selectedLead.valorVenda > 0 ? `R$ ${selectedLead.valorVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "R$ 0,00"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Valor de Entrada</p>
+                  <p className="font-medium text-foreground mt-0.5">
+                    {selectedLead.valorEntrada > 0 ? `R$ ${selectedLead.valorEntrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "R$ 0,00"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-border/30 pt-3 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Call Agendada?</p>
+                  <p className="font-medium text-foreground mt-0.5">{selectedLead.callAgendada || "Não"}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Data da Call</p>
+                  <p className="font-medium text-foreground mt-0.5">{selectedLead.dataCall || "—"}</p>
+                </div>
+              </div>
+
+              {selectedLead.detalhes && (
+                <div className="bg-foreground/5 p-3 rounded-md border border-border/50">
+                  <p className="font-bold text-muted uppercase tracking-widest text-[9px] mb-1">Qualificação / Detalhes</p>
+                  <p className="text-xs text-foreground italic">"{selectedLead.detalhes}"</p>
+                </div>
+              )}
+
+              {selectedLead.motivoPerda && (
+                <div className="bg-red-500/5 p-3 rounded-md border border-red-500/10">
+                  <p className="font-bold text-red-800 uppercase tracking-widest text-[9px] mb-1">Motivo de Perda</p>
+                  <p className="text-xs text-red-900 font-medium">"{selectedLead.motivoPerda}"</p>
+                </div>
+              )}
+
+              {selectedLead.obs && (
+                <div className="border-t border-border/30 pt-3">
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px] mb-1">Observações (OBS)</p>
+                  <p className="text-xs text-foreground bg-background/50 p-2.5 rounded border border-border/30">{selectedLead.obs}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6 border-t border-border/50 mt-6">
+              <button
+                type="button"
+                onClick={() => setSelectedLead(null)}
+                className="rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted hover:text-foreground transition-all"
+              >
+                Fechar Detalhes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
