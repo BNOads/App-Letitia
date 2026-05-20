@@ -13,7 +13,11 @@ import {
   Sparkles,
   AlertCircle,
   FileText,
-  Calendar
+  Calendar,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ExternalLink
 } from "lucide-react";
 import {
   BarChart,
@@ -45,7 +49,20 @@ export function VendasRelatorio() {
   const [isLive, setIsLive] = useState(false);
 
   // Filtros de Período e Aba (Mês)
-  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>(() => {
+    const date = new Date();
+    const monthNames = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    const currentMonthName = monthNames[date.getMonth()];
+    const currentYearShort = String(date.getFullYear()).substring(2);
+    const label = `${currentMonthName}/${currentYearShort}`;
+    if (MONTHS_METADATA.some((m) => m.label === label)) {
+      return label;
+    }
+    return "all";
+  });
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
@@ -56,12 +73,25 @@ export function VendasRelatorio() {
   const [produtoFilter, setProdutoFilter] = useState("all");
   const [resultadoFilter, setResultadoFilter] = useState("all");
 
-  // Paginação
+  // Paginação e Ordenação
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof LeadRecord;
+    direction: "asc" | "desc";
+  } | null>(null);
 
   // Lead selecionado para detalhes
   const [selectedLead, setSelectedLead] = useState<LeadRecord | null>(null);
+
+  const handleSort = (key: keyof LeadRecord) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -327,10 +357,44 @@ export function VendasRelatorio() {
     .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 5);
 
+  // Lógica de ordenação dos Leads
+  const sortedLeads = [...filteredLeads].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const { key, direction } = sortConfig;
+    const aVal = a[key];
+    const bVal = b[key];
+
+    // Caso especial para data (formato DD/MM/YYYY)
+    if (key === "dataEntrada") {
+      const dateA = parseLeadDate(String(aVal || ""));
+      const dateB = parseLeadDate(String(bVal || ""));
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return direction === "asc" ? 1 : -1;
+      if (!dateB) return direction === "asc" ? -1 : 1;
+      return direction === "asc"
+        ? dateA.getTime() - dateB.getTime()
+        : dateB.getTime() - dateA.getTime();
+    }
+
+    // Caso especial para valor numérico (valorVenda)
+    if (key === "valorVenda") {
+      const numA = Number(aVal) || 0;
+      const numB = Number(bVal) || 0;
+      return direction === "asc" ? numA - numB : numB - numA;
+    }
+
+    // Ordenação padrão de string com suporte a caracteres latinos
+    const strA = String(aVal || "").trim();
+    const strB = String(bVal || "").trim();
+    return direction === "asc"
+      ? strA.localeCompare(strB, "pt-BR", { sensitivity: "base" })
+      : strB.localeCompare(strA, "pt-BR", { sensitivity: "base" });
+  });
+
   // Paginação dos Leads
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedLeads = filteredLeads.slice(startIndex, startIndex + itemsPerPage);
-  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+  const paginatedLeads = sortedLeads.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = Math.ceil(sortedLeads.length / itemsPerPage);
 
   // Período de Análise dinâmico para exibição amigável
   const periodLabel = (() => {
@@ -358,6 +422,15 @@ export function VendasRelatorio() {
             <span className="text-xs text-muted flex items-center gap-1">
               • Planilha: {isLive ? "Conectada em tempo real 🟢" : "Local Fallback 🟡"}
             </span>
+            <a
+              href="https://docs.google.com/spreadsheets/d/19MYerw0dR6mwDSvK-qahzZ97suXOO2Nv/edit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold hover:underline flex items-center gap-1 ml-2 transition-all"
+              style={{ color: GOLD_COLOR }}
+            >
+              • Abrir Planilha Base <ExternalLink className="h-3 w-3" />
+            </a>
           </div>
           <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground mt-2">
             Dashboard de Vendas & Performance
@@ -387,7 +460,32 @@ export function VendasRelatorio() {
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Selecione a aba mensal da planilha para analisar
         </h3>
-        <div className="flex items-center overflow-x-auto pb-1 gap-2 scrollbar-none">
+        {/* Dropdown no Mobile */}
+        <div className="block sm:hidden">
+          <select
+            value={monthFilter}
+            onChange={(e) => {
+              setMonthFilter(e.target.value);
+              setStartDate("");
+              setEndDate("");
+              setCurrentPage(1);
+            }}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none uppercase font-semibold"
+          >
+            <option value="all">Todos os Meses (Consolidado)</option>
+            {MONTHS_METADATA.map((month) => {
+              const hasData = allLeads.some((l) => l.mes === month.label);
+              return (
+                <option key={month.label} value={month.label} disabled={!hasData}>
+                  {month.name} {!hasData ? "(Sem dados)" : `(${allLeads.filter((l) => l.mes === month.label).length} contatos)`}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        {/* Abas no Desktop */}
+        <div className="hidden sm:flex items-center overflow-x-auto pb-1 gap-2 scrollbar-none">
           <button
             onClick={() => {
               setMonthFilter("all");
@@ -436,6 +534,82 @@ export function VendasRelatorio() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* ─── GRID DE CARDS KPI DINÂMICOS ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Faturamento */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Faturado
+            </span>
+            <span className="text-xs font-bold text-letitia-gold">{metaAchievedPercent.toFixed(1)}% da Meta</span>
+          </div>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              R$ {filteredRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="w-full bg-foreground/5 rounded-full h-2 mt-1 overflow-hidden">
+            <div
+              className="bg-letitia-gold h-full rounded-full transition-all duration-500"
+              style={{ width: `${metaAchievedPercent}%`, backgroundColor: GOLD_COLOR }}
+            />
+          </div>
+        </div>
+
+        {/* KPI 2: Quantas Vendas */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <ShoppingBag className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Vendas Ganhas
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              {filteredSalesCount} <span className="text-sm font-sans text-muted font-normal">conversões</span>
+            </p>
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Do total de {filteredLeadsContactados} leads contactados
+          </p>
+        </div>
+
+        {/* KPI 3: Ticket Médio */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Ticket Médio
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-3xl font-medium text-foreground">
+              R$ {filteredTicketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Média por conversão ganha no período
+          </p>
+        </div>
+
+        {/* KPI 4: Meta e Necessário */}
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <Target className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Meta Comercial
+          </span>
+          <div className="my-2">
+            <p className="font-serif text-2xl font-medium text-foreground">
+              R$ {activeMonthMeta.toLocaleString("pt-BR")}
+            </p>
+            {filteredRevenue >= activeMonthMeta ? (
+              <p className="text-xs text-green-600 font-medium mt-1">✓ Meta Batida!</p>
+            ) : (
+              <p className="text-[11px] text-muted mt-1">
+                Faltam <span className="font-bold text-foreground">R$ {(activeMonthMeta - filteredRevenue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              </p>
+            )}
+          </div>
+          <p className="text-[10px] text-muted uppercase tracking-wider">
+            Meta Ajustada para o Período
+          </p>
         </div>
       </div>
 
@@ -578,82 +752,6 @@ export function VendasRelatorio() {
               ))}
             </select>
           </div>
-        </div>
-      </div>
-
-      {/* ─── GRID DE CARDS KPI DINÂMICOS ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Faturamento */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[140px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Faturado
-            </span>
-            <span className="text-xs font-bold text-letitia-gold">{metaAchievedPercent.toFixed(1)}% da Meta</span>
-          </div>
-          <div className="my-2">
-            <p className="font-serif text-3xl font-medium text-foreground">
-              R$ {filteredRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="w-full bg-foreground/5 rounded-full h-2 mt-1 overflow-hidden">
-            <div
-              className="bg-letitia-gold h-full rounded-full transition-all duration-500"
-              style={{ width: `${metaAchievedPercent}%`, backgroundColor: GOLD_COLOR }}
-            />
-          </div>
-        </div>
-
-        {/* KPI 2: Quantas Vendas */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
-            <ShoppingBag className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Vendas Ganhas
-          </span>
-          <div className="my-2">
-            <p className="font-serif text-3xl font-medium text-foreground">
-              {filteredSalesCount} <span className="text-sm font-sans text-muted font-normal">conversões</span>
-            </p>
-          </div>
-          <p className="text-[10px] text-muted uppercase tracking-wider">
-            Do total de {filteredLeadsContactados} leads contactados
-          </p>
-        </div>
-
-        {/* KPI 3: Ticket Médio */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Ticket Médio
-          </span>
-          <div className="my-2">
-            <p className="font-serif text-3xl font-medium text-foreground">
-              R$ {filteredTicketMedio.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
-            </p>
-          </div>
-          <p className="text-[10px] text-muted uppercase tracking-wider">
-            Média por conversão ganha no período
-          </p>
-        </div>
-
-        {/* KPI 4: Meta e Necessário */}
-        <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[140px]">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
-            <Target className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Meta Comercial
-          </span>
-          <div className="my-2">
-            <p className="font-serif text-2xl font-medium text-foreground">
-              R$ {activeMonthMeta.toLocaleString("pt-BR")}
-            </p>
-            {filteredRevenue >= activeMonthMeta ? (
-              <p className="text-xs text-green-600 font-medium mt-1">✓ Meta Batida!</p>
-            ) : (
-              <p className="text-[11px] text-muted mt-1">
-                Faltam <span className="font-bold text-foreground">R$ {(activeMonthMeta - filteredRevenue).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-              </p>
-            )}
-          </div>
-          <p className="text-[10px] text-muted uppercase tracking-wider">
-            Meta Ajustada para o Período
-          </p>
         </div>
       </div>
 
@@ -943,17 +1041,45 @@ export function VendasRelatorio() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-background/10 text-left">
-                {["Aba", "Data", "Nome Cliente", "Vendedora", "Origem (Fonte)", "Produto", "Resultado", "Valor"].map((h) => (
-                  <th
-                    key={h}
-                    className={cn(
-                      "px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted",
-                      h === "Valor" ? "text-right" : "text-left"
-                    )}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Aba", "Data", "Nome Cliente", "Vendedora", "Origem (Fonte)", "Produto", "Resultado", "Valor"].map((h) => {
+                  const headerToKeyMap: Record<string, keyof LeadRecord> = {
+                    "Aba": "mes",
+                    "Data": "dataEntrada",
+                    "Nome Cliente": "nome",
+                    "Vendedora": "vendedora",
+                    "Origem (Fonte)": "origem",
+                    "Produto": "produto",
+                    "Resultado": "resultado",
+                    "Valor": "valorVenda"
+                  };
+                  const key = headerToKeyMap[h];
+                  const isSorted = sortConfig?.key === key;
+                  const isAsc = sortConfig?.direction === "asc";
+
+                  return (
+                    <th
+                      key={h}
+                      onClick={() => handleSort(key)}
+                      className={cn(
+                        "px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted cursor-pointer hover:bg-background/20 select-none transition-colors",
+                        h === "Valor" ? "text-right" : "text-left"
+                      )}
+                    >
+                      <div className={cn("flex items-center gap-1.5", h === "Valor" && "justify-end")}>
+                        <span>{h}</span>
+                        {isSorted ? (
+                          isAsc ? (
+                            <ArrowUp className="h-3 w-3 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+                          ) : (
+                            <ArrowDown className="h-3 w-3 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+                          )
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-30 hover:opacity-100 transition-opacity" />
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
