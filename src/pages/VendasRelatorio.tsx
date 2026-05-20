@@ -17,7 +17,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  ExternalLink
+  ExternalLink,
+  RotateCw
 } from "lucide-react";
 import {
   BarChart,
@@ -84,6 +85,9 @@ export function VendasRelatorio() {
   // Lead selecionado para detalhes
   const [selectedLead, setSelectedLead] = useState<LeadRecord | null>(null);
 
+  // Refreshing manual
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const handleSort = (key: keyof LeadRecord) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
@@ -93,25 +97,34 @@ export function VendasRelatorio() {
     setCurrentPage(1);
   };
 
-  useEffect(() => {
-    async function loadData() {
+  async function loadData(silent = false) {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
       setLoading(true);
-      const start = Date.now();
-      try {
-        const leads = await fetchLiveSalesData();
-        setAllLeads(leads);
-        // Se conseguimos puxar leads de múltiplos meses e o tamanho bate, deduzimos live
-        setIsLive(leads.length > 0);
-      } catch (err) {
-        console.warn("Falha no fetch live, usando fallback estático", err);
-      }
-      
-      const elapsed = Date.now() - start;
-      if (elapsed < 600) {
-        await new Promise((r) => setTimeout(r, 600 - elapsed));
-      }
+    }
+    const start = Date.now();
+    try {
+      const leads = await fetchLiveSalesData();
+      setAllLeads(leads);
+      // Se conseguimos puxar leads de múltiplos meses e o tamanho bate, deduzimos live
+      setIsLive(leads.length > 0);
+    } catch (err) {
+      console.warn("Falha no fetch live, usando fallback estático", err);
+    }
+    
+    const elapsed = Date.now() - start;
+    if (elapsed < 600) {
+      await new Promise((r) => setTimeout(r, 600 - elapsed));
+    }
+    if (silent) {
+      setIsRefreshing(false);
+    } else {
       setLoading(false);
     }
+  }
+
+  useEffect(() => {
     loadData();
   }, []);
 
@@ -431,6 +444,13 @@ export function VendasRelatorio() {
             >
               • Abrir Planilha Base <ExternalLink className="h-3 w-3" />
             </a>
+            <button
+              onClick={() => loadData(true)}
+              disabled={isRefreshing || loading}
+              className="text-xs font-semibold hover:underline flex items-center gap-1 ml-2 transition-all text-muted hover:text-foreground disabled:opacity-50 cursor-pointer"
+            >
+              • Atualizar Dados <RotateCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
+            </button>
           </div>
           <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground mt-2">
             Dashboard de Vendas & Performance

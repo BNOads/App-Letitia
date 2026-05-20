@@ -111,6 +111,21 @@ export async function fetchLiveSalesData(): Promise<LeadRecord[]> {
       
       let headers: string[] | null = null;
       for (const r of lines) {
+        // Tenta capturar a meta definida na planilha (geralmente nas colunas A e C)
+        if (r.length > 2 && r[0]) {
+          const firstCell = r[0].trim().toLowerCase();
+          if (firstCell === "meta de venda" || firstCell === "meta comercial" || firstCell === "meta") {
+            const valMetaRaw = r[2];
+            if (valMetaRaw) {
+              const clean = valMetaRaw.replace("R$", "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".").trim();
+              const parsedMeta = parseFloat(clean);
+              if (!isNaN(parsedMeta) && parsedMeta > 0) {
+                month.meta = parsedMeta;
+              }
+            }
+          }
+        }
+
         if (r.length > 9 && r[9] === "DATA ENTRADA") {
           headers = r;
           continue;
