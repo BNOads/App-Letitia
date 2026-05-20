@@ -115,7 +115,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
   return (
     <>
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 md:px-8">
+    <header className="flex h-16 md:h-16 pt-[env(safe-area-inset-top,0px)] box-content items-center justify-between border-b border-border bg-background px-4 md:px-8">
       {/* Mobile: App Name | Desktop: Search */}
       <div className="flex flex-1 items-center gap-3">
         <button

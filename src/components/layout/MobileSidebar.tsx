@@ -130,7 +130,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
+        <div className="flex h-16 pt-[env(safe-area-inset-top,0px)] box-content items-center justify-between px-4 border-b border-border">
           <h1 className="font-serif text-xl font-semibold tracking-wide text-foreground">
             LaetitiAPP
           </h1>
@@ -182,7 +182,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         </div>
 
         {/* User */}
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] bg-card">
           <div className="flex items-center justify-between">
             <Link to="/perfil" className="flex items-center hover:opacity-80 transition-opacity flex-1 min-w-0">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border text-sm font-medium text-foreground flex-shrink-0 overflow-hidden">

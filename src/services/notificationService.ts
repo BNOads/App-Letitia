@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { sendEmail, emailTemplates } from './emailService';
+import { sendPushNotification } from './pushService';
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -118,8 +119,57 @@ export async function createNotification(params: CreateNotificationParams) {
     return;
   }
 
-  // Dispara e-mail se necessário (não bloqueia)
+  // Dispara e-mail e push se necessário (não bloqueia)
   setTimeout(async () => {
+    // 1. DISPARAR PUSH NOTIFICATION
+    try {
+      let subscriptions: any[] = [];
+      if (params.user_id) {
+        // Busca inscrições do usuário específico
+        const { data } = await supabase
+          .from('push_subscriptions')
+          .select('subscription')
+          .eq('user_id', params.user_id);
+        if (data) subscriptions = data.map(s => s.subscription);
+      } else {
+        // Broadcast para todas as inscrições cadastradas
+        const { data } = await supabase
+          .from('push_subscriptions')
+          .select('subscription');
+        if (data) subscriptions = data.map(s => s.subscription);
+      }
+
+      if (subscriptions.length > 0) {
+        const response = await sendPushNotification({
+          subscriptions,
+          payload: {
+            title: params.titulo,
+            body: params.descricao,
+            icon: '/logo.png',
+            badge: '/favicon.png',
+            data: { url: params.link || '/' }
+          }
+        });
+
+        // Autolimpeza de endpoints inativos (410 Gone / 404 Not Found)
+        if (response && response.results) {
+          const deadEndpoints = response.results
+            .filter((r: any) => !r.success && (r.statusCode === 410 || r.statusCode === 404))
+            .map((r: any) => r.endpoint);
+          
+          if (deadEndpoints.length > 0) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .in('endpoint', deadEndpoints);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao processar envio de push notification:', err);
+    }
+
+    // 2. DISPARAR E-MAIL
     try {
       if (params.user_id) {
         // Notificação para usuário específico
@@ -146,7 +196,6 @@ export async function createNotification(params: CreateNotificationParams) {
         if (profiles && profiles.length > 0) {
           const emails = profiles.map(p => p.email).filter(Boolean) as string[];
           if (emails.length > 0) {
-            // Em produção, o ideal é usar batch ou Bcc, Resend suporta array de to: mas até 50.
             for (const email of emails) {
               await sendEmail({
                 to: email,
@@ -187,8 +236,47 @@ export async function createNotificationForUsers(
     return;
   }
 
-  // Dispara e-mail se necessário (não bloqueia)
+  // Dispara e-mail e push se necessário (não bloqueia)
   setTimeout(async () => {
+    // 1. DISPARAR PUSH NOTIFICATION EM MASSA
+    try {
+      const { data } = await supabase
+        .from('push_subscriptions')
+        .select('subscription')
+        .in('user_id', userIds);
+      
+      if (data && data.length > 0) {
+        const subscriptions = data.map(s => s.subscription);
+        const response = await sendPushNotification({
+          subscriptions,
+          payload: {
+            title: params.titulo,
+            body: params.descricao,
+            icon: '/logo.png',
+            badge: '/favicon.png',
+            data: { url: params.link || '/' }
+          }
+        });
+
+        // Autolimpeza de endpoints inativos (410 Gone / 404 Not Found)
+        if (response && response.results) {
+          const deadEndpoints = response.results
+            .filter((r: any) => !r.success && (r.statusCode === 410 || r.statusCode === 404))
+            .map((r: any) => r.endpoint);
+          
+          if (deadEndpoints.length > 0) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .in('endpoint', deadEndpoints);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao processar envio de push notification em massa:', err);
+    }
+
+    // 2. DISPARAR E-MAIL EM MASSA
     try {
       const { data: profiles } = await supabase
         .from('profiles')

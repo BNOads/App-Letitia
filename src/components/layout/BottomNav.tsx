@@ -15,7 +15,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 z-50 w-full h-16 bg-card border-t border-border flex items-center justify-around px-1">
+    <div className="md:hidden fixed bottom-0 left-0 z-50 w-full h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] bg-card/80 backdrop-blur-lg border-t border-border/50 flex items-center justify-around px-1 transition-all duration-300">
       {navigation.map((item) => {
         const isActive = item.href === "/" ? location.pathname === "/" : location.pathname.startsWith(item.href);
         return (
