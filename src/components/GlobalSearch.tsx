@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, FileStack } from "lucide-react";
+import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, FileStack, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
@@ -109,6 +109,28 @@ async function searchTarefas(query: string): Promise<SearchResult[]> {
   }));
 }
 
+async function searchSubtarefas(query: string): Promise<SearchResult[]> {
+  const { data, error } = await supabase
+    .from("subtarefas")
+    .select("id, titulo, concluida, prazo, tarefa_id, tarefas(id, titulo)")
+    .ilike("titulo", `%${query}%`)
+    .limit(6);
+
+  if (error || !data) return [];
+
+  return data.map((s: any) => ({
+    id: s.tarefas?.id || s.tarefa_id,
+    type: "tarefa" as const,
+    titulo: s.titulo,
+    subtitle: `Subtarefa · ${s.tarefas?.titulo || "Tarefa"}`,
+    meta: s.prazo
+      ? new Date(s.prazo + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+      : s.concluida ? "✅ Concluída" : "Pendente",
+    icon: "task" as const,
+    data: { ...s, __isSubtask: true },
+  }));
+}
+
 // ─── Component ──────────────────────────────────────────────
 
 export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
@@ -143,12 +165,16 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
 
     setLoading(true);
     try {
-      const [docs, content, tasks] = await Promise.all([
+      const [docs, content, tasks, subtasks] = await Promise.all([
         searchDocumentos(searchQuery),
         searchConteudo(searchQuery),
         searchTarefas(searchQuery),
+        searchSubtarefas(searchQuery),
       ]);
-      setResults([...docs, ...content, ...tasks]);
+      // Merge tasks + subtasks, deduplicating by id (parent task id)
+      const taskIds = new Set(tasks.map(t => t.id));
+      const uniqueSubtasks = subtasks.filter(s => !taskIds.has(s.id));
+      setResults([...docs, ...content, ...tasks, ...uniqueSubtasks]);
       setSelectedIndex(0);
     } catch (error) {
       console.error("Erro na busca global:", error);
@@ -231,7 +257,9 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
         navigate("/editorial", { state: { openConteudoId: result.id } });
         break;
       case "tarefa":
-        navigate("/tarefas", { state: { openTarefaId: result.id } });
+        // Navigate with query params so the task detail modal opens immediately
+        // (Tarefas.tsx uses URL-driven state: ?task=<id>)
+        navigate(`/tarefas?task=${result.id}&tab=time`);
         break;
     }
   };
