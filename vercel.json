@@ -1,5 +1,14 @@
 {
+  "headers": [
+    {
+      "source": "/playbook-vendas-vcn.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
   "rewrites": [
+    { "source": "/playbook-vendas-vcn.html", "destination": "/playbook-vendas-vcn.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

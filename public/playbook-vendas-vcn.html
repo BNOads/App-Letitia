@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playbook de Vendas · Vida, Carreira & Negócios · Letícia Cazarré</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1915;
+    --ink-soft:#3a352d;
+    --paper:#F7F3EC;
+    --paper-2:#EFE8DD;
+    --cream:#F5F0EA;
+    --gold:#B89B6E;
+    --gold-deep:#9c7f52;
+    --taupe:#7A6F63;
+    --line:#ddd3c4;
+    --dark:#14110D;
+    --dark-2:#1C1915;
+    --green:#1d2620;
+    --serif:'Cormorant Garamond', 'IvyOra Text', Georgia, serif;
+    --sans:'Jost', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --maxw:920px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-weight:300;
+    font-size:17px;
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  p{margin:0 0 1.05em;}
+  strong{font-weight:600;color:var(--ink);}
+  em{font-style:italic;}
+  a{color:var(--gold-deep);}
+
+  /* ===== ESTRUTURA / BANDAS ===== */
+  section{padding:74px 0;border-bottom:1px solid var(--line);}
+  section.dark{background:var(--dark);color:var(--cream);border-bottom:none;}
+  section.dark strong{color:#fff;}
+  section.dark .eyebrow{color:var(--gold);}
+  section.dark h2,section.dark h3{color:var(--cream);}
+
+  /* ===== TIPOGRAFIA ===== */
+  .eyebrow{
+    font-family:var(--sans);
+    font-weight:500;
+    text-transform:uppercase;
+    letter-spacing:.32em;
+    font-size:12px;
+    color:var(--gold-deep);
+    margin:0 0 18px;
+    display:block;
+  }
+  h1,h2,h3,h4{font-family:var(--serif);font-weight:600;color:var(--ink);line-height:1.08;margin:0 0 .4em;}
+  h2{font-size:clamp(32px,5vw,52px);letter-spacing:-.5px;}
+  h3{font-size:clamp(24px,3.4vw,34px);font-weight:600;margin-top:0;}
+  h4{font-size:22px;font-weight:600;}
+  .lead{font-family:var(--serif);font-size:clamp(20px,2.6vw,26px);line-height:1.5;color:var(--ink-soft);font-weight:400;}
+  .num-tag{
+    font-family:var(--serif);font-style:italic;font-size:20px;color:var(--gold-deep);
+    display:inline-block;margin-bottom:6px;
+  }
+
+  /* ===== CAPA ===== */
+  .cover{
+    background:var(--dark);
+    color:var(--cream);
+    min-height:100vh;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:80px 28px 64px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:none;
+  }
+  .cover-bg{
+    position:absolute;inset:0;
+    background:radial-gradient(140% 100% at 80% 0%, #243029 0%, #14110D 55%);
+    z-index:0;
+  }
+  .cover-mark{
+    position:absolute;right:-4%;bottom:-8%;
+    font-family:var(--serif);font-style:italic;font-weight:500;
+    font-size:min(46vw,560px);line-height:.7;color:transparent;
+    -webkit-text-stroke:1px rgba(184,155,110,.18);
+    z-index:0;pointer-events:none;user-select:none;
+  }
+  .cover-inner{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;width:100%;}
+  .cover .kicker{
+    text-transform:uppercase;letter-spacing:.38em;font-size:12.5px;font-weight:500;
+    color:var(--gold);margin-bottom:34px;
+  }
+  .cover h1{
+    color:var(--cream);
+    font-size:clamp(46px,9vw,104px);
+    line-height:.98;font-weight:600;letter-spacing:-1px;margin:0;
+  }
+  .cover h1 .it{font-style:italic;color:var(--gold);font-weight:500;}
+  .cover .sub{
+    font-family:var(--serif);font-style:italic;font-size:clamp(20px,3vw,30px);
+    color:#cdbfa9;margin-top:26px;font-weight:400;max-width:680px;
+  }
+  .cover .meta{
+    margin-top:54px;padding-top:26px;border-top:1px solid rgba(184,155,110,.28);
+    display:flex;flex-wrap:wrap;gap:30px 56px;font-size:13px;letter-spacing:.06em;color:#b9ac99;
+    text-transform:uppercase;font-weight:400;
+  }
+  .cover .meta b{display:block;font-family:var(--serif);font-style:normal;text-transform:none;
+    font-size:21px;letter-spacing:0;color:var(--cream);font-weight:600;margin-top:4px;}
+
+  /* ===== ÍNDICE ===== */
+  .toc{background:var(--paper-2);}
+  .toc ol{list-style:none;counter-reset:t;margin:0;padding:0;}
+  .toc li{counter-increment:t;border-top:1px solid var(--line);}
+  .toc li:last-child{border-bottom:1px solid var(--line);}
+  .toc a{
+    display:flex;align-items:baseline;gap:20px;padding:18px 4px;text-decoration:none;color:var(--ink);
+    transition:color .2s,padding .2s;
+  }
+  .toc a:hover{color:var(--gold-deep);padding-left:10px;}
+  .toc a::before{content:counter(t,decimal-leading-zero);font-family:var(--serif);font-style:italic;
+    font-size:20px;color:var(--gold-deep);min-width:42px;}
+  .toc .t-title{font-family:var(--serif);font-size:23px;font-weight:600;flex:1;}
+  .toc .t-desc{font-size:13px;color:var(--taupe);max-width:300px;text-align:right;}
+
+  /* ===== CALLOUTS ===== */
+  .pull{
+    font-family:var(--serif);font-style:italic;font-weight:500;
+    font-size:clamp(24px,3.6vw,34px);line-height:1.32;color:var(--ink);
+    border-left:3px solid var(--gold);padding:6px 0 6px 28px;margin:34px 0;
+  }
+  section.dark .pull{color:var(--cream);border-color:var(--gold);}
+  .pull .src{display:block;font-family:var(--sans);font-style:normal;font-weight:500;
+    font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep);margin-top:14px;}
+  section.dark .pull .src{color:var(--gold);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+
+  .pillar{
+    background:rgba(184,155,110,.07);border:1px solid rgba(184,155,110,.32);
+    border-radius:3px;padding:28px 26px;
+  }
+  section.dark .pillar{background:rgba(245,240,234,.04);border-color:rgba(184,155,110,.4);}
+  .pillar .n{font-family:var(--serif);font-style:italic;font-size:34px;color:var(--gold);line-height:1;display:block;margin-bottom:12px;}
+  .pillar h4{margin-bottom:8px;}
+  .pillar p{font-size:15px;line-height:1.6;margin:0;color:inherit;}
+  section.dark .pillar p{color:#cdc3b4;}
+
+  /* SCRIPT BOX */
+  .script{
+    background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);
+    border-radius:3px;padding:22px 26px;margin:22px 0;
+    box-shadow:0 1px 0 rgba(0,0,0,.02);
+  }
+  .script .lbl{font-size:11px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-deep);display:block;margin-bottom:12px;}
+  .script p{font-family:var(--serif);font-style:italic;font-size:20px;line-height:1.5;color:var(--ink-soft);margin:0 0 .7em;}
+  .script p:last-child{margin-bottom:0;}
+
+  /* QUESTION LIST */
+  .qlist{list-style:none;margin:18px 0;padding:0;counter-reset:q;}
+  .qlist li{counter-increment:q;position:relative;padding:14px 0 14px 52px;border-bottom:1px dashed var(--line);}
+  .qlist li:last-child{border-bottom:none;}
+  .qlist li::before{content:counter(q);position:absolute;left:0;top:13px;
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--gold);
+    color:var(--gold-deep);font-family:var(--serif);font-size:18px;display:flex;align-items:center;justify-content:center;}
+  .qlist .q{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);line-height:1.4;}
+  .qlist .a{font-size:14px;color:var(--taupe);margin-top:4px;}
+
+  /* OBJECTION CARD */
+  .obj{background:#fff;border:1px solid var(--line);border-radius:4px;margin:26px 0;overflow:hidden;}
+  .obj-head{background:var(--dark-2);color:var(--cream);padding:24px 28px;}
+  .obj-head .tag{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:8px;}
+  .obj-head .says{font-family:var(--serif);font-style:italic;font-size:23px;line-height:1.34;color:#fff;}
+  .obj-body{padding:26px 28px;}
+  .obj-body .row{margin-bottom:20px;}
+  .obj-body .row:last-child{margin-bottom:0;}
+  .micro{font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-deep);display:block;margin-bottom:7px;}
+  .obj-body p{font-size:15.5px;line-height:1.65;margin:0 0 .6em;}
+  .obj-body p:last-child{margin-bottom:0;}
+  .chip{display:inline-block;background:var(--paper-2);border:1px solid var(--line);border-radius:40px;
+    padding:5px 14px;font-size:12px;letter-spacing:.04em;color:var(--ink-soft);margin:3px 6px 3px 0;font-weight:400;}
+  .say{background:var(--paper);border-left:3px solid var(--gold);padding:14px 18px;margin:10px 0;border-radius:0 3px 3px 0;}
+  .say p{font-family:var(--serif);font-style:italic;font-size:18px;color:var(--ink-soft);margin:0;line-height:1.5;}
+
+  /* LADDER */
+  .ladder{margin:24px 0;display:flex;flex-direction:column;gap:12px;}
+  .rung{display:flex;align-items:center;gap:18px;border:1px solid var(--line);background:#fff;border-radius:3px;padding:18px 22px;}
+  .rung .price{font-family:var(--serif);font-size:24px;color:var(--gold-deep);min-width:170px;font-weight:600;}
+  .rung .info h4{margin:0 0 3px;font-size:19px;}
+  .rung .info p{margin:0;font-size:14px;color:var(--taupe);line-height:1.5;}
+  .rung.feature{border:1.5px solid var(--gold);background:rgba(184,155,110,.06);}
+
+  /* STEP FLOW */
+  .steps{counter-reset:s;margin:24px 0 0;padding:0;list-style:none;}
+  .steps li{counter-increment:s;position:relative;padding:0 0 26px 64px;border-left:1.5px solid var(--line);margin-left:18px;}
+  .steps li:last-child{border-left:1.5px solid transparent;padding-bottom:0;}
+  .steps li::before{content:counter(s);position:absolute;left:-19px;top:-4px;width:37px;height:37px;border-radius:50%;
+    background:var(--dark);color:var(--gold);font-family:var(--serif);font-size:19px;display:flex;align-items:center;justify-content:center;}
+  .steps h4{margin:0 0 6px;font-size:21px;}
+  .steps p{font-size:15px;margin:0;color:var(--ink-soft);line-height:1.6;}
+
+  /* DO / DONT */
+  .dd{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px;}
+  .dd .col{border-radius:4px;padding:24px 26px;}
+  .dd .yes{background:rgba(184,155,110,.09);border:1px solid rgba(184,155,110,.4);}
+  .dd .no{background:rgba(120,111,99,.07);border:1px solid var(--line);}
+  .dd h4{font-size:18px;display:flex;align-items:center;gap:10px;}
+  .dd ul{margin:10px 0 0;padding:0;list-style:none;}
+  .dd li{font-size:14.5px;line-height:1.5;padding:8px 0 8px 22px;position:relative;border-top:1px solid var(--line);}
+  .dd li:first-child{border-top:none;}
+  .dd .yes li::before{content:"✓";position:absolute;left:0;color:var(--gold-deep);font-weight:600;}
+  .dd .no li::before{content:"✕";position:absolute;left:0;color:var(--taupe);}
+
+  /* AUTHORITY TIMELINE */
+  .arsenal{list-style:none;margin:20px 0 0;padding:0;}
+  .arsenal li{padding:16px 0;border-top:1px solid rgba(184,155,110,.25);display:grid;grid-template-columns:160px 1fr;gap:24px;}
+  .arsenal li:first-child{border-top:none;}
+  .arsenal .phase{font-family:var(--serif);font-style:italic;font-size:19px;color:var(--gold);}
+  .arsenal .desc{font-size:15px;color:#cdc3b4;line-height:1.6;}
+  section.dark .arsenal .desc{color:#cdc3b4;}
+
+  .factbar{display:flex;flex-wrap:wrap;gap:14px;margin-top:26px;}
+  .fact{flex:1;min-width:150px;border:1px solid rgba(184,155,110,.4);border-radius:3px;padding:18px 20px;background:rgba(245,240,234,.03);}
+  .fact .big{font-family:var(--serif);font-size:34px;color:var(--gold);line-height:1;font-weight:600;}
+  .fact .cap{font-size:12.5px;color:#b9ac99;letter-spacing:.04em;margin-top:8px;display:block;}
+
+  .note{background:rgba(184,155,110,.1);border:1px dashed var(--gold);border-radius:4px;padding:18px 22px;margin:22px 0;font-size:15px;}
+  .note .micro{margin-bottom:6px;}
+
+  /* CHECKLIST / COLA */
+  .cola{background:var(--dark);}
+  .cola-grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:10px;}
+  .cola-box h4{color:var(--gold);font-size:16px;letter-spacing:.04em;border-bottom:1px solid rgba(184,155,110,.3);padding-bottom:10px;margin-bottom:14px;font-family:var(--sans);font-weight:600;text-transform:uppercase;}
+  .cola-box ul{margin:0;padding:0;list-style:none;}
+  .cola-box li{font-size:14.5px;color:#d8cebf;padding:7px 0 7px 20px;position:relative;line-height:1.5;}
+  .cola-box li::before{content:"·";position:absolute;left:0;color:var(--gold);}
+  .cola-box .phrase{font-family:var(--serif);font-style:italic;color:#e9e0d2;font-size:16px;}
+
+  footer{background:#0e0c0a;color:#8c8174;text-align:center;padding:54px 28px;font-size:12.5px;letter-spacing:.06em;border:none;}
+  footer .fmark{font-family:var(--serif);font-style:italic;font-size:30px;color:var(--gold);margin-bottom:14px;}
+
+  .divider-word{text-align:center;font-family:var(--serif);font-style:italic;color:var(--gold);font-size:24px;margin:0;}
+
+  @media(max-width:720px){
+    .grid2,.grid3,.dd,.cola-grid{grid-template-columns:1fr;}
+    .arsenal li{grid-template-columns:1fr;gap:4px;}
+    .rung{flex-direction:column;align-items:flex-start;gap:8px;}
+    .rung .price{min-width:0;}
+    .toc .t-desc{display:none;}
+    section{padding:54px 0;}
+  }
+  @media print{
+    body{font-size:12pt;background:#fff;}
+    .cover{min-height:auto;page-break-after:always;}
+    section{page-break-inside:avoid;padding:30px 0;}
+    .obj,.script,.rung,.pillar{page-break-inside:avoid;}
+    a{color:var(--ink);}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ CAPA ============ -->
+<header class="cover">
+  <div class="cover-bg"></div>
+  <div class="cover-mark">∞</div>
+  <div class="cover-inner">
+    <div class="kicker">Playbook de Vendas · Uso interno</div>
+    <h1>Vida, Carreira <span class="it">&amp;</span> Negócios</h1>
+    <p class="sub">O manual completo para conduzir a call com clareza, autoridade e tranquilidade, e fechar a cliente certa.</p>
+    <div class="meta">
+      <div>Programa<b>Vida, Carreira &amp; Negócios</b></div>
+      <div>Mentora<b>Letícia Cazarré</b></div>
+      <div>Para<b>Time de Vendas</b></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ ÍNDICE ============ -->
+<section class="toc">
+  <div class="wrap">
+    <span class="eyebrow">Como navegar</span>
+    <h2>Índice</h2>
+    <ol>
+      <li><a href="#visao"><span class="t-title">A visão: o que você realmente vende</span><span class="t-desc">Não é curso. Não é método. É transformação e acesso.</span></a></li>
+      <li><a href="#mentalidade"><span class="t-title">A mentalidade SND</span><span class="t-desc">Se valorizar · Não fazer questão · Manter o controle</span></a></li>
+      <li><a href="#objecoes"><span class="t-title">Quebra de objeções</span><span class="t-desc">As 8 objeções mais comuns, resolvidas</span></a></li>
+      <li><a href="#confianca"><span class="t-title">Os 3 pilares da confiança</span><span class="t-desc">A regra de ouro de toda objeção</span></a></li>
+      <li><a href="#cliente"><span class="t-title">Quem é a cliente ideal</span><span class="t-desc">E quem você deve redirecionar</span></a></li>
+      <li><a href="#metodo"><span class="t-title">O método da call</span><span class="t-desc">Belfort, Hormozi e Shelby Sapp num só fluxo</span></a></li>
+      <li><a href="#ancoragem"><span class="t-title">A ancoragem</span><span class="t-desc">A peça que muda tudo: R$90 mil</span></a></li>
+      <li><a href="#escada"><span class="t-title">A escada de produtos</span><span class="t-desc">Para direcionar, dar upsell ou downsell</span></a></li>
+      <li><a href="#arsenal"><span class="t-title">O arsenal da Letícia</span><span class="t-desc">Autoridade e prova social na ponta da língua</span></a></li>
+      <li><a href="#roteiro"><span class="t-title">Roteiro da call</span><span class="t-desc">Passo a passo do início ao fechamento</span></a></li>
+      <li><a href="#cola"><span class="t-title">Cola rápida</span><span class="t-desc">Tudo em uma tela antes da reunião</span></a></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 1. A VISÃO ============ -->
+<section id="visao">
+  <div class="wrap">
+    <span class="num-tag">Parte 01</span>
+    <span class="eyebrow">A visão</span>
+    <h2>O que você está realmente vendendo</h2>
+    <p class="lead">Você não vende um curso. Você não vende um método. Você vende <em>clareza</em>, a capacidade de tomar as decisões certas que ela não está conseguindo tomar sozinha, e que ninguém deveria mesmo tomar sozinha.</p>
+
+    <p>Quando a cliente pergunta "qual é o método?", "quais ferramentas?", ela não quer um índice de aulas. Ela está com medo do investimento e procurando um motivo para confiar. O método é só o meio, ele não importa para ela. O que importa é que ela enxergue a transformação: <strong>como a vida dela vai ser depois de passar por esse processo.</strong></p>
+
+    <p class="pull">O método é só o meio. O que a cliente precisa enxergar é a transformação, a clareza que vai ter, as decisões que vai conseguir tomar, a paz com as próprias escolhas.<span class="src">Letícia Cazarré</span></p>
+
+    <h3>A ponte que você representa</h3>
+    <p>De um lado está uma mulher presa entre o que quer ser e o que a vida exige dela, reagindo ao que vem, improvisando. Do outro lado está uma mulher que tem um <strong>sistema operacional para tomar decisões</strong>, que integra ambição profissional e vida pessoal sem culpa e sem perder de vista o principal: Deus e família. Você é a pessoa que mostra a ela que essa travessia é possível, e que existe uma única pessoa no Brasil capaz de guiá-la.</p>
+
+    <div class="note">
+      <span class="micro">Fixe isto</span>
+      <p style="margin:0;">Sua função na call é <strong>gerar, na cabeça dela, a visão da transformação</strong>. Tudo o que você fala sobre a Letícia, o programa e a empresa serve a esse único objetivo: fazer ela acreditar que vai ser capaz de alcançar aquela mudança, com a ajuda certa.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. MENTALIDADE SND ============ -->
+<section id="mentalidade" class="dark">
+  <div class="wrap">
+    <span class="num-tag" style="color:var(--gold)">Parte 02</span>
+    <span class="eyebrow">A mentalidade</span>
+    <h2>SND na veia</h2>
+    <p class="lead" style="color:#cdc3b4;">Tudo o que está neste playbook vai por água abaixo se você não internalizar três coisas antes de abrir a câmera. Não é técnica, é postura. A cliente sente em segundos se você tem ou não.</p>
+
+    <div class="grid3" style="margin-top:30px;">
+      <div class="pillar">
+        <span class="n">S</span>
+        <h4>Se valorizar</h4>
+        <p>Tenha clareza absoluta do valor do que está sendo entregue. Acesso à Letícia é acesso a anos de construção de caráter, virtudes, disciplina e a um sistema de vida que mantém a paz nas circunstâncias mais difíceis. Isso não tem preço, e você precisa acreditar nisso de verdade, senão a cliente percebe.</p>
+      </div>
+      <div class="pillar">
+        <span class="n">N</span>
+        <h4>Não fazer questão</h4>
+        <p>Você não está vendendo a qualquer custo para qualquer pessoa. Calma e tranquilidade. Se a venda não fechar agora, está tudo certo, você não precisa dela. <em>Ela</em> é que precisa da ajuda. E se não fechar hoje, talvez no futuro queira, mas as vagas já terão sido ocupadas.</p>
+      </div>
+      <div class="pillar">
+        <span class="n">D</span>
+        <h4>Manter o controle (Domínio)</h4>
+        <p>Não deixe a pessoa jogar com você, diminuir o valor ou te colocar na defensiva. Quem faz as perguntas é quem conduz. Nunca fique implorando "e se a gente parcelar?", "e se eu diminuir?". Mantenha o controle na sua mão.</p>
+      </div>
+    </div>
+
+    <p class="pull">Não é ficar insistindo. É calma, tranquilidade. A pessoa entende que, se não fechar naquele momento, está tudo bem. Você não precisa daquela venda, ela é que precisa daquela ajuda.<span class="src">Letícia Cazarré · sobre o "não fazer questão"</span></p>
+  </div>
+</section>
+
+<!-- ============ 9. QUEBRA DE OBJEÇÕES ============ -->
+<section id="objecoes">
+  <div class="wrap">
+    <span class="num-tag">Parte 03</span>
+    <span class="eyebrow">O coração do playbook</span>
+    <h2>Quebra de objeções</h2>
+    <p class="lead">Lembre sempre: a objeção quase nunca é o que ela diz. Por trás de cada uma há um pilar de confiança a reforçar. Para cada objeção, você verá o que está por trás, qual pilar reforçar e o que falar.</p>
+
+    <!-- OBJ 1 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 01 · método &amp; ferramentas</span>
+        <p class="says">"Quais ferramentas a Letícia usa? Quais métodos ela aplica?"</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>São duas perguntas, mas é uma só, e no fundo não é sobre a ferramenta em si: é medo do investimento e falta de confiança. Sua resposta não é fugir do método, é dar a ela estrutura e tranquilidade.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Confiança na Letícia</span><span class="chip">Estrutura do método</span><span class="chip">Visão da transformação</span></div>
+        <div class="row"><span class="micro">O que falar</span>
+          <div class="say"><p>"O método tem nome e estrutura: são os 3 pilares que conduzem os 6 encontros. Primeiro Diagnóstico e Clareza, depois Estratégia de Carreira e Negócios, e por fim Integração e Movimento. As ferramentas de aplicação de cada pilar você vai conhecer dentro do programa, na prática, com a Letícia te guiando passo a passo."</p></div>
+          <div class="say"><p>"O que você precisa fazer hoje é focar no 'o que fazer', que é dar o passo de entrar. O 'como fazer' você vai aprender lá dentro, encontro a encontro, até o final. É exatamente para isso que o programa existe."</p></div>
+          <p>Em seguida, puxe da trajetória dela exatamente o movimento que espelha a dor da cliente (transição? maternidade? abrir negócio?) e termine gerando a visão: como a vida dela vai ser depois, a clareza que vai ter, as decisões que vai conseguir tomar.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 2 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 02 · duração</span>
+        <p class="says">"Por que só 6 encontros? É pouco para uma transformação real."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Insegurança de que o tempo não basta. Muitas vezes é, na verdade, perfil de mentoria.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Confiança no programa</span><span class="chip">Acesso direto à mentora</span></div>
+        <div class="row"><span class="micro">O que falar</span>
+          <div class="say"><p>"São seis encontros intensos e ao vivo, em que a Letícia adequa o programa à sala, conhece o seu caso pessoalmente e te direciona. Você tira dúvidas, é ouvida e sai de cada encontro sabendo qual é o seu próximo passo. É a única forma de ter acesso direto a ela, ela sabendo quem você é e dizendo o que faria no seu lugar. Não é um curso gravado em que ninguém sabe quem você é."</p></div>
+          <p>Reforce que o programa <strong>não termina quando o encontro acaba</strong>, e que ela nunca fica sozinha entre um encontro e outro. Vem tudo junto:</p>
+        </div>
+        <div class="row"><span class="micro">Além dos encontros</span>
+          <p>
+            <span class="chip">Suporte ativo dedicado</span> um time pronto para te ajudar a entender e aplicar mais do que foi visto em cada encontro.<br>
+            <span class="chip">Aulas gravadas</span> para rever quando quiser, no seu ritmo, e acompanhar de perto a sua evolução.<br>
+            <span class="chip">Grupo de networking exclusivo</span> conexão, troca e compromisso com outras mulheres no mesmo nível de ambição que você.
+          </p>
+        </div>
+        <div class="row"><span class="micro">Reposicione a duração</span><p>Os 6 encontros são <strong>o start</strong>, a clareza inicial que ela precisava. A partir daí, ela tem o ecossistema inteiro (suporte, gravações e comunidade) para sustentar a transformação muito além deles.</p></div>
+        <div class="row"><span class="micro">Gatilho de upsell</span><p>Se ela precisa de acompanhamento de início, meio e fim, ela tem perfil de mentoria: "Se você precisa de um acompanhamento de longo prazo, talvez seu perfil seja a The Way, onde a Letícia te acompanha por seis meses a um ano."</p></div>
+      </div>
+    </div>
+
+    <!-- OBJ 3 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 03 · valor da parcela</span>
+        <p class="says">"O valor da parcela está alto para a minha realidade."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Confusão entre preço e valor, e, muitas vezes, falta da ancoragem lá no início.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Valor intangível</span><span class="chip">Custo de continuar parada</span><span class="chip">Ancoragem</span></div>
+        <div class="row"><span class="micro">O que falar</span>
+          <div class="say"><p>"Deixa eu te fazer uma pergunta: quanto vale, para você, finalmente ter clareza sobre a sua carreira? Quanto vale tomar a decisão certa agora, em vez de passar mais um ano na dúvida? Quanto vale estar em paz com a sua família, presente de verdade, sem sentir que está abrindo mão de quem você é?"</p></div>
+          <div class="say"><p>"Porque essas coisas, a sua carreira, o seu casamento, o tempo com os seus filhos, a sua tranquilidade, não cabem numa parcela. A parcela você paga por alguns meses. O que você constrói aqui, você leva para o resto da vida, e a sua família leva junto."</p></div>
+          <p>O movimento é tirar o foco do número da parcela e colocá-lo no que está realmente em jogo. Faça-a comparar: de um lado, o valor da parcela; do outro, mais um ano perdido sem decidir, a oportunidade de carreira que não chega, o desgaste no casamento, o peso de carregar tudo isso sozinha. Diante do que ela ganha em carreira, família e paz interior, a parcela fica pequena.</p>
+          <p>Reforce a ancoragem: o acesso à Letícia pela mentoria custa R$90 mil/ano; o intensivo é uma fração disso. Se for genuína falta de renda, redirecione para um programa de entrada, sem drama.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 4 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 04 · organização financeira</span>
+        <p class="says">"Preciso me organizar financeiramente antes."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Pode ser falta real de renda, ou pode ser justamente a falta de visão e direção que o programa resolve.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Confiança em si mesma</span><span class="chip">Custo de oportunidade</span></div>
+        <div class="row"><span class="micro">O que falar (devolva como pergunta)</span>
+          <div class="say"><p>"Será que você não está tendo dificuldade de se organizar (ou de faturar) justamente porque não tem o acompanhamento e a visão certa? Será que está conseguindo tomar as decisões certas sozinha? Não é melhor ter alguém que já passou por isso, para você dar os passos mais rápido?"</p></div>
+          <p>Para empresárias: o que ela aprende nos encontros pode fazê-la faturar melhor, então investir agora pode voltar para ela mais rápido do que imagina.</p>
+        </div>
+        <div class="row"><span class="micro">Cuidado</span>
+          <div class="note" style="margin:0;background:rgba(120,111,99,.08);border-color:var(--line);">
+            <p style="margin:0;">Nunca prometa faturamento. Faturar depende de disciplina, sistema e resiliência dela, não só do que será ensinado. Prometa só o que depende da Letícia: <strong>"O que vou entregar para você não tem preço, você não encontra em nenhuma outra mentoria no mercado."</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 5 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 05 · "resolver a vida primeiro"</span>
+        <p class="says">"Preciso resolver a minha vida primeiro para depois investir em mim."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>A crença de que precisa chegar "pronta", quando é exatamente a ajuda que vai destravar o resto.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Confiança em si mesma</span><span class="chip">Pedir ajuda não é fraqueza</span></div>
+        <div class="row"><span class="micro">O que falar (devolva como pergunta)</span>
+          <div class="say"><p>"Você está conseguindo resolver a sua vida sozinha? Acredito que não, senão você não estaria buscando ajuda. E não tem problema nenhum, nem vergonha nenhuma, em pedir ajuda."</p></div>
+          <p>Use a história da Letícia: ela só conseguiu se reinventar porque <strong>pediu ajuda</strong>, investiu em mentores e mentorias e ganhou velocidade mesmo com uma complexidade de vida enorme (seis filhos, uma com necessidades especiais, um bebê de oito meses ao voltar a empreender). "Talvez ter esse acompanhamento seja justamente o passo que você precisa para se organizar e ter clareza do que fazer."</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 6 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 06 · investimento não é prioridade</span>
+        <p class="says">"Tenho dificuldade de enxergar o investimento como prioridade."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Ela ainda não calculou o preço de continuar parada. Quem quebra essa objeção é o custo de oportunidade, e ela precisa concluir sozinha.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Custo de oportunidade</span></div>
+        <div class="row"><span class="micro">O que perguntar</span>
+          <ol class="qlist" style="margin-top:6px;">
+            <li><span class="q">"Quanto vai te custar continuar exatamente do jeito que você está?"</span></li>
+            <li><span class="q">"Como você imagina que vai estar daqui a um ano se não resolver o problema X que você mesma me contou?"</span></li>
+            <li><span class="q">"Esse problema diminui sozinho ou tende a aumentar?"</span></li>
+            <li><span class="q">"Quais as consequências disso na sua vida pessoal, profissional, psicológica e espiritual?"</span></li>
+          </ol>
+          <p>A pessoa tem que raciocinar e, pela lógica, concluir <em>dentro da cabeça dela</em> que é pior ficar de fora do que investir. Não é você insistindo, é ela chegando lá sozinha, com as perguntas certas.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 7 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 07 · culpa (crença limitante)</span>
+        <p class="says">"Sinto culpa de investir em mim mesma."</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Uma crença limitante, quase toda mulher sente. Precisa ser nomeada e combatida com lógica e prova social.</p></div>
+        <div class="row"><span class="micro">Pilar a reforçar</span><span class="chip">Confiança em si mesma</span><span class="chip">Prova social</span></div>
+        <div class="row"><span class="micro">O que falar</span>
+          <div class="say"><p>"Isso é uma crença limitante, todo neurocientista, todo psicólogo vai te dizer que é algo que a gente precisa combater. Não existe crescimento sem investimento. O sacrifício pode vir como tempo, como dedicação ou como dinheiro, mas nunca como inércia. Se você não investir em nada, você continua igual ou piora."</p></div>
+          <p>Conecte ao propósito dela: investir em si mesma é melhorar a própria vida, a da família, a prosperidade dos filhos. (Ou, se ela quer parar de trabalhar para focar nos filhos, o "investimento" é estar presente numa fase insubstituível.) Feche com o case da <strong>Ana Lúcia</strong>, a identificação dissolve a culpa.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- OBJ 8 -->
+    <div class="obj">
+      <div class="obj-head">
+        <span class="tag">Objeção 08 · negociação / desconto</span>
+        <p class="says">"Dá para fazer por menos? Dá para parcelar mais?"</p>
+      </div>
+      <div class="obj-body">
+        <div class="row"><span class="micro">O que está por trás</span><p>Teste de controle. Especialmente se a pessoa entende de venda, ela vai tentar diminuir o valor e jogar com você.</p></div>
+        <div class="row"><span class="micro">Postura a manter</span><span class="chip">SND</span><span class="chip">Manter o controle</span></div>
+        <div class="row"><span class="micro">O que fazer</span>
+          <p>Calma e tranquilidade. Não implore, não saia parcelando por insistência. Mantenha o controle: você não precisa daquela venda, ela é que precisa da ajuda. E há margem de negociação, mas ela existe a seu critério, não sob pressão.</p>
+          <div class="say"><p>"Entendo. Mas deixa eu te perguntar: o valor é a questão, ou é a clareza de que isso é o que você precisa agora? Porque a melhor cliente que a gente tem é aquela que entende o valor, faz o investimento e, no fim, agradece por ter feito."</p></div>
+        </div>
+        <div class="row"><span class="micro">A história que ilustra</span><p>A própria Letícia, sendo uma excelente vendedora, contratou um serviço três vezes mais caro do que pretendia pagar, e não pediu desconto. Ela olhou e pensou: "isso é o que eu preciso, ele resolve, entendi o valor." Pagou o valor cheio e agradeceu. <strong>Essa é a cliente que estamos procurando.</strong></p></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ 3. OS 3 PILARES DA CONFIANÇA ============ -->
+<section id="confianca">
+  <div class="wrap">
+    <span class="num-tag">Parte 04</span>
+    <span class="eyebrow">A regra de ouro</span>
+    <h2>Toda objeção é falta de confiança</h2>
+    <p class="lead">Quando a cliente não fecha de primeira, o problema nunca é o que ela diz. Objeção é uma quebra, e quebra é falta de confiança. Seu trabalho é descobrir em qual dos pilares falta confiança e reforçá-lo.</p>
+
+    <div class="grid3" style="margin-top:28px;">
+      <div class="pillar">
+        <span class="n">01</span>
+        <h4>Na Letícia</h4>
+        <p>"Será que ela é a pessoa certa para me ajudar?" Reforce com a trajetória dela: a única mulher no Brasil, com seis filhos, que já fez todos os movimentos profissionais possíveis, e teve sucesso em todos.</p>
+      </div>
+      <div class="pillar">
+        <span class="n">02</span>
+        <h4>No programa</h4>
+        <p>"Será que esse programa funciona?" Reforce: é um intensivo já testado em duas turmas (a Estrategista), ao vivo, com acesso direto e personalizado à Letícia, não um curso gravado e anônimo.</p>
+      </div>
+      <div class="pillar">
+        <span class="n">03</span>
+        <h4>Na empresa</h4>
+        <p>"Será que a entrega é confiável?" Reforce: a Letícia Educação faturou R$1,5 milhão em um ano e meio, com um time de primeira e uma das maiores produções de conteúdo do Brasil.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:30px;">Existe ainda um quarto ponto: às vezes falta confiança em <strong>si mesma</strong>. Ela não acredita que é capaz. Aqui você reforça com prova social, mulheres parecidas com ela que conseguiram, e com a ideia de que ela não vai sozinha: vai guiada por quem já fez o caminho.</p>
+
+    <p class="pull">A pessoa não tem certeza se o método vai ajudar, se quem ensina é a pessoa certa, se a empresa é confiável, ou, às vezes, falta confiança nela mesma. Sempre é falta de confiança.<span class="src">Letícia Cazarré</span></p>
+  </div>
+</section>
+
+<!-- ============ 4. CLIENTE IDEAL ============ -->
+<section id="cliente" class="toc">
+  <div class="wrap">
+    <span class="num-tag">Parte 05</span>
+    <span class="eyebrow">Qualificação</span>
+    <h2>Quem é a cliente ideal</h2>
+    <p class="lead">A cliente ideal é aquela que sabe que está pagando um valor muito menor do que o valor que vai receber, e fica grata por isso. Ela paga o valor cheio, sem barganhar, e diz: "era exatamente isso que eu precisava fazer."</p>
+
+    <div class="dd">
+      <div class="col yes">
+        <h4>É para ela</h4>
+        <ul>
+          <li>Mulher com ambição profissional que valoriza igualmente a vida pessoal.</li>
+          <li>Está diante de uma decisão ou virada e quer clareza para tomá-la com convicção.</li>
+          <li>Entende o valor do que recebe e investe com gratidão, não com desconfiança.</li>
+          <li>Tem perfil de mentoria, mas encontra no intensivo um acesso mais acessível à Letícia.</li>
+        </ul>
+      </div>
+      <div class="col no">
+        <h4>Redirecione com elegância</h4>
+        <ul>
+          <li>Quer uma fórmula pronta e não está disposta a olhar com honestidade para a própria vida.</li>
+          <li>Precisa de acompanhamento de início, meio e fim → perfil de mentoria (The Way).</li>
+          <li>Genuinamente não tem o investimento agora → Você Dirige ou Estrategista gravado.</li>
+          <li>Só quer barganhar e diminuir o valor → prepare para o futuro, não force.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-top:26px;">Desqualificar não é perder a venda, é proteger a sala. A última turma da Estrategista foi maravilhosa justamente porque não tinha ninguém ali se sentindo lesado. Todas davam graças por terem feito o investimento, e duas subiram para a The Way. <strong>Essa é a sala que queremos montar.</strong> Quando você tem isso claro, fica muito mais fácil direcionar quem não é o perfil para um programa de entrada, e essa pessoa volta no futuro, mais madura e mais grata.</p>
+  </div>
+</section>
+
+<!-- ============ 5. O MÉTODO DA CALL ============ -->
+<section id="metodo">
+  <div class="wrap">
+    <span class="num-tag">Parte 06</span>
+    <span class="eyebrow">O método</span>
+    <h2>Como conduzir a call</h2>
+    <p class="lead">Três das maiores escolas de venda do mundo, integradas em um único fluxo. A lógica é sempre a mesma: faça boas perguntas, entenda quem ela é, e leve-a a concluir sozinha que precisa de ajuda.</p>
+
+    <h3 style="margin-top:40px;">Os 4 segundos · Jordan Belfort</h3>
+    <p>Você tem <strong>quatro segundos</strong> para demonstrar três coisas (clareza total do que está falando, entusiasmo e autoridade) através da sua imagem, postura, atitude e tom de voz. Se você não passar isso logo de cara, perde a venda no início. Entre na call já ancorada em quem você representa.</p>
+
+    <h3 style="margin-top:38px;">As 4 descobertas · Jordan Belfort</h3>
+    <p>Antes de apresentar qualquer coisa, descubra, nesta ordem:</p>
+    <ol class="qlist">
+      <li><span class="q">Quais são as necessidades, desejos e sonhos dela?</span><span class="a">O que ela precisa mais, e o que ela deseja mais. A transformação que ela quer.</span></li>
+      <li><span class="q">Quais são os valores e a hierarquia de valores dela?</span><span class="a">Como ela pensa, o que ela acredita, como ela vê o mundo.</span></li>
+      <li><span class="q">Quais são os pontos de dor que estão incomodando?</span><span class="a">O problema concreto que está tirando a paz dela hoje.</span></li>
+      <li><span class="q">Qualificação financeira: ela pode pagar?</span><span class="a">Determina se você fecha, dá upsell ou redireciona.</span></li>
+    </ol>
+    <p>A partir das respostas, você <strong>adapta a apresentação às dores e necessidades dela</strong>. Não fale de tudo o que a Letícia resolve, foque no que <em>essa</em> cliente precisa resolver.</p>
+
+    <h3 style="margin-top:38px;">As 3 perguntas de ouro · Shelby Sapp</h3>
+    <p>Estas três perguntas levam você do motivo superficial até a alavancagem emocional real:</p>
+    <ol class="qlist">
+      <li><span class="q">"O que fez você marcar essa call hoje?"</span><span class="a">Aqui você está no motivo superficial.</span></li>
+      <li><span class="q">"Por que isso é importante para você agora?"</span><span class="a">Aqui você acessa a motivação real, o casamento, o financeiro, o sonho.</span></li>
+      <li><span class="q">"O que mudaria na sua vida prática se você resolvesse isso?"</span><span class="a">Aqui está a transformação, o resultado dos sonhos. É nisto que você trabalha.</span></li>
+    </ol>
+
+    <h3 style="margin-top:38px;">A técnica do espelho · Shelby Sapp</h3>
+    <p>Aja como um cirurgião plástico. Você não chega dizendo o que está errado nela. Você coloca um espelho na frente da cliente e pergunta:</p>
+    <div class="script">
+      <span class="lbl">O que falar</span>
+      <p>"Me conta: o que está te incomodando na sua vida hoje?"</p>
+    </div>
+    <p>Deixe que <em>ela</em> diga. Depois você reforça e dá seu ponto de vista: "Realmente, entendi perfeitamente, isso é muito normal. Mas tem jeito de resolver, e a Letícia é a melhor pessoa para isso, ela provavelmente vai te dar caminhos que você nem tinha imaginado."</p>
+
+    <h3 style="margin-top:38px;">Espelhamento e elogio · Alex Hormozi</h3>
+    <p>Depois que ela falar quem é, suas dores e seus sonhos, você <strong>repete de volta o que ela disse</strong>. É uma técnica psicológica: ela se ouve de novo, confirma que você entendeu e passa a raciocinar na direção que você precisa. Em seguida, conecte com um elogio sincero e prova social:</p>
+    <div class="script">
+      <span class="lbl">O que falar</span>
+      <p>"Então deixa eu ver se entendi: você é [resumo], está vivendo [situação], e o que você quer é [sonho]. Vejo que você é uma mulher determinada, executora, que não se contenta com pouco, que sabe que pode alcançar mais, mas precisa de ajuda para chegar lá."</p>
+      <p>"Eu sei exatamente como resolver isso, porque tenho uma cliente parecida com você que passou por isso e teve [resultado]."</p>
+    </div>
+
+    <p class="pull">Quem faz as perguntas é quem está conduzindo. Não fique o tempo todo na defensiva respondendo. Faça perguntas inteligentes que levem a pessoa, sozinha, a concluir que precisa de ajuda.<span class="src">Alex Hormozi, na leitura da Letícia</span></p>
+
+    <div class="note">
+      <span class="micro">A pergunta que vira a chave</span>
+      <p style="margin:0;">"Como você imagina que vai estar a sua vida daqui a um ano se continuar do jeito que está? Como mãe, como esposa, no seu casamento, no seu psicológico? E, por outro lado, como você vai estar se sentindo daqui a um ano se investir em você agora, tomar as decisões certas com clareza e ver a sua vida melhorando? Você acha que esse dinheiro vai fazer falta?"</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. ANCORAGEM ============ -->
+<section id="ancoragem" class="dark">
+  <div class="wrap">
+    <span class="num-tag" style="color:var(--gold)">Parte 07</span>
+    <span class="eyebrow">A peça que faltava</span>
+    <h2>A ancoragem</h2>
+    <p class="lead" style="color:#cdc3b4;">Talvez a coisa mais importante que costuma faltar numa call. Logo no início, de forma sutil mas clara, a cliente precisa entender que o acesso à Letícia é caro, e que este programa é a porta acessível para esse acesso.</p>
+
+    <p>Faça a cliente saber, cedo, que para ter o acompanhamento e o aconselhamento direto da Letícia (ela olhando para a sua vida, entendendo seus problemas e dizendo o que faria no seu lugar), o caminho é a mentoria. E a mentoria custa:</p>
+
+    <div class="factbar">
+      <div class="fact"><span class="big">R$90 mil</span><span class="cap">por ano · mentoria The Way</span></div>
+      <div class="fact"><span class="big">R$50 mil</span><span class="cap">por semestre · alternativa da mentoria</span></div>
+      <div class="fact"><span class="big">~R$25 mil</span><span class="cap">o intensivo VCN · acesso muito mais acessível</span></div>
+    </div>
+
+    <p style="margin-top:28px;">Quando a cliente ouve os R$90 mil primeiro, ela toma um susto saudável e entende que está diante de um programa high ticket. A partir daí, ela fica <strong>ancorada nos R$90 mil</strong>, e tudo o que vier abaixo disso é percebido como ganho.</p>
+
+    <div class="script" style="background:rgba(245,240,234,.05);border-left-color:var(--gold);">
+      <span class="lbl" style="color:var(--gold)">O que falar</span>
+      <p style="color:#e9e0d2;">"Hoje, a única forma de ter acesso à Letícia (o aconselhamento e o acompanhamento dela, ela sabendo quem você é e te dizendo o que faria no seu lugar) é sendo mentorada. E a mentoria é um investimento de R$90 mil por ano."</p>
+      <p style="color:#e9e0d2;">"Esses programas intensivos foram a forma que ela encontrou de abrir esse acesso para mulheres que têm o perfil da mentoria, mas por um valor muito menor e muito mais acessível. Você toma decisões importantes da sua vida com a ajuda da Letícia por uma fração do valor da mentoria."</p>
+    </div>
+
+    <h3 style="margin-top:36px;">Preço não é valor</h3>
+    <p>Quando a objeção for de preço, separe os dois conceitos imediatamente:</p>
+    <p class="pull">Preço é o dinheiro que você paga agora para mudar a sua vida. Valor é a transformação que esse processo causa, e que é para sempre. Nunca mais você vai ser a mesma depois desses seis encontros.<span class="src">Letícia Cazarré</span></p>
+  </div>
+</section>
+
+<!-- ============ 7. ESCADA DE PRODUTOS ============ -->
+<section id="escada">
+  <div class="wrap">
+    <span class="num-tag">Parte 08</span>
+    <span class="eyebrow">Direcionamento</span>
+    <h2>A escada de produtos</h2>
+    <p class="lead">Toda call termina em um direcionamento. Saber a escada inteira te permite fechar o VCN, subir para a mentoria ou descer para um programa de entrada, sempre entregando à pessoa o que ela realmente precisa.</p>
+
+    <div class="ladder">
+      <div class="rung">
+        <span class="price">R$90 mil/ano<br><span style="font-size:14px;color:var(--taupe);font-weight:400;">ou R$50 mil/semestre</span></span>
+        <div class="info"><h4>The Way · Mentoria</h4><p>Acompanhamento de longo prazo (6 meses a 1 ano), com encontros presenciais. Para quem precisa de início, meio e fim. É também a sua âncora de preço.</p></div>
+      </div>
+      <div class="rung feature">
+        <span class="price">~R$25 mil</span>
+        <div class="info"><h4>Vida, Carreira &amp; Negócios · Intensivo ★</h4><p>6 encontros online e ao vivo com acesso direto e personalizado à Letícia. O ponto ideal: acesso à mentora por uma fração do valor da mentoria. É o que você está vendendo.</p></div>
+      </div>
+      <div class="rung">
+        <span class="price">Entrada</span>
+        <div class="info"><h4>Estrategista (gravado) · Você Dirige</h4><p>Para quem genuinamente não tem o investimento agora. Prepara a pessoa ao longo do tempo para, no futuro, vir mais madura e mais grata para os intensivos.</p></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="micro">Lógica de upsell e downsell</span>
+      <p style="margin:0;">Se a insegurança dela é <strong>"pouco tempo / preciso de acompanhamento longo"</strong> → ela tem perfil para a The Way. Se a barreira é <strong>"genuinamente não tenho como investir agora"</strong> → direcione para Você Dirige ou Estrategista gravado. O direcionamento certo é o que constrói relação de longo prazo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. ARSENAL DA LETÍCIA ============ -->
+<section id="arsenal" class="dark">
+  <div class="wrap">
+    <span class="num-tag" style="color:var(--gold)">Parte 09</span>
+    <span class="eyebrow">Munição de autoridade</span>
+    <h2>O arsenal da Letícia</h2>
+    <p class="lead" style="color:#cdc3b4;">Você precisa ter a trajetória dela na ponta da língua. Não para recitar tudo, mas para puxar, na hora certa, exatamente o movimento que espelha o que a sua cliente está vivendo.</p>
+
+    <ul class="arsenal">
+      <li><span class="phase">Carreira acadêmica</span><span class="desc">Mestrado. Estudou grávida de 8 a 9 horas por dia e passou em primeiro lugar em dois concursos públicos.</span></li>
+      <li><span class="phase">Coragem de largar</span><span class="desc">Pediu demissão de concurso público duas vezes para acompanhar o marido, colocou família e casamento em primeiro lugar, sem medo de perder a estabilidade financeira.</span></li>
+      <li><span class="phase">Transição para a moda</span><span class="desc">Mudou para uma cidade onde não conhecia ninguém, não foi assistente de ninguém, abriu as próprias portas, fez networking e cursos dentro e fora do Brasil.</span></li>
+      <li><span class="phase">Empreendedora premiada</span><span class="desc">Fundou e dirigiu a própria revista impressa. Quatro anos depois, foi premiada e teve as seis edições adquiridas pela Biblioteca do Congresso americano. Trabalhou com Carol Trentini, Cauã Reymond, Ney Matogrosso, Louis Vuitton, Dior e Giorgio Armani.</span></li>
+      <li><span class="phase">Família em primeiro lugar</span><span class="desc">No auge, fechou a revista sem medo para se dedicar 100% à família. Teve quatro filhos em cinco anos e ficou seis anos em casa, sempre estudando: ciência política, história, literatura, formação espiritual.</span></li>
+      <li><span class="phase">Resiliência</span><span class="desc">Mesmo com uma filha com deficiências graves e oito meses na UTI, não parou: estudava moda de forma autônoma, criou um guia de estilo e vendeu para mais de 300 pessoas no digital, só com link nos stories.</span></li>
+      <li><span class="phase">Reinvenção digital</span><span class="desc">Pós-pandemia, aprendeu marketing digital e copywriting do zero, criou uma nova empresa e se posicionou como mentora, educadora e empresária do digital.</span></li>
+    </ul>
+
+    <div class="factbar">
+      <div class="fact"><span class="big">R$1,5 mi</span><span class="cap">faturados em um ano e meio</span></div>
+      <div class="fact"><span class="big">6 filhos</span><span class="cap">uma com necessidades especiais</span></div>
+      <div class="fact"><span class="big">Única</span><span class="cap">no Brasil a fazer todos esses movimentos com sucesso</span></div>
+    </div>
+
+    <p class="pull" style="margin-top:34px;">Todo mundo tem alguma coisa para ensinar. Mas ninguém passou por todas essas fases, deu todos esses passos, fez todas essas viradas, e teve sucesso em todas elas. Pode procurar: não tem outra.<span class="src">Letícia Cazarré · o posicionamento</span></p>
+
+    <h3 style="margin-top:30px;color:var(--cream);">Prova social na ponta da língua</h3>
+    <p style="color:#cdc3b4;">A prova social vende mais do que tudo o que você diz. Tenha cases de mulheres parecidas com a cliente que você está atendendo. Um exemplo poderoso: <strong style="color:#fff;">Ana Lúcia</strong>, mora nos Estados Unidos, tem cinco filhos, um com síndrome de Down. Ela também achava que a mentoria era só para mulheres que trabalham, mas entrou porque sabia que precisava investir em si mesma. O marido vinha investindo na carreira dele havia 10, 15 anos; os dois perceberam que agora era o momento dela. Hoje está muito feliz.</p>
+    <div class="note" style="background:rgba(184,155,110,.12);">
+      <span class="micro">Tarefa contínua</span>
+      <p style="margin:0;color:#e0d6c7;">Assista às aulas da The Way, do VCN e da Estrategista. Conheça as clientes, acompanhe as transformações. Quanto mais cases você tiver na memória, mais identificação você gera, e identificação fecha venda.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10. ROTEIRO DA CALL ============ -->
+<section id="roteiro" class="toc">
+  <div class="wrap">
+    <span class="num-tag">Parte 10</span>
+    <span class="eyebrow">Passo a passo</span>
+    <h2>O roteiro da call</h2>
+    <p class="lead">Tudo o que vimos, na ordem em que acontece numa reunião. Use como trilho, não como camisa de força.</p>
+
+    <ol class="steps">
+      <li><h4>Abertura · os 4 segundos</h4><p>Entre com clareza, entusiasmo e autoridade na imagem, na postura e no tom de voz. Já cause uma boa impressão antes da primeira frase técnica.</p></li>
+      <li><h4>Ancoragem sutil, cedo</h4><p>Deixe claro, com naturalidade, que o acesso à Letícia pela mentoria custa R$90 mil/ano. Plante a âncora antes de chegar no preço do intensivo.</p></li>
+      <li><h4>Descoberta</h4><p>Aplique as 4 descobertas (Belfort) e as 3 perguntas de ouro (Shelby Sapp). Use o espelho: "me conta o que está te incomodando hoje". Quem pergunta, conduz.</p></li>
+      <li><h4>Espelhamento, elogio e identificação</h4><p>Repita o que ela disse (Hormozi), elogie com sinceridade e conecte com prova social de uma cliente parecida.</p></li>
+      <li><h4>Apresentação focada</h4><p>Fale só da dor e do desejo dela. Gere a visão da transformação, como a vida dela vai ser depois. Reforce o pilar de confiança que estiver fraco (Letícia, programa ou empresa).</p></li>
+      <li><h4>Ancoragem explícita + preço x valor</h4><p>Posicione o intensivo como o acesso acessível à Letícia. Separe preço (o que paga agora) de valor (a transformação, que é para sempre).</p></li>
+      <li><h4>Quebra de objeções</h4><p>Identifique a falta de confiança por trás de cada objeção. Use perguntas que levem ela a concluir sozinha (custo de oportunidade).</p></li>
+      <li><h4>Fechamento com SND</h4><p>Tranquilidade, sem fazer questão. Lembre, sem pressão artificial, que as vagas são limitadas. Mantenha o controle.</p></li>
+      <li><h4>Direcionamento</h4><p>Fecha o VCN; ou sobe para a The Way (se precisa de acompanhamento longo); ou desce para Você Dirige / Estrategista gravado (se genuinamente não pode investir agora).</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 11. COLA RÁPIDA ============ -->
+<section id="cola" class="cola">
+  <div class="wrap">
+    <span class="num-tag" style="color:var(--gold)">Parte 11</span>
+    <span class="eyebrow">Antes de abrir a câmera</span>
+    <h2 style="color:var(--cream)">Cola rápida</h2>
+    <p class="lead" style="color:#cdc3b4;">Leia esta tela nos 60 segundos antes de cada reunião.</p>
+
+    <div class="cola-grid">
+      <div class="cola-box">
+        <h4>A mentalidade</h4>
+        <ul>
+          <li><strong style="color:#fff;">S</strong>e valorizar, o que entrego não tem preço.</li>
+          <li><strong style="color:#fff;">N</strong>ão fazer questão, eu não preciso da venda, ela precisa da ajuda.</li>
+          <li><strong style="color:#fff;">D</strong>omínio, quem pergunta, conduz.</li>
+          <li>Os 4 segundos: clareza, entusiasmo, autoridade.</li>
+        </ul>
+      </div>
+      <div class="cola-box">
+        <h4>Os 3 pilares de confiança</h4>
+        <ul>
+          <li>Na Letícia, a única que fez todos os movimentos com sucesso.</li>
+          <li>No programa, intensivo testado, acesso direto à mentora.</li>
+          <li>Na empresa, R$1,5 mi em 1 ano e meio, time de primeira.</li>
+        </ul>
+      </div>
+      <div class="cola-box">
+        <h4>As 7 perguntas de ouro</h4>
+        <ul>
+          <li>O que fez você marcar essa call hoje?</li>
+          <li>Por que isso é importante para você agora?</li>
+          <li>O que mudaria na sua vida prática se resolvesse isso?</li>
+          <li>Como você vai estar daqui a um ano se continuar igual?</li>
+          <li>Esse problema diminui sozinho ou aumenta?</li>
+          <li>Você está conseguindo resolver isso sozinha?</li>
+          <li>Quanto vale tomar a decisão certa sobre a sua vida?</li>
+        </ul>
+      </div>
+      <div class="cola-box">
+        <h4>A âncora</h4>
+        <ul>
+          <li>Mentoria The Way: R$90 mil/ano (ou R$50 mil/semestre).</li>
+          <li>VCN: ~R$25 mil, acesso acessível à Letícia.</li>
+          <li>Tudo abaixo dos R$90 mil é percebido como ganho.</li>
+          <li><span class="phrase">"Preço é o que você paga. Valor é a transformação, que é para sempre."</span></li>
+        </ul>
+      </div>
+      <div class="cola-box">
+        <h4>Frases que fecham</h4>
+        <ul>
+          <li><span class="phrase">"O método é só o meio. Confia na Letícia."</span></li>
+          <li><span class="phrase">"Não tem vergonha nenhuma em pedir ajuda."</span></li>
+          <li><span class="phrase">"Não existe crescimento sem investimento, só inércia."</span></li>
+          <li><span class="phrase">"Você não precisa escolher entre ambição e vida pessoal. Você precisa de método."</span></li>
+        </ul>
+      </div>
+      <div class="cola-box">
+        <h4>Não faça</h4>
+        <ul>
+          <li>Não prometa faturamento, não depende só da Letícia.</li>
+          <li>Não implore desconto nem saia parcelando por insistência.</li>
+          <li>Não despeje tudo o que a Letícia resolve, foque na dor dela.</li>
+          <li>Não force a cliente errada, redirecione e prepare para o futuro.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FECHO ============ -->
+<footer>
+  <div class="fmark">∞</div>
+  <p style="font-family:var(--serif);font-style:italic;font-size:22px;color:#cdbfa9;max-width:640px;margin:0 auto 18px;line-height:1.4;">"A vida que ela quer não vai acontecer por acaso. Ela precisa de estratégia, e de uma mulher disposta a tomá-la nas mãos."</p>
+  <p>Playbook de Vendas · Vida, Carreira &amp; Negócios · Letícia Cazarré · Documento interno do time de vendas</p>
+</footer>
+
+</body>
+</html>
