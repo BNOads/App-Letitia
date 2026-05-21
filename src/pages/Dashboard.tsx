@@ -4,8 +4,8 @@ import { getDashboardStats } from "@/services/dashboardService";
 import { 
   Clock, 
   Loader2, ChevronRight, ChevronDown,
-  Calendar, Headset, Plus, List as ListIcon, CalendarDays, CalendarClock,
-  Circle, CheckCircle2, Send, Repeat, ArrowRight, AlertCircle,
+  Calendar, Headset, Plus, List as ListIcon, CalendarClock,
+  Circle, CheckCircle2, Send, ArrowRight, AlertCircle,
   Bell, BellDot, X, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -205,85 +205,8 @@ export function Dashboard() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* AGENDA - Column Left (7/12) */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="bg-card border border-border rounded-[2rem] p-8 shadow-sm relative overflow-hidden group">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl font-semibold text-foreground">Próximos Eventos</h3>
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-letitia-gold/10 text-xs font-bold text-letitia-gold">
-                  {stats?.eventos.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex bg-background border border-border p-1 rounded-lg">
-                  <button className="p-1.5 rounded bg-letitia-gold/10 text-letitia-gold"><ListIcon className="h-4 w-4" /></button>
-                  <button className="p-1.5 rounded text-muted hover:text-foreground"><CalendarDays className="h-4 w-4" /></button>
-                </div>
-                <button className="bg-letitia-gold text-white p-2 rounded-xl hover:opacity-90 transition-all">
-                  <Plus className="h-4 w-4" />
-                </button>
-                <a href="/agenda" className="text-sm font-medium text-letitia-gold hover:underline">Ver agenda</a>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">Próximos</p>
-              {stats?.eventos.length === 0 ? (
-                <div className="py-10 text-center border-2 border-dashed border-border rounded-2xl">
-                  <p className="text-sm text-muted">Nenhum evento agendado para os próximos dias.</p>
-                </div>
-              ) : (
-                stats?.eventos.map((evento, _idx) => (
-                  <div 
-                    key={evento.id}
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-letitia-gold/[0.03] border border-letitia-gold/5 group/item hover:border-letitia-gold/20 hover:bg-letitia-gold/[0.05] transition-colors cursor-pointer"
-                  >
-                    <div className="w-1 bg-letitia-gold rounded-full self-stretch" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-foreground">{evento.titulo}</h4>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 uppercase">
-                          {evento.tipo}
-                        </span>
-                        {evento.recorrencia && (
-                          <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">
-                            <Repeat className="h-2.5 w-2.5" />
-                            {evento.recorrencia === 'diario' ? 'Diário' : evento.recorrencia === 'semanal' ? 'Semanal' : evento.recorrencia === 'quinzenal' ? 'Quinzenal' : evento.recorrencia === 'mensal' ? 'Mensal' : evento.recorrencia === 'semestral' ? 'Semestral' : 'Anual'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 mt-1">
-                        <div className="flex items-center gap-1.5 text-muted">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span className="text-xs font-medium">{evento.hora_inicio.slice(0, 5)}</span>
-                        </div>
-                        {evento.participantes?.length > 0 && (
-                          <div className="flex -space-x-2">
-                             {evento.participantes.slice(0, 3).map((p: string, i: number) => (
-                               <div key={i} className="h-6 w-6 rounded-full border-2 border-card bg-letitia-gold/20 flex items-center justify-center text-[8px] font-bold">
-                                 {p.charAt(0)}
-                               </div>
-                             ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted/30 group-hover/item:text-letitia-gold transition-colors" />
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <div className="mt-8 text-center">
-              <a href="/agenda" className="text-sm font-medium text-letitia-gold/60 hover:text-letitia-gold transition-colors">Ver mais eventos →</a>
-            </div>
-          </div>
-        </div>
-
-        {/* TAREFAS - Column Right (5/12) */}
-        <div className="lg:col-span-5 space-y-6">
+            {/* TAREFAS */}
+        <div className="lg:col-span-12 space-y-6">
           <div className="bg-card border border-border rounded-[2rem] p-8 shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <div>
