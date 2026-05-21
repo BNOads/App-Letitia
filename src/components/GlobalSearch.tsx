@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, FileStack, ListChecks } from "lucide-react";
+import { Search, FileText, CheckSquare, Calendar, X, Loader2, ArrowRight, FileStack } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 
