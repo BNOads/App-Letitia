@@ -427,9 +427,10 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void, onSuccess
       }
 
       // 2. Criar conta (usando instância secundária para não deslogar o admin)
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://saoysiaolrogzfmzbsko.supabase.co';
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_jVm-K3e2e73bNnK2XlBqAw_3feXCv4o';
       const tempSupabase = (await import('@supabase/supabase-js')).createClient(
-        import.meta.env.VITE_SUPABASE_URL,
+        supabaseUrl,
         supabaseAnonKey,
         { auth: { persistSession: false } }
       );
