@@ -95,19 +95,29 @@ export function Sidebar() {
       collapsed ? "w-16" : "w-64"
     )}>
       {/* Logo */}
-      <div className={cn("flex h-16 items-center border-b border-border", collapsed ? "justify-center" : "px-4")}>
-        <button 
-          onClick={toggle}
-          className={cn("transition-transform hover:scale-105", collapsed ? "h-8 w-8" : "")}
-        >
-          {!collapsed ? (
+      <div className={cn("flex h-16 items-center border-b border-border", collapsed ? "justify-center" : "justify-between px-4")}>
+        {!collapsed ? (
+          <>
             <h1 className="font-serif text-2xl font-semibold tracking-wide text-foreground">
               LaetitiAPP
             </h1>
-          ) : (
+            <button
+              onClick={toggle}
+              className="p-1.5 text-muted hover:text-foreground hover:bg-foreground/5 rounded-md transition-colors"
+              title="Recolher menu"
+            >
+              <PanelLeftClose className="h-5 w-5" />
+            </button>
+          </>
+        ) : (
+          <button 
+            onClick={toggle}
+            className="transition-transform hover:scale-105 h-8 w-8"
+            title="Expandir menu"
+          >
             <img src="/favicon.png" alt="L'app" className="h-8 w-8 object-contain rounded" />
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -216,8 +226,8 @@ export function Sidebar() {
 
       {/* User */}
       <div className="border-t border-border p-3">
-        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
-          <Link to="/perfil" className="flex items-center hover:opacity-80 transition-opacity">
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
+          <Link to="/perfil" className={cn("flex items-center hover:opacity-80 transition-opacity", !collapsed && "flex-1 min-w-0")}>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border text-sm font-medium text-foreground flex-shrink-0 overflow-hidden">
               {avatarUrl ? (
                 <img 
@@ -244,7 +254,7 @@ export function Sidebar() {
           {!collapsed && (
             <button 
               onClick={signOut}
-              className="p-1.5 text-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+              className="flex-shrink-0 p-1.5 text-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
               title="Sair"
             >
               <LogOut className="h-4 w-4" />

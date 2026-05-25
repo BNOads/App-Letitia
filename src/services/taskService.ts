@@ -106,6 +106,36 @@ export async function getTasks() {
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus) {
+  if (status === 'concluido') {
+    const { data: task } = await supabase.from('tarefas').select('*').eq('id', taskId).single();
+    if (task && task.recorrencia && task.prazo) {
+      const parentId = task.recorrencia_pai_id || task.id;
+      const { count } = await supabase
+        .from('tarefas')
+        .select('*', { count: 'exact', head: true })
+        .eq('recorrencia_pai_id', parentId)
+        .gt('prazo', task.prazo);
+
+      if (count === 0) {
+        const nextDates = generateRecurringDates(task.prazo, task.recorrencia as RecurrenceType, 1);
+        if (nextDates.length > 0) {
+          const nextTask = {
+            titulo: task.titulo,
+            descricao: task.descricao,
+            prioridade: task.prioridade,
+            status: 'fazer' as TaskStatus,
+            responsavel_id: task.responsavel_id,
+            recorrencia: task.recorrencia,
+            recorrencia_pai_id: parentId,
+            prazo: nextDates[0],
+            created_by: task.created_by,
+          };
+          await supabase.from('tarefas').insert([nextTask]);
+        }
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('tarefas')
     .update({ status, updated_at: new Date().toISOString() })
@@ -131,28 +161,6 @@ export async function createTask(task: Partial<DBTask>) {
     .single();
 
   if (error) throw error;
-
-  // If the task has recurrence and a deadline, generate future occurrences
-  if (data.recorrencia && data.prazo) {
-    const count = RECURRENCE_COUNT[data.recorrencia as RecurrenceType] || 4;
-    const futureDates = generateRecurringDates(data.prazo, data.recorrencia as RecurrenceType, count);
-
-    const recurringTasks = futureDates.map(date => ({
-      titulo: task.titulo,
-      descricao: task.descricao,
-      prioridade: task.prioridade,
-      status: 'fazer' as TaskStatus,
-      responsavel_id: task.responsavel_id,
-      recorrencia: task.recorrencia,
-      recorrencia_pai_id: data.id,
-      prazo: date,
-      created_by: task.created_by,
-    }));
-
-    if (recurringTasks.length > 0) {
-      await supabase.from('tarefas').insert(recurringTasks);
-    }
-  }
 
   return data;
 }

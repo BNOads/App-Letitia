@@ -11,7 +11,7 @@ import {
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
   Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
-  GripVertical, AlignLeft, Eye, EyeOff
+  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -59,6 +59,7 @@ export function Tarefas() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<DBTask | null>(null);
+  const [createdToastInfo, setCreatedToastInfo] = useState<{ id: string, title: string } | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [defaultResponsavelId, setDefaultResponsavelId] = useState<string | undefined>(undefined);
 
@@ -924,7 +925,16 @@ export function Tarefas() {
       {(isModalOpen || editingTarefa) && (
         <NovoTarefaModal 
           onClose={() => { setIsModalOpen(false); setEditingTarefa(null); setDefaultResponsavelId(undefined); }} 
-          onSuccess={() => { setIsModalOpen(false); setEditingTarefa(null); setDefaultResponsavelId(undefined); fetchTarefas(); }} 
+          onSuccess={(taskId?: string, title?: string) => { 
+            setIsModalOpen(false); 
+            setEditingTarefa(null); 
+            setDefaultResponsavelId(undefined); 
+            fetchTarefas(); 
+            if (taskId && title && !editingTarefa) {
+              setCreatedToastInfo({ id: taskId, title });
+              setTimeout(() => setCreatedToastInfo(null), 8000);
+            }
+          }} 
           tarefa={editingTarefa}
           profiles={profiles}
           defaultResponsavelId={defaultResponsavelId}
@@ -995,6 +1005,40 @@ export function Tarefas() {
           profiles={profiles}
           isUpdating={bulkUpdating}
         />
+      )}
+
+      {createdToastInfo && (
+        <div className="fixed bottom-4 right-4 z-[999] bg-[#1E1E1E] border border-border/20 shadow-2xl rounded-xl p-4 flex flex-col gap-3 min-w-[320px] animate-fade-in-up">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded bg-green-500 flex items-center justify-center">
+              <Check className="h-3 w-3 text-white stroke-[3]" />
+            </div>
+            <span className="font-semibold text-white text-sm">Tarefa criada</span>
+          </div>
+          <p className="text-sm text-gray-300">
+            Sua tarefa <span className="font-medium text-white">{createdToastInfo.title}</span> foi criada.
+          </p>
+          <div className="flex items-center justify-end gap-2 mt-1">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/tarefas?tab=time&openTarefaId=${createdToastInfo.id}`);
+              }} 
+              className="px-3 py-1.5 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium transition-colors"
+            >
+              Copiar URL
+            </button>
+            <button 
+              onClick={() => {
+                const t = tarefas.find(x => x.id === createdToastInfo.id);
+                if (t) setSelectedTarefa(t);
+                setCreatedToastInfo(null);
+              }} 
+              className="px-4 py-1.5 rounded-lg bg-violet-500 text-white hover:bg-violet-600 text-xs font-medium transition-colors shadow-lg shadow-violet-500/20"
+            >
+              Abrir
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1780,7 +1824,7 @@ function Property({ label, children }: { label: string; children: React.ReactNod
 export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa, defaultResponsavelId }: { 
   profiles: DBProfile[]; 
   onClose: () => void; 
-  onSuccess: () => void;
+  onSuccess: (taskId?: string, title?: string) => void;
   tarefa?: DBTask | null;
   defaultResponsavelId?: string;
 }) {
@@ -1869,8 +1913,8 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa, defaultR
           }));
           await createBulkSubtasks(subs);
         }
+        onSuccess(created.id, formData.titulo);
       }
-      onSuccess();
     } catch (error) {
       console.error("Erro ao salvar tarefa:", error);
     } finally {
@@ -2767,6 +2811,12 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                                     )}
                                     <p className="text-xs font-medium text-foreground truncate">{t.titulo}</p>
                                   </div>
+                                  {!isVirtualSub && t.recorrencia && (
+                                    <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20" title={`Recorrente: ${recurrenceLabels[t.recorrencia as RecurrenceType]}`}>
+                                      <RefreshCw className="h-2.5 w-2.5" />
+                                      {recurrenceLabels[t.recorrencia as RecurrenceType]}
+                                    </span>
+                                  )}
                                   {!isVirtualSub && taskSubs.length > 0 && (
                                     <button
                                       onClick={e => { e.stopPropagation(); toggleTaskSubs(t.id); }}
@@ -2972,6 +3022,13 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                                   <p className="text-[10px] text-muted/70 italic truncate">↳ {parentTitle}</p>
                                 )}
                               </div>
+                              {!isVirtualSub && t.recorrencia && (
+                                <span className="flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20 flex-shrink-0" title={`Recorrente: ${recurrenceLabels[t.recorrencia as RecurrenceType]}`}>
+                                  <RefreshCw className="h-2.5 w-2.5" />
+                                  <span className="hidden sm:inline">{recurrenceLabels[t.recorrencia as RecurrenceType]}</span>
+                                  <span className="sm:hidden">{recurrenceLabels[t.recorrencia as RecurrenceType].substring(0, 2)}</span>
+                                </span>
+                              )}
                               {!isVirtualSub && taskSubs.length > 0 && (
                                 <button
                                   onClick={e => { e.stopPropagation(); toggleTaskSubs(t.id); }}
