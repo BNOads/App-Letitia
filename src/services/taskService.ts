@@ -78,14 +78,7 @@ function generateRecurringDates(baseDate: string, type: RecurrenceType, count: n
   return dates;
 }
 
-const RECURRENCE_COUNT: Record<RecurrenceType, number> = {
-  diario: 30,
-  semanal: 12,
-  quinzenal: 12,
-  mensal: 12,
-  semestral: 4,
-  anual: 3,
-};
+
 
 // ─── CRUD ──────────────────────────────────────────────────
 
