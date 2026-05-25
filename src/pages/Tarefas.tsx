@@ -437,6 +437,54 @@ export function Tarefas() {
     setSelectedTarefa(t);
   };
 
+  const handleDuplicateTask = async (task: DBTask) => {
+    try {
+      const taskSubtasks = await getSubtasks(task.id);
+      const newTask = await createTask({
+        titulo: task.titulo + " (Cópia)",
+        descricao: task.descricao,
+        prioridade: task.prioridade,
+        status: 'fazer',
+        responsavel_id: task.responsavel_id,
+        prazo: task.prazo,
+        created_by: user?.id || null,
+        recorrencia: null,
+      });
+      
+      if (taskSubtasks.length > 0) {
+        const subs = taskSubtasks.map(s => ({
+          tarefa_id: newTask.id,
+          titulo: s.titulo,
+          descricao: s.descricao,
+          concluida: false,
+          responsavel_id: s.responsavel_id,
+          ordem: s.ordem,
+          prazo: s.prazo || null
+        }));
+        await createBulkSubtasks(subs);
+      }
+      
+      saveTaskHistory({
+        tarefa_id: newTask.id,
+        titulo: newTask.titulo,
+        prioridade: newTask.prioridade,
+        status: newTask.status,
+        responsavel_id: newTask.responsavel_id || null,
+        prazo: newTask.prazo || null,
+        action: 'criada',
+        details: `Tarefa duplicada de: "${task.titulo}"`,
+      });
+      
+      setCreatedToastInfo({ id: newTask.id, title: newTask.titulo });
+      setTimeout(() => setCreatedToastInfo(null), 8000);
+      
+      fetchTarefas();
+    } catch (error) {
+      console.error("Erro ao duplicar tarefa:", error);
+      alert("Erro ao duplicar tarefa. Tente novamente.");
+    }
+  };
+
   const handleDeleteTask = async (id: string) => {
     const tarefa = tarefas.find(t => t.id === id);
     if (!tarefa) return;
@@ -580,6 +628,71 @@ export function Tarefas() {
       await fetchTarefas();
     } catch (err) {
       console.error('Erro ao excluir tarefas em massa:', err);
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedTaskIds.size === 0) return;
+    if (!confirm(`Tem certeza que deseja duplicar ${selectedTaskIds.size} item(ns)?`)) return;
+    setBulkUpdating(true);
+    try {
+      let count = 0;
+      for (const id of selectedTaskIds) {
+        if (id.startsWith('sub_')) {
+          continue;
+        }
+        const tarefa = tarefas.find(t => t.id === id);
+        if (tarefa) {
+          const taskSubtasks = await getSubtasks(tarefa.id);
+          const newTask = await createTask({
+            titulo: tarefa.titulo + " (Cópia)",
+            descricao: tarefa.descricao,
+            prioridade: tarefa.prioridade,
+            status: 'fazer',
+            responsavel_id: tarefa.responsavel_id,
+            prazo: tarefa.prazo,
+            created_by: user?.id || null,
+            recorrencia: null,
+          });
+          
+          if (taskSubtasks.length > 0) {
+            const subs = taskSubtasks.map(s => ({
+              tarefa_id: newTask.id,
+              titulo: s.titulo,
+              descricao: s.descricao,
+              concluida: false,
+              responsavel_id: s.responsavel_id,
+              ordem: s.ordem,
+              prazo: s.prazo || null
+            }));
+            await createBulkSubtasks(subs);
+          }
+          
+          saveTaskHistory({
+            tarefa_id: newTask.id,
+            titulo: newTask.titulo,
+            prioridade: newTask.prioridade,
+            status: newTask.status,
+            responsavel_id: newTask.responsavel_id || null,
+            prazo: newTask.prazo || null,
+            action: 'criada',
+            details: `Tarefa duplicada em massa de: "${tarefa.titulo}"`,
+          });
+          count++;
+        }
+      }
+      
+      setCreatedToastInfo({ id: "", title: `${count} tarefas duplicadas com sucesso!` });
+      setTimeout(() => setCreatedToastInfo(null), 8000);
+      
+      clearSelection();
+      setBulkSelectMode(false);
+      await fetchTarefas();
+    } catch (err) {
+      console.error('Erro ao duplicar tarefas em massa:', err);
+      alert('Erro ao duplicar tarefas. Tente novamente.');
     } finally {
       setBulkUpdating(false);
     }
@@ -977,6 +1090,7 @@ export function Tarefas() {
           onClose={() => setSelectedTarefa(null)}
           onEdit={(t) => { setSelectedTarefa(null); setEditingTarefa(t); }}
           onDelete={handleDeleteTask}
+          onDuplicate={(t) => { setSelectedTarefa(null); handleDuplicateTask(t); }}
           onSendToApproval={handleSendToApproval}
           onStatusChange={async (status) => {
             setTarefas(prev => prev.map(t => t.id === selectedTarefa.id ? { ...t, status } : t));
@@ -1001,6 +1115,7 @@ export function Tarefas() {
           onStatusChange={handleBulkStatusChange}
           onFieldUpdate={handleBulkFieldUpdate}
           onDelete={handleBulkDelete}
+          onDuplicate={handleBulkDuplicate}
           onCancel={exitBulkMode}
           profiles={profiles}
           isUpdating={bulkUpdating}
@@ -1136,12 +1251,13 @@ function AprovacoesView({ tarefas, profiles, onTaskClick, onToggleApprover }: an
 
 /* ─── Modals ────────────────────────────────────────────── */
 
-export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onStatusChange, onUpdate, onSendToApproval }: {
+export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onDuplicate, onStatusChange, onUpdate, onSendToApproval }: {
   tarefa: DBTask;
   profiles: DBProfile[];
   onClose: () => void;
   onEdit: (t: DBTask) => void;
   onDelete: (id: string) => void;
+  onDuplicate?: (t: DBTask) => void;
   onStatusChange: (status: TaskStatus) => Promise<void>;
   onUpdate: (updates: Partial<DBTask>) => Promise<void>;
   onSendToApproval?: (t: DBTask) => void;
@@ -1357,6 +1473,11 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                 <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
                   <Edit3 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
                 </button>
+                {onDuplicate && (
+                  <button onClick={() => onDuplicate(tarefa)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
+                    <Copy className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Duplicar</span>
+                  </button>
+                )}
                 <button onClick={() => onDelete(tarefa.id)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-red-500/10 text-xs font-medium text-red-500 transition-colors">
                   <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Excluir</span>
                 </button>
@@ -3695,7 +3816,7 @@ function TaskTemplateModal({ profiles, onClose, onTaskCreated }: {
 
 /* ─── Bulk Action Bar ───────────────────────────────────── */
 
-function BulkActionBar({ selectedCount, totalCount, onSelectAll, onClearSelection, onStatusChange, onFieldUpdate, onDelete, onCancel, profiles, isUpdating }: {
+function BulkActionBar({ selectedCount, totalCount, onSelectAll, onClearSelection, onStatusChange, onFieldUpdate, onDelete, onDuplicate, onCancel, profiles, isUpdating }: {
   selectedCount: number;
   totalCount: number;
   onSelectAll: () => void;
@@ -3703,6 +3824,7 @@ function BulkActionBar({ selectedCount, totalCount, onSelectAll, onClearSelectio
   onStatusChange: (status: TaskStatus) => Promise<void>;
   onFieldUpdate: (updates: Partial<DBTask>) => Promise<void>;
   onDelete: () => Promise<void>;
+  onDuplicate: () => Promise<void>;
   onCancel: () => void;
   profiles: DBProfile[];
   isUpdating: boolean;
@@ -3850,6 +3972,16 @@ function BulkActionBar({ selectedCount, totalCount, onSelectAll, onClearSelectio
 
             {/* Divider */}
             <div className="h-6 w-px bg-border mx-1" />
+
+            {/* Duplicate */}
+            <button
+              onClick={onDuplicate}
+              disabled={selectedCount === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Duplicar
+            </button>
 
             {/* Delete */}
             <button

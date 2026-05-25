@@ -552,6 +552,52 @@ export function Dashboard() {
             const { deleteTask } = await import("@/services/taskService");
             if (confirm("Excluir tarefa?")) { await deleteTask(id); setSelectedTarefa(null); loadStats(); }
           }}
+          onDuplicate={async (task) => {
+            try {
+              const { getSubtasks, createTask, createBulkSubtasks, saveTaskHistory } = await import("@/services/taskService");
+              const taskSubtasks = await getSubtasks(task.id);
+              const newTask = await createTask({
+                titulo: task.titulo + " (Cópia)",
+                descricao: task.descricao,
+                prioridade: task.prioridade,
+                status: 'fazer',
+                responsavel_id: task.responsavel_id,
+                prazo: task.prazo,
+                created_by: user?.id || null,
+                recorrencia: null,
+              });
+              
+              if (taskSubtasks.length > 0) {
+                const subs = taskSubtasks.map(s => ({
+                  tarefa_id: newTask.id,
+                  titulo: s.titulo,
+                  descricao: s.descricao,
+                  concluida: false,
+                  responsavel_id: s.responsavel_id,
+                  ordem: s.ordem,
+                  prazo: s.prazo || null
+                }));
+                await createBulkSubtasks(subs);
+              }
+              
+              saveTaskHistory({
+                tarefa_id: newTask.id,
+                titulo: newTask.titulo,
+                prioridade: newTask.prioridade,
+                status: newTask.status,
+                responsavel_id: newTask.responsavel_id || null,
+                prazo: newTask.prazo || null,
+                action: 'criada',
+                details: `Tarefa duplicada de: "${task.titulo}"`,
+              });
+              
+              setSelectedTarefa(null);
+              loadStats();
+            } catch (error) {
+              console.error("Erro ao duplicar tarefa:", error);
+              alert("Erro ao duplicar tarefa. Tente novamente.");
+            }
+          }}
           onStatusChange={async (status) => {
             setSelectedTarefa(prev => prev ? { ...prev, status } : null);
             await updateTaskStatus(selectedTarefa.id, status);
