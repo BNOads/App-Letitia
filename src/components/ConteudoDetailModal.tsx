@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   X, Save, Loader2, Send, MessageSquare, AlertTriangle,
   Calendar, Clock, Link2, Trash2, Plus, Lightbulb, FileText,
-  ArrowRight, RefreshCw, Share2
+  ArrowRight, RefreshCw, Share2, ChevronDown, ChevronUp
 } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -51,6 +51,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [historico, setHistorico] = useState<DBConteudoComentario[]>([]);
+  const [historicoOpen, setHistoricoOpen] = useState(false);
   const [novoComentario, setNovoComentario] = useState("");
   const [tipoComentario, setTipoComentario] = useState<"comentario" | "ajuste">("comentario");
   const [loadingHistorico, setLoadingHistorico] = useState(true);
@@ -72,6 +73,11 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
   });
 
   const [newLink, setNewLink] = useState("");
+
+  // Accordion states for mobile — start open if field has content
+  const [bigIdeaOpen, setBigIdeaOpen] = useState(!!conteudo.big_idea);
+  const [roteiroOpen, setRoteiroOpen] = useState(!!conteudo.roteiro);
+  const [descricaoOpen, setDescricaoOpen] = useState(!!conteudo.descricao);
 
   useEffect(() => {
     fetchHistorico();
@@ -213,13 +219,21 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
   }
 
   return (
-    <div className="modal-overlay items-stretch justify-end" onClick={onClose}>
+    <div className="modal-overlay modal-overlay-z60 items-stretch justify-end" onClick={onClose}>
       <div
-        className="w-full max-w-4xl bg-card border-l border-border shadow-lg flex modal-slide-right overflow-hidden"
+        className="w-full max-w-4xl bg-card border-l border-border shadow-lg flex flex-col xl:flex-row modal-slide-right overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Left: Content Detail */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 xl:p-8 pb-24 xl:pb-8 space-y-6">
+          {/* Mobile close button */}
+          <div className="flex xl:hidden items-center justify-between mb-2">
+            <span />
+            <button onClick={onClose} className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-foreground/5 transition-colors" title="Fechar">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
           {/* Top badges */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -283,7 +297,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
           />
 
           {/* Pipeline + Responsavel */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-xl border border-border p-4">
               <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2">Etapa do Pipeline</label>
               <select
@@ -308,7 +322,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-xl border border-border p-4">
               <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2 flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> Data Prevista
@@ -407,45 +421,90 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
             </div>
 
             {/* Big Idea */}
-            <div className="rounded-xl border-2 border-amber-200 bg-amber-50/50 p-4 mb-4">
-              <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-600 mb-2">
-                <Lightbulb className="h-3 w-3" /> Big Idea
-              </label>
-              <textarea
-                value={form.big_idea}
-                onChange={e => setForm({ ...form, big_idea: e.target.value })}
-                className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[60px] placeholder:text-amber-300"
-                placeholder="Qual a grande ideia por trás deste post?"
-                rows={2}
-              />
+            <div className="rounded-xl border-2 border-amber-200 bg-amber-50/50 mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setBigIdeaOpen(!bigIdeaOpen)}
+                className="w-full xl:hidden flex items-center justify-between p-4"
+              >
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-600 pointer-events-none">
+                  <Lightbulb className="h-3 w-3" /> Big Idea
+                  {!bigIdeaOpen && form.big_idea && <span className="ml-2 text-amber-400 font-normal normal-case tracking-normal truncate max-w-[150px] inline-block align-bottom">— {form.big_idea}</span>}
+                </label>
+                {bigIdeaOpen ? <ChevronUp className="h-4 w-4 text-amber-400" /> : <ChevronDown className="h-4 w-4 text-amber-400" />}
+              </button>
+              <div className={cn("xl:block", bigIdeaOpen ? "block" : "hidden")}>
+                <div className="hidden xl:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-amber-600 mb-2 px-4 pt-4">
+                  <Lightbulb className="h-3 w-3" /> Big Idea
+                </div>
+                <div className="px-4 pb-4">
+                  <textarea
+                    value={form.big_idea}
+                    onChange={e => setForm({ ...form, big_idea: e.target.value })}
+                    className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[60px] placeholder:text-amber-300"
+                    placeholder="Qual a grande ideia por trás deste post?"
+                    rows={2}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Roteiro / Legenda */}
-            <div className="rounded-xl border border-border bg-background p-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay">
+            <div className="rounded-xl border border-border bg-background mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setRoteiroOpen(!roteiroOpen)}
+                className="w-full xl:hidden flex items-center justify-between p-4"
+              >
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay pointer-events-none">
                   <FileText className="h-3 w-3" /> Roteiro / Legenda
+                  {!roteiroOpen && form.roteiro && <span className="ml-2 text-muted font-normal normal-case tracking-normal truncate max-w-[150px] inline-block align-bottom">— preenchido</span>}
                 </label>
+                {roteiroOpen ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+              </button>
+              <div className={cn("xl:block", roteiroOpen ? "block" : "hidden")}>
+                <div className="hidden xl:flex items-center justify-between mb-2 px-4 pt-4">
+                  <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay">
+                    <FileText className="h-3 w-3" /> Roteiro / Legenda
+                  </label>
+                </div>
+                <div className="px-4 pb-4">
+                  <textarea
+                    value={form.roteiro}
+                    onChange={e => setForm({ ...form, roteiro: e.target.value })}
+                    className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[100px] placeholder:text-muted/40"
+                    placeholder="Escreva o roteiro ou script do post aqui..."
+                    rows={4}
+                  />
+                </div>
               </div>
-              <textarea
-                value={form.roteiro}
-                onChange={e => setForm({ ...form, roteiro: e.target.value })}
-                className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[100px] placeholder:text-muted/40"
-                placeholder="Escreva o roteiro ou script do post aqui..."
-                rows={4}
-              />
             </div>
 
             {/* Descrição */}
-            <div className="rounded-xl border border-border bg-background p-4 mb-4">
-              <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2">Descrição / Notas</label>
-              <textarea
-                value={form.descricao}
-                onChange={e => setForm({ ...form, descricao: e.target.value })}
-                className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[60px] placeholder:text-muted/40"
-                placeholder="Anotações extras sobre este conteúdo..."
-                rows={2}
-              />
+            <div className="rounded-xl border border-border bg-background mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setDescricaoOpen(!descricaoOpen)}
+                className="w-full xl:hidden flex items-center justify-between p-4"
+              >
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay pointer-events-none">
+                  Descrição / Notas
+                  {!descricaoOpen && form.descricao && <span className="ml-2 text-muted font-normal normal-case tracking-normal truncate max-w-[150px] inline-block align-bottom">— preenchido</span>}
+                </label>
+                {descricaoOpen ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+              </button>
+              <div className={cn("xl:block", descricaoOpen ? "block" : "hidden")}>
+                <div className="hidden xl:block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2 px-4 pt-4">Descrição / Notas</div>
+                <div className="px-4 pb-4">
+                  <textarea
+                    value={form.descricao}
+                    onChange={e => setForm({ ...form, descricao: e.target.value })}
+                    className="w-full bg-transparent text-sm text-foreground border-0 focus:outline-none resize-none min-h-[60px] placeholder:text-muted/40"
+                    placeholder="Anotações extras sobre este conteúdo..."
+                    rows={2}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -485,10 +544,119 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
               </div>
             </div>
           </div>
+
+          {/* History: Accordion on mobile (inside scrollable area) */}
+          <div className="xl:hidden border-t border-border bg-background rounded-xl mt-4">
+          <button
+            onClick={() => setHistoricoOpen(!historicoOpen)}
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-foreground/5 transition-colors"
+          >
+            <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
+              <MessageSquare className="h-3.5 w-3.5 text-letitia-gold" /> Histórico
+              {historico.length > 0 && (
+                <span className="ml-1 text-[10px] font-medium text-muted bg-foreground/5 px-1.5 py-0.5 rounded-full">{historico.length}</span>
+              )}
+            </h3>
+            {historicoOpen ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+          </button>
+          {historicoOpen && (
+            <div className="border-t border-border">
+              <div className="p-4 space-y-3 max-h-[50vh] overflow-y-auto">
+                {loadingHistorico ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-letitia-gold" />
+                  </div>
+                ) : historico.length === 0 ? (
+                  <p className="text-xs text-muted text-center py-8 italic">Nenhuma atividade registrada ainda.</p>
+                ) : (
+                  historico.map(entry => (
+                    <div key={entry.id} className="relative pl-6">
+                      <div className={cn(
+                        "absolute left-0 top-1 h-4 w-4 rounded-full flex items-center justify-center border-2",
+                        entry.tipo === "ajuste" ? "border-amber-300 bg-amber-50" :
+                        entry.tipo === "rastro" ? "border-purple-300 bg-purple-50" :
+                        "border-blue-300 bg-blue-50"
+                      )}>
+                        <EntryIcon tipo={entry.tipo} />
+                      </div>
+                      <div className="absolute left-[7px] top-5 bottom-0 w-[2px] bg-border" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-5 w-5 rounded-full bg-letitia-gold/10 border border-letitia-gold/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {entry.profiles?.avatar_url ? (
+                              <img src={entry.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-[7px] font-bold text-letitia-gold">{entry.profiles?.full_name?.charAt(0) || "?"}</span>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-semibold text-foreground truncate">{entry.profiles?.full_name || "Membro"}</span>
+                          <span className="text-[9px] text-muted ml-auto flex-shrink-0">
+                            {new Date(entry.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                            {" "}
+                            {new Date(entry.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <div className={cn(
+                          "rounded-lg px-3 py-2 text-xs leading-relaxed",
+                          entry.tipo === "ajuste" ? "bg-amber-50 border border-amber-200 text-amber-800" :
+                          entry.tipo === "rastro" ? "bg-purple-50/50 border border-purple-100 text-purple-700 italic" :
+                          "bg-card border border-border text-foreground"
+                        )}>
+                          {entry.tipo === "ajuste" && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 mb-0.5 uppercase tracking-wider">
+                              <AlertTriangle className="h-2.5 w-2.5" /> Pedido de Ajuste
+                            </span>
+                          )}
+                          {entry.tipo === "rastro" && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-purple-500 mb-0.5 uppercase tracking-wider">
+                              <ArrowRight className="h-2.5 w-2.5" /> Ação
+                            </span>
+                          )}
+                          {entry.conteudo}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={historicoEndRef} />
+              </div>
+              <div className="border-t border-border p-4 space-y-2">
+                <div className="relative">
+                  <textarea
+                    value={novoComentario}
+                    onChange={e => setNovoComentario(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
+                    className="w-full rounded-xl border border-border bg-card px-4 py-3 pr-10 text-xs text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none resize-none placeholder:text-muted/50"
+                    placeholder="Deixe um comentário..."
+                    rows={2}
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!novoComentario.trim()}
+                    className="absolute bottom-3 right-3 p-1.5 rounded-full bg-letitia-gold text-white hover:opacity-90 disabled:opacity-30 transition-all"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setTipoComentario(prev => prev === "comentario" ? "ajuste" : "comentario")}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors",
+                    tipoComentario === "ajuste"
+                      ? "bg-amber-100 text-amber-700"
+                      : "text-muted hover:text-foreground hover:bg-foreground/5"
+                  )}
+                >
+                  <AlertTriangle className="h-3 w-3" /> Ajuste {tipoComentario === "ajuste" && "✓"}
+                </button>
+              </div>
+            </div>
+          )}
+          </div>
         </div>
 
-        {/* Right: Unified History Sidebar */}
-        <div className="w-80 border-l border-border bg-background flex flex-col">
+        {/* Desktop Sidebar (hidden on mobile) */}
+        <div className="hidden xl:flex w-80 border-l border-border bg-background flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
             <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground">
@@ -510,7 +678,6 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
             ) : (
               historico.map(entry => (
                 <div key={entry.id} className="relative pl-6">
-                  {/* Timeline dot */}
                   <div className={cn(
                     "absolute left-0 top-1 h-4 w-4 rounded-full flex items-center justify-center border-2",
                     entry.tipo === "ajuste" ? "border-amber-300 bg-amber-50" :
@@ -519,11 +686,8 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                   )}>
                     <EntryIcon tipo={entry.tipo} />
                   </div>
-                  {/* Timeline line */}
                   <div className="absolute left-[7px] top-5 bottom-0 w-[2px] bg-border" />
-
                   <div className="space-y-1">
-                    {/* Author + time */}
                     <div className="flex items-center gap-1.5">
                       <div className="h-5 w-5 rounded-full bg-letitia-gold/10 border border-letitia-gold/20 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {entry.profiles?.avatar_url ? (
@@ -539,8 +703,6 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                         {new Date(entry.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
-
-                    {/* Content */}
                     <div className={cn(
                       "rounded-lg px-3 py-2 text-xs leading-relaxed",
                       entry.tipo === "ajuste" ? "bg-amber-50 border border-amber-200 text-amber-800" :
