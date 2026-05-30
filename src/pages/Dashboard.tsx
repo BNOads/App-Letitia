@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDashboardStats } from "@/services/dashboardService";
 import { 
@@ -116,6 +116,25 @@ export function Dashboard() {
 
   const handleToggleTask = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'concluido' ? 'fazer' : 'concluido';
+    // Optimistic update on allTasks so the UI reflects immediately
+    setAllTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus as any } : t));
+    setStats(prev => {
+      if (!prev) return prev;
+      const removeFrom = (arr: any[]) => arr.filter((t: any) => t.id !== id);
+      if (newStatus === 'concluido') {
+        return {
+          ...prev,
+          tarefas: {
+            ...prev.tarefas,
+            concluidas: prev.tarefas.concluidas + 1,
+            atrasadas: removeFrom(prev.tarefas.atrasadas),
+            hoje: removeFrom(prev.tarefas.hoje),
+            proximas: removeFrom(prev.tarefas.proximas),
+          }
+        };
+      }
+      return prev;
+    });
     try {
       if (id.startsWith('sub_')) {
         await updateSubtask(id.replace('sub_', ''), { concluida: newStatus === 'concluido' });
@@ -131,9 +150,11 @@ export function Dashboard() {
           notifyTaskCompleted(tarefa.titulo, tarefa.id, user.id, uName);
         }
       }
-      loadStats();
+      // Defer stats refresh so optimistic update persists visually
+      setTimeout(() => loadStats(), 1500);
     } catch (error) {
       console.error("Erro ao alternar tarefa:", error);
+      loadStats();
     }
   };
 
@@ -207,59 +228,58 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* TAREFAS */}
         <div className="lg:col-span-12 space-y-6">
-          <div className="bg-card border border-border rounded-[2rem] p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground">Minhas Tarefas</h3>
-                <p className="text-xs text-muted mt-1">{stats?.tarefas.concluidas} de {stats?.tarefas.total} tarefas concluídas</p>
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            {/* Header row: title + progress + actions all in one line */}
+            <div className="flex items-center gap-4 mb-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-base font-semibold text-foreground whitespace-nowrap">Minhas Tarefas</h3>
+                  <span className="text-[10px] text-muted whitespace-nowrap">{stats?.tarefas.concluidas}/{stats?.tarefas.total}</span>
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <div className="flex-1 h-1.5 bg-letitia-gold/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-letitia-gold transition-[width] duration-500 rounded-full"
+                        style={{ width: `${progressoGeral}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-letitia-gold">{progressoGeral}%</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button 
                   onClick={() => setIsModalOpen(true)}
-                  className="bg-letitia-gold text-white px-4 py-2 rounded-xl text-xs font-semibold hover:opacity-90 transition-all flex items-center gap-2"
+                  className="bg-letitia-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition-all flex items-center gap-1.5"
                 >
-                  <Plus className="h-4 w-4" /> Nova Tarefa
+                  <Plus className="h-3.5 w-3.5" /> Nova Tarefa
                 </button>
-                <a href="/tarefas" className="p-2 border border-border rounded-xl text-muted hover:text-letitia-gold hover:border-letitia-gold/30 transition-all" title="Ver todas as tarefas">
-                  <ArrowRight className="h-4 w-4" />
+                <a href="/tarefas" className="p-1.5 border border-border rounded-lg text-muted hover:text-letitia-gold hover:border-letitia-gold/30 transition-all" title="Ver todas as tarefas">
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </a>
               </div>
             </div>
 
-            <div className="space-y-2 mb-8">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-wider mb-2">
-                <span className="text-muted">Progresso geral</span>
-                <span className="text-letitia-gold">{progressoGeral}%</span>
-              </div>
-              <div className="h-2 w-full bg-letitia-gold/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-letitia-gold transition-[width] duration-500"
-                  style={{ width: `${progressoGeral}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Input de Criação Rápida */}
-            <form onSubmit={handleQuickTask} className="relative mb-4">
+            {/* Compact quick task input */}
+            <form onSubmit={handleQuickTask} className="relative mb-3">
               <input 
                 type="text"
                 value={quickTask}
                 onChange={e => setQuickTask(e.target.value)}
                 placeholder="Criar tarefa rápida... (Aperte Enter)"
                 disabled={addingTask}
-                className="w-full bg-background border border-border rounded-2xl pl-5 pr-12 py-3 text-sm focus:ring-2 focus:ring-letitia-gold focus:outline-none transition-all placeholder:text-muted/50"
+                className="w-full bg-background border border-border rounded-lg pl-4 pr-10 py-2 text-xs focus:ring-2 focus:ring-letitia-gold focus:outline-none transition-all placeholder:text-muted/50"
               />
               <button 
                 type="button"
                 onClick={() => handleQuickTask()}
                 disabled={!quickTask.trim() || addingTask}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-letitia-gold text-white disabled:opacity-30 transition-all z-10"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-letitia-gold text-white disabled:opacity-30 transition-all z-10"
               >
-                {addingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {addingTask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               </button>
             </form>
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               {/* Seção: Em atraso */}
               {(stats?.tarefas.atrasadas.length || 0) > 0 && (
                 <div>
@@ -614,7 +634,7 @@ export function Dashboard() {
   );
 }
 
-/* ── Dashboard Task Card ── */
+/* ── Dashboard Task Card (Compact) ── */
 function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onUpdate, isOverdue }: {
   tarefa: any;
   allTasks: DBTask[];
@@ -628,6 +648,8 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
   const [optimisticPrazo, setOptimisticPrazo] = useState(tarefa.prazo);
   const [optimisticResp, setOptimisticResp] = useState(tarefa.responsavel_id);
   const [optimisticPrio, setOptimisticPrio] = useState(tarefa.prioridade);
+  const [completing, setCompleting] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setOptimisticStatus(tarefa.status); }, [tarefa.status]);
   useEffect(() => { setOptimisticPrazo(tarefa.prazo); }, [tarefa.prazo]);
@@ -660,6 +682,41 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
 
   const badge = getStatusBadge(optimisticStatus);
 
+  const handleComplete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (completing) return;
+    const newStatus = optimisticStatus === 'concluido' ? 'fazer' : 'concluido';
+    setOptimisticStatus(newStatus);
+    if (newStatus === 'concluido') {
+      setCompleting(true);
+      setTimeout(() => setCompleting(false), 600);
+    }
+    handleLocalUpdate('status', newStatus);
+    onToggle(tarefa.id, optimisticStatus);
+  };
+
+  const handleDateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    dateInputRef.current?.showPicker?.();
+    dateInputRef.current?.click();
+  };
+
+  // Hide completed tasks after animation
+  if (completing) {
+    return (
+      <div className={cn(
+        "flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all duration-300 mb-1 opacity-50 scale-95 translate-x-2",
+        "border-green-500/30 bg-green-500/5"
+      )}>
+        <CheckCircle2 className="h-4 w-4 text-green-500 animate-bounce" />
+        <span className="text-xs text-green-600 font-medium line-through">{tarefa.titulo}</span>
+      </div>
+    );
+  }
+
+  if (optimisticStatus === 'concluido') return null;
+
   return (
     <div 
       onClick={() => {
@@ -672,143 +729,124 @@ function DashboardTaskCard({ tarefa, allTasks, profiles, onSelect, onToggle, onU
         if (fullTask) onSelect(fullTask);
       }}
       className={cn(
-        "flex flex-col gap-2 p-3.5 rounded-2xl border transition-colors group cursor-pointer mb-2",
+        "flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all group cursor-pointer mb-1",
         "bg-background/50 hover:border-letitia-gold/20",
-        isOverdue && "shadow-[0_0_12px_-3px_rgba(239,68,68,0.25)] border-red-500/20 hover:border-red-500/40 bg-red-500/[0.02]"
+        isOverdue && "border-red-500/20 hover:border-red-500/40 bg-red-500/[0.02]"
       )}
     >
-      <div className="flex items-start gap-3">
-        <button 
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            const newStatus = optimisticStatus === 'concluido' ? 'fazer' : 'concluido';
-            handleLocalUpdate('status', newStatus);
-            onToggle(tarefa.id, optimisticStatus);
-          }}
-          className="p-1 hover:bg-foreground/5 rounded-full transition-colors self-start mt-0.5"
+      {/* Toggle button */}
+      <button 
+        onClick={handleComplete}
+        className="flex-shrink-0 hover:scale-110 transition-transform"
+      >
+        <Circle className={cn("h-4 w-4", isOverdue ? "text-red-400 group-hover:text-red-500" : "text-muted group-hover:text-letitia-gold")} />
+      </button>
+
+      {/* Status badge */}
+      <div className="relative flex items-center flex-shrink-0" onClick={e => e.stopPropagation()}>
+        <span className={cn(
+          "flex items-center gap-0.5 text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-widest border cursor-pointer",
+          badge.color
+        )}>
+          {badge.label}
+          <ChevronDown className="h-2 w-2 opacity-60" />
+        </span>
+        <select 
+          value={optimisticStatus}
+          onChange={(e) => handleLocalUpdate('status', e.target.value)}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
         >
-          {optimisticStatus === 'concluido' ? (
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-          ) : (
-            <Circle className={cn("h-5 w-5", isOverdue ? "text-red-400 group-hover:text-red-500" : "text-muted group-hover:text-letitia-gold")} />
-          )}
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 flex-wrap pt-0.5">
-            <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
-              <span className={cn(
-                "flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 transition-colors border underline decoration-transparent hover:decoration-current underline-offset-2",
-                badge.color
-              )}>
-                {badge.label}
-                <ChevronDown className="h-2.5 w-2.5 opacity-70" />
-              </span>
-              <select 
-                value={optimisticStatus}
-                onChange={(e) => handleLocalUpdate('status', e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              >
-                <option value="fazer">Fazer</option>
-                <option value="progresso">Em andamento</option>
-                <option value="aprovacao">Aprovação</option>
-                <option value="revisao">Revisão</option>
-                <option value="concluido">Concluído</option>
-              </select>
-            </div>
-            
-            {tarefa.__isSubtask && (
-              <span className="flex-shrink-0 flex items-center gap-1 text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 uppercase tracking-widest border border-purple-500/20">
-                <ListIcon className="h-2 w-2" /> Subtarefa
-              </span>
-            )}
-
-            <h4 className={cn("text-sm font-medium text-foreground leading-snug mt-0.5", optimisticStatus === 'concluido' && "line-through text-muted")}>
-              {tarefa.titulo}
-            </h4>
-
-            {isOverdue && (
-              <span className="flex-shrink-0 text-[8px] font-bold px-1.5 py-0.5 mt-0.5 rounded-full bg-red-500 text-white uppercase tracking-wider">
-                Atrasada
-              </span>
-            )}
-          </div>
-          {tarefa.__isSubtask && tarefa.__parentTitle && (
-            <div className="flex items-center gap-1 text-[10px] font-medium text-muted mt-1.5">
-              <span className="opacity-50">↳</span> {tarefa.__parentTitle}
-            </div>
-          )}
-        </div>
+          <option value="fazer">Fazer</option>
+          <option value="progresso">Em andamento</option>
+          <option value="aprovacao">Aprovação</option>
+          <option value="revisao">Revisão</option>
+          <option value="concluido">Concluído</option>
+        </select>
       </div>
 
-      {/* Action Bar */}
-      <div className="flex items-center justify-between pl-9 mt-1 gap-2 flex-wrap">
-        <div className="flex items-center gap-3">
-          {/* Data */}
-          <div className="relative flex items-center gap-1.5 text-[10px] text-muted hover:text-foreground transition-colors group/date" onClick={e => e.stopPropagation()}>
-            <Calendar className="h-3.5 w-3.5" />
-            <span className="font-medium underline decoration-muted/50 underline-offset-2 hover:decoration-foreground">
-              {optimisticPrazo ? new Date(optimisticPrazo + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem prazo'}
-            </span>
-            <input 
-              type="date"
-              value={optimisticPrazo || ''}
-              onChange={(e) => handleLocalUpdate('prazo', e.target.value || null)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            />
-          </div>
+      {/* Title */}
+      <div className="flex-1 min-w-0 flex items-center gap-1.5">
+        {tarefa.__isSubtask && (
+          <span className="flex-shrink-0 text-[7px] font-bold px-1 py-0.5 rounded bg-purple-500/10 text-purple-600 uppercase">
+            SUB
+          </span>
+        )}
+        <span className="text-sm font-medium text-foreground truncate">
+          {tarefa.titulo}
+        </span>
+        {isOverdue && (
+          <span className="flex-shrink-0 text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-red-500 text-white uppercase">
+            Atrasada
+          </span>
+        )}
+      </div>
 
-          {/* Responsável */}
-          <div className="relative flex items-center gap-1.5 text-[10px] text-muted hover:text-foreground transition-colors group/resp" onClick={e => e.stopPropagation()}>
-            <div className="h-4 w-4 rounded-full bg-muted/20 border border-border flex items-center justify-center overflow-hidden">
-              {optimisticResp ? (
-                profiles.find(p => p.id === optimisticResp)?.avatar_url ? (
-                  <img src={profiles.find(p => p.id === optimisticResp)?.avatar_url || undefined} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-[8px] font-bold text-muted">{profiles.find(p => p.id === optimisticResp)?.full_name?.charAt(0) || '?'}</span>
-                )
+      {/* Inline meta: date, person, priority */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Date - using hidden ref input instead of overlay */}
+        <button
+          onClick={handleDateClick}
+          className="flex items-center gap-1 text-[10px] text-muted hover:text-foreground transition-colors"
+        >
+          <Calendar className="h-3 w-3" />
+          <span className="font-medium">
+            {optimisticPrazo ? new Date(optimisticPrazo + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '—'}
+          </span>
+        </button>
+        <input 
+          ref={dateInputRef}
+          type="date"
+          value={optimisticPrazo || ''}
+          onChange={(e) => { e.stopPropagation(); handleLocalUpdate('prazo', e.target.value || null); }}
+          className="sr-only"
+          tabIndex={-1}
+        />
+
+        {/* Person */}
+        <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
+          <div className="h-5 w-5 rounded-full bg-muted/20 border border-border flex items-center justify-center overflow-hidden cursor-pointer">
+            {optimisticResp ? (
+              profiles.find(p => p.id === optimisticResp)?.avatar_url ? (
+                <img src={profiles.find(p => p.id === optimisticResp)?.avatar_url || undefined} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-[8px] font-bold text-muted">?</span>
-              )}
-            </div>
-            <span className="font-medium truncate max-w-[80px] underline decoration-muted/50 underline-offset-2 hover:decoration-foreground">
-              {optimisticResp ? profiles.find(p => p.id === optimisticResp)?.full_name?.split(' ')[0] : 'Sem resp.'}
-            </span>
-            <select 
-              value={optimisticResp || ''}
-              onChange={(e) => handleLocalUpdate('responsavel_id', e.target.value || null)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            >
-              <option value="">Sem responsável</option>
-              {profiles.map(p => (
-                <option key={p.id} value={p.id}>{p.full_name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Prioridade */}
-          <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
-            <span className={cn(
-              "text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest flex-shrink-0 transition-colors underline decoration-transparent hover:decoration-current underline-offset-2",
-              optimisticPrio === 'urgente' ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" :
-              optimisticPrio === 'alta' ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20" : "bg-letitia-gold/10 text-letitia-gold hover:bg-letitia-gold/20"
-            )}>
-              {optimisticPrio || 'Normal'}
-            </span>
-            {!tarefa.__isSubtask && (
-              <select 
-                value={optimisticPrio || 'normal'}
-                onChange={(e) => handleLocalUpdate('prioridade', e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              >
-                <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </select>
+                <span className="text-[8px] font-bold text-muted">{profiles.find(p => p.id === optimisticResp)?.full_name?.charAt(0) || '?'}</span>
+              )
+            ) : (
+              <span className="text-[8px] font-bold text-muted">?</span>
             )}
           </div>
+          <select 
+            value={optimisticResp || ''}
+            onChange={(e) => handleLocalUpdate('responsavel_id', e.target.value || null)}
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+          >
+            <option value="">Sem responsável</option>
+            {profiles.map(p => (
+              <option key={p.id} value={p.id}>{p.full_name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Priority */}
+        <div className="relative flex items-center" onClick={e => e.stopPropagation()}>
+          <span className={cn(
+            "text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider cursor-pointer",
+            optimisticPrio === 'urgente' ? "bg-red-500/10 text-red-500" :
+            optimisticPrio === 'alta' ? "bg-orange-500/10 text-orange-500" : "bg-muted/10 text-muted"
+          )}>
+            {(optimisticPrio || 'Normal').toUpperCase()}
+          </span>
+          {!tarefa.__isSubtask && (
+            <select 
+              value={optimisticPrio || 'normal'}
+              onChange={(e) => handleLocalUpdate('prioridade', e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            >
+              <option value="normal">Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          )}
         </div>
       </div>
     </div>

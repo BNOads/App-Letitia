@@ -17,6 +17,7 @@ import { Equipe } from "./pages/Equipe";
 import { Notificacoes } from "./pages/Notificacoes";
 import { Login } from "./pages/Login";
 import { VendasRelatorio } from "./pages/VendasRelatorio";
+import { Alunos } from "./pages/Alunos";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -49,6 +50,7 @@ function App() {
                 <Route path="equipe" element={<Equipe />} />
                 <Route path="notificacoes" element={<Notificacoes />} />
                 <Route path="vendas-relatorio" element={<VendasRelatorio />} />
+                <Route path="alunos" element={<Alunos />} />
               </Route>
             </Route>
           </Routes>

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  HeadphonesIcon, LogOut, Link2, X
+  HeadphonesIcon, LogOut, Link2, X, ContactRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +18,7 @@ const sections = [
       { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
       { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
+      { name: "Alunos", href: "/alunos", icon: ContactRound },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
       { name: "Links Úteis", href: "/links", icon: Link2 },
     ],

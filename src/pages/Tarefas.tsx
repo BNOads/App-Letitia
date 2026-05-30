@@ -341,6 +341,7 @@ export function Tarefas() {
 
     const newStatus: TaskStatus = currentStatus === "concluido" ? "fazer" : "concluido";
     const tarefa = tarefas.find(t => t.id === id);
+    // Optimistic update - immediately reflects in the UI
     setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
     try {
       await updateTaskStatus(id, newStatus);
@@ -362,6 +363,8 @@ export function Tarefas() {
           notifyTaskCompleted(tarefa.titulo, tarefa.id, user.id, userName);
         }
       }
+      // Defer refresh so optimistic state persists visually (no bounce-back)
+      setTimeout(() => fetchTarefas(), 1200);
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       fetchTarefas();
@@ -2253,7 +2256,7 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
     <div 
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-lg border transition-all cursor-pointer hover:shadow-sm group",
+        "flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all cursor-pointer hover:shadow-sm group",
         isSelected ? "border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/40" :
         isSubtask ? "border-violet-500/20 bg-violet-500/[0.03]" :
         isOverdue ? "border-red-500/30 bg-red-500/5" :
@@ -2268,9 +2271,9 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
           className="flex-shrink-0 transition-transform hover:scale-110"
         >
           {isSelected ? (
-            <CheckSquare2 className="h-5 w-5 text-amber-500" />
+            <CheckSquare2 className="h-4 w-4 text-amber-500" />
           ) : (
-            <Square className="h-5 w-5 text-border hover:text-amber-500/60" />
+            <Square className="h-4 w-4 text-border hover:text-amber-500/60" />
           )}
         </button>
       ) : (
@@ -2279,9 +2282,9 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
           className="flex-shrink-0"
         >
           {isDone ? (
-            <CheckSquare2 className="h-5 w-5 text-green-500" />
+            <CheckSquare2 className="h-4 w-4 text-green-500" />
           ) : (
-            <Square className={cn("h-5 w-5", isOverdue ? "text-red-400" : isSubtask ? "text-violet-400" : "text-border group-hover:text-muted")} />
+            <Square className={cn("h-4 w-4", isOverdue ? "text-red-400" : isSubtask ? "text-violet-400" : "text-border group-hover:text-muted")} />
           )}
         </button>
       )}
@@ -2534,7 +2537,7 @@ function InlineEditCell({ type, value, taskId, profiles: editProfiles, onUpdate,
             <div className="px-2 py-1">
               <input
                 type="date"
-                defaultValue={value || ''}
+                value={value || ''}
                 onChange={e => handleSelect(e.target.value || null)}
                 className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
                 onClick={e => e.stopPropagation()}
