@@ -301,9 +301,11 @@ export function Alunos() {
                   paddingAngle={2}
                   dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) =>
-                    `${name.length > 18 ? name.slice(0, 18) + "…" : name} (${(percent * 100).toFixed(0)}%)`
-                  }
+                  label={({ name, percent }: { name?: string; percent?: number }) => {
+                    const n = name || '';
+                    const p = percent || 0;
+                    return `${n.length > 18 ? n.slice(0, 18) + "…" : n} (${(p * 100).toFixed(0)}%)`;
+                  }}
                   labelLine={true}
                 >
                   {productDistribution.map((entry) => (
@@ -317,7 +319,7 @@ export function Alunos() {
                     borderRadius: "8px",
                     fontSize: "12px",
                   }}
-                  formatter={(value: number, name: string) => [`${value} alunos`, name]}
+                  formatter={(value: any, name: any) => [`${value} alunos`, name]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -348,7 +350,7 @@ export function Alunos() {
                     borderRadius: "8px",
                     fontSize: "12px",
                   }}
-                  formatter={(value: number) => [`${value} alunos`]}
+                  formatter={(value: any) => [`${value} alunos`]}
                 />
                 <Bar
                   dataKey="value"
