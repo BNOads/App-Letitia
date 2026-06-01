@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
+import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, updateProfile, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted, notifyNewTaskAssigned } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
@@ -11,7 +11,7 @@ import {
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
   Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
-  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw
+  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw, ArrowUpDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -169,6 +169,9 @@ export function Tarefas() {
 
   async function fetchData() {
     try {
+      // Limpar tarefas recorrentes duplicadas (executa apenas quando há duplicatas)
+      await cleanupDuplicateRecurringTasks();
+      
       const [tasksData, profilesData, subsData] = await Promise.all([
         getTasks(), 
         getProfiles(),
@@ -267,6 +270,28 @@ export function Tarefas() {
     }
 
     return true;
+  }).filter((t) => {
+    // Recorrência: mostrar apenas uma tarefa pendente por grupo de recorrência
+    // (a mais próxima). Concluídas são mantidas.
+    if (t.status === 'concluido') return true;
+    if (!t.recorrencia) return true;
+    
+    const groupId = t.recorrencia_pai_id || t.id;
+    // Buscar todas as tarefas pendentes deste grupo de recorrência
+    const siblings = tarefas.filter(s => 
+      s.status !== 'concluido' && 
+      s.recorrencia && 
+      (s.recorrencia_pai_id === groupId || s.id === groupId)
+    );
+    if (siblings.length <= 1) return true;
+    
+    // Ordenar por prazo (mais cedo primeiro) e manter apenas a primeira
+    siblings.sort((a, b) => {
+      const pa = a.prazo || '9999-12-31';
+      const pb = b.prazo || '9999-12-31';
+      return pa.localeCompare(pb);
+    });
+    return t.id === siblings[0].id;
   });
 
   // Filter subtasks the same way as tasks (tab + person filter)
@@ -2596,6 +2621,58 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
   const [expandedTaskSubs, setExpandedTaskSubs] = useState<Record<string, boolean>>({});
   const [subtaskSearch, setSubtaskSearch] = useState("");
 
+  // Column sort state for list view table
+  type ColumnSortKey = 'titulo' | 'prioridade' | 'prazo' | 'status';
+  type SortDir = 'asc' | 'desc';
+  const [colSortKey, setColSortKey] = useState<ColumnSortKey>('prazo');
+  const [colSortDir, setColSortDir] = useState<SortDir>('asc');
+
+  const toggleColSort = (key: ColumnSortKey) => {
+    if (colSortKey === key) {
+      setColSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setColSortKey(key);
+      setColSortDir('asc');
+    }
+  };
+
+  const prioridadeOrder: Record<string, number> = { urgente: 0, alta: 1, normal: 2, baixa: 3 };
+  const statusOrder: Record<string, number> = { fazer: 0, progresso: 1, revisao: 2, concluido: 3 };
+
+  const sortTasks = <T extends DBTask>(list: T[]): T[] => {
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (colSortKey) {
+        case 'titulo':
+          cmp = a.titulo.localeCompare(b.titulo, 'pt-BR');
+          break;
+        case 'prioridade':
+          cmp = (prioridadeOrder[a.prioridade] ?? 99) - (prioridadeOrder[b.prioridade] ?? 99);
+          break;
+        case 'prazo': {
+          const pa = a.prazo || '9999-12-31';
+          const pb = b.prazo || '9999-12-31';
+          cmp = pa.localeCompare(pb);
+          break;
+        }
+        case 'status':
+          cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+          break;
+      }
+      return colSortDir === 'asc' ? cmp : -cmp;
+    });
+  };
+
+  const SortHeader = ({ label, sortKey, className }: { label: string; sortKey: ColumnSortKey; className?: string }) => (
+    <button
+      onClick={() => toggleColSort(sortKey)}
+      className={cn("flex items-center gap-1 hover:text-foreground transition-colors select-none group", className)}
+    >
+      <span>{label}</span>
+      <ArrowUpDown className={cn("h-2.5 w-2.5 transition-opacity", colSortKey === sortKey ? "opacity-100 text-letitia-gold" : "opacity-30 group-hover:opacity-60")} />
+    </button>
+  );
+
   // Build a map of taskId -> subtasks
   const subtasksByTask = new Map<string, (DBSubtask & { tarefas?: { titulo: string; id: string } | null })[]>();
   (allSubtasks || []).forEach(s => {
@@ -3077,17 +3154,17 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                 {/* Table header */}
                 <div className="grid grid-cols-12 gap-2 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted border-b border-border/50 bg-background/30">
                   <div className="col-span-1"></div>
-                  <div className="col-span-5">Tarefa</div>
-                  <div className="col-span-2 text-center">Prioridade</div>
-                  <div className="col-span-2 text-center">Prazo</div>
-                  <div className="col-span-2 text-center">Status</div>
+                  <div className="col-span-5"><SortHeader label="Tarefa" sortKey="titulo" /></div>
+                  <div className="col-span-2 flex justify-center"><SortHeader label="Prioridade" sortKey="prioridade" /></div>
+                  <div className="col-span-2 flex justify-center"><SortHeader label="Prazo" sortKey="prazo" /></div>
+                  <div className="col-span-2 flex justify-center"><SortHeader label="Status" sortKey="status" /></div>
                 </div>
 
                 {/* Pending tasks */}
                 {pendentes.length === 0 && !showDone ? (
                   <p className="text-xs text-muted italic text-center py-6">Nenhuma tarefa pendente 🎉</p>
                 ) : (
-                  pendentes.map(t => {
+                  sortTasks(pendentes).map(t => {
                     const isVirtualSub = (t as TeamTask).__isSubtask;
                     const parentTitle = (t as TeamTask).__parentTitle;
                     const parentId = (t as TeamTask).__parentId;
@@ -3242,7 +3319,7 @@ function TeamView({ tarefas, profiles, view, hoje, onTaskClick, onTaskEdit: _onT
                       <Clock className="h-3 w-3" />
                       {showDone ? "Ocultar concluídas" : `+ ${concluidas.length} tarefas concluídas`}
                     </button>
-                    {showDone && concluidas.map(t => {
+                    {showDone && sortTasks(concluidas).map(t => {
                       const prior = prioridadeColors[t.prioridade as keyof typeof prioridadeColors] || prioridadeColors.normal;
                       return (
                         <div

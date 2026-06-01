@@ -205,6 +205,70 @@ export async function deleteRecurringTaskSeries(parentId: string) {
   if (error) throw error;
 }
 
+/**
+ * Limpar tarefas recorrentes duplicadas pendentes.
+ * Para cada grupo de recorrência, mantém apenas a tarefa pendente
+ * com o prazo mais próximo e exclui as demais pendentes futuras.
+ */
+export async function cleanupDuplicateRecurringTasks() {
+  // Fetch all recurring tasks that are NOT completed
+  const { data: allRecurring, error } = await supabase
+    .from('tarefas')
+    .select('id, recorrencia, recorrencia_pai_id, prazo, status')
+    .not('recorrencia', 'is', null)
+    .neq('status', 'concluido');
+
+  if (error) {
+    console.warn('Erro ao buscar tarefas recorrentes:', error.message);
+    return;
+  }
+  if (!allRecurring || allRecurring.length === 0) return;
+
+  // Group by recurrence parent
+  const groups = new Map<string, typeof allRecurring>();
+  allRecurring.forEach(t => {
+    const groupId = t.recorrencia_pai_id || t.id;
+    const list = groups.get(groupId) || [];
+    list.push(t);
+    groups.set(groupId, list);
+  });
+
+  // For each group with more than 1 pending task, delete all but the earliest
+  const idsToDelete: string[] = [];
+  groups.forEach((tasks) => {
+    if (tasks.length <= 1) return;
+    // Sort by prazo ascending
+    tasks.sort((a, b) => {
+      const pa = a.prazo || '9999-12-31';
+      const pb = b.prazo || '9999-12-31';
+      return pa.localeCompare(pb);
+    });
+    // Keep the first, mark rest for deletion
+    for (let i = 1; i < tasks.length; i++) {
+      idsToDelete.push(tasks[i].id);
+    }
+  });
+
+  if (idsToDelete.length === 0) return;
+
+  console.log(`Limpando ${idsToDelete.length} tarefas recorrentes duplicadas...`);
+  
+  // Delete in batches
+  const batchSize = 50;
+  for (let i = 0; i < idsToDelete.length; i += batchSize) {
+    const batch = idsToDelete.slice(i, i + batchSize);
+    const { error: delError } = await supabase
+      .from('tarefas')
+      .delete()
+      .in('id', batch);
+    if (delError) {
+      console.warn('Erro ao deletar tarefas recorrentes duplicadas:', delError.message);
+    }
+  }
+  
+  console.log('Limpeza de tarefas recorrentes concluída.');
+}
+
 // ─── Task History / Backup ─────────────────────────────────
 
 const TASK_HISTORY_KEY = 'letitia_task_history_backup';
