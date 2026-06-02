@@ -1363,6 +1363,25 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
   useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
 
+  // Atualiza título da aba e meta tags OG quando a tarefa é aberta
+  useEffect(() => {
+    const prevTitle = document.title;
+    document.title = `${tarefa.titulo} — LaetitiAPP`;
+    // Atualiza meta OG para compartilhamento
+    const setMeta = (prop: string, content: string) => {
+      let el = document.querySelector(`meta[property="${prop}"]`) as HTMLMetaElement;
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    const resp = allProfiles.find(p => p.id === tarefa.responsavel_id)?.full_name || '';
+    const prazo = tarefa.prazo ? new Date(tarefa.prazo).toLocaleDateString('pt-BR') : 'Sem prazo';
+    const desc = [resp && `👤 ${resp}`, `📅 ${prazo}`].filter(Boolean).join('  •  ');
+    setMeta('og:title', tarefa.titulo);
+    setMeta('og:description', desc);
+    setMeta('og:url', `${window.location.origin}/t/${tarefa.id}`);
+    return () => { document.title = prevTitle; };
+  }, [tarefa.id, tarefa.titulo]);
+
   // Load templates when template menu opens
   useEffect(() => {
     if (showSubTemplateMenu) {
