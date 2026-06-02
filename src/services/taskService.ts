@@ -470,7 +470,7 @@ export async function updateSubtask(id: string, updates: Partial<DBSubtask>) {
 export async function toggleSubtask(id: string, concluida: boolean) {
   const { error } = await supabase
     .from('subtarefas')
-    .update({ concluida })
+    .update({ concluida, status: concluida ? 'concluido' : 'fazer' })
     .eq('id', id);
 
   if (error) throw error;

@@ -4,14 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, updateProfile, type DBProfile } from "@/services/profileService";
-import { notifyTaskCompleted, notifyNewTaskAssigned } from "@/services/notificationService";
+import { notifyTaskCompleted, notifyNewTaskAssigned, notifySubtaskCompleted } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
 import { 
   Plus, Search, ChevronDown, ChevronUp, Clock, AlertCircle, CheckCircle2, 
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
   Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
-  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw, ArrowUpDown
+  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw, ArrowUpDown, Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -344,7 +344,7 @@ export function Tarefas() {
     if (id.startsWith('sub_')) {
       const realId = id.replace('sub_', '');
       const newVal = currentStatus !== 'concluido';
-      setAllSubtasks(prev => prev.map(s => s.id === realId ? { ...s, concluida: newVal } : s));
+      setAllSubtasks(prev => prev.map(s => s.id === realId ? { ...s, concluida: newVal, status: newVal ? 'concluido' : 'fazer' } : s));
       try { 
         await toggleSubtask(realId, newVal); 
         const sub = allSubtasks.find(s => s.id === realId);
@@ -359,6 +359,19 @@ export function Tarefas() {
              details: `Aprovação concluída`
           });
           fetchTarefas();
+        }
+        // Notificar todos quando subtarefa concluída
+        if (sub && newVal === true && user) {
+          const parentTask = tarefas.find(t => t.id === sub.tarefa_id);
+          const userName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+          notifySubtaskCompleted(
+            sub.titulo,
+            parentTask?.titulo || sub.tarefas?.titulo || 'Tarefa',
+            sub.tarefa_id,
+            sub.id,
+            user.id,
+            userName
+          ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
         }
       } catch { fetchTarefas(); }
       return;
@@ -966,8 +979,25 @@ export function Tarefas() {
           }}
           allSubtasks={allSubtasks}
           onSubtaskToggle={async (subId, newVal) => {
-            setAllSubtasks(prev => prev.map(s => s.id === subId ? { ...s, concluida: newVal } : s));
-            try { await toggleSubtask(subId, newVal); } catch { fetchTarefas(); }
+            setAllSubtasks(prev => prev.map(s => s.id === subId ? { ...s, concluida: newVal, status: newVal ? 'concluido' : 'fazer' } : s));
+            try { 
+              await toggleSubtask(subId, newVal);
+              if (newVal === true && user) {
+                const sub = allSubtasks.find(s => s.id === subId);
+                if (sub) {
+                  const parentTask = tarefas.find(t => t.id === sub.tarefa_id);
+                  const userName = profiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+                  notifySubtaskCompleted(
+                    sub.titulo,
+                    parentTask?.titulo || sub.tarefas?.titulo || 'Tarefa',
+                    sub.tarefa_id,
+                    sub.id,
+                    user.id,
+                    userName
+                  ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
+                }
+              }
+            } catch { fetchTarefas(); }
           }}
           onTaskUpdate={async (taskId, updates) => {
             await updateTask(taskId, updates);
@@ -1306,7 +1336,8 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [subtasks, setSubtasks] = useState<DBSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newSubtaskResp, setNewSubtaskResp] = useState<string | null>(null);
-  const [newSubtaskPrazo, setNewSubtaskPrazo] = useState("");
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [newSubtaskPrazo, setNewSubtaskPrazo] = useState(todayStr);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
@@ -1316,8 +1347,42 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [editSubDesc, setEditSubDesc] = useState("");
   const [editingSubDesc, setEditingSubDesc] = useState(false);
 
+  // Subtask user selector state
+  const [showSubUserPicker, setShowSubUserPicker] = useState(false);
+  const [subUserSearch, setSubUserSearch] = useState("");
+  const subUserPickerRef = useRef<HTMLDivElement>(null);
+
+  // Subtask template state
+  const [subTemplates, setSubTemplates] = useState<DBTaskTemplate[]>([]);
+  const [showSubTemplateMenu, setShowSubTemplateMenu] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [showSaveTemplateInput, setShowSaveTemplateInput] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const subTemplateRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
   useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
+
+  // Load templates when template menu opens
+  useEffect(() => {
+    if (showSubTemplateMenu) {
+      getTaskTemplates().then(setSubTemplates).catch(console.error);
+    }
+  }, [showSubTemplateMenu]);
+
+  // Close user picker & template menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (subUserPickerRef.current && !subUserPickerRef.current.contains(e.target as Node)) {
+        setShowSubUserPicker(false);
+      }
+      if (subTemplateRef.current && !subTemplateRef.current.contains(e.target as Node)) {
+        setShowSubTemplateMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const subtasksDone = subtasks.filter(s => s.concluida).length;
   const subtasksTotal = subtasks.length;
@@ -1346,14 +1411,58 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
       });
       setNewSubtaskTitle("");
       setNewSubtaskResp(null);
-      setNewSubtaskPrazo("");
+      setNewSubtaskPrazo(todayStr);
     } catch (e) { console.error("Erro ao criar subtarefa:", e); }
     finally { setAddingSubtask(false); }
   };
 
+  const handleApplySubTemplate = async (template: DBTaskTemplate) => {
+    if (!template.modelo_subtarefas?.length) return;
+    setShowSubTemplateMenu(false);
+    try {
+      const subs = template.modelo_subtarefas.map((s, i) => ({
+        tarefa_id: tarefa.id,
+        titulo: s.titulo,
+        concluida: false,
+        responsavel_id: s.responsavel_id || null,
+        ordem: subtasks.length + i,
+      }));
+      const created = await createBulkSubtasks(subs);
+      setSubtasks(prev => [...prev, ...created]);
+      saveTaskHistory({
+        tarefa_id: tarefa.id,
+        titulo: tarefa.titulo,
+        prioridade: tarefa.prioridade,
+        status: tarefa.status,
+        action: 'editada',
+        details: `Subtarefas criadas do modelo "${template.nome}" (${created.length})`
+      });
+    } catch (e) { console.error("Erro ao aplicar modelo:", e); }
+  };
+
+  const handleSaveSubTemplate = async () => {
+    if (!templateName.trim() || subtasks.length === 0) return;
+    setSavingTemplate(true);
+    try {
+      await createTaskTemplate({
+        nome: templateName.trim(),
+        prioridade: 'normal',
+        created_by: user?.id || null,
+        subtarefas: subtasks.map((s, i) => ({
+          titulo: s.titulo,
+          responsavel_id: s.responsavel_id,
+          ordem: i,
+        })),
+      });
+      setShowSaveTemplateInput(false);
+      setTemplateName("");
+    } catch (e) { console.error("Erro ao salvar modelo:", e); }
+    finally { setSavingTemplate(false); }
+  };
+
   const handleToggleSubtask = async (sub: DBSubtask) => {
     const newVal = !sub.concluida;
-    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, concluida: newVal } : s));
+    setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, concluida: newVal, status: newVal ? 'concluido' : 'fazer' } : s));
     try { 
       await toggleSubtask(sub.id, newVal); 
       saveTaskHistory({
@@ -1374,6 +1483,18 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
              action: 'editada',
              details: `Aprovação concluída`
         });
+      }
+      // Notificar todos quando subtarefa concluída
+      if (newVal === true && user) {
+        const userName = allProfiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+        notifySubtaskCompleted(
+          sub.titulo,
+          tarefa.titulo,
+          tarefa.id,
+          sub.id,
+          user.id,
+          userName
+        ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
       }
     } catch { getSubtasks(tarefa.id).then(setSubtasks); }
   };
@@ -1713,6 +1834,18 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                                   try {
                                     await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
                                     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                    // Notificar quando muda status para concluído via dropdown
+                                    if (val === 'concluido' && user) {
+                                      const userName = allProfiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+                                      notifySubtaskCompleted(
+                                        sub.titulo,
+                                        tarefa.titulo,
+                                        tarefa.id,
+                                        sub.id,
+                                        user.id,
+                                        userName
+                                      ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
+                                    }
                                   } catch (err) { console.error(err); }
                                 }}
                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -1762,6 +1895,18 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                                   try {
                                     await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
                                     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                    // Notificar quando muda status para concluído via dropdown inline
+                                    if (val === 'concluido' && user) {
+                                      const userName = allProfiles.find(p => p.id === user.id)?.full_name || 'Alguém';
+                                      notifySubtaskCompleted(
+                                        sub.titulo,
+                                        tarefa.titulo,
+                                        tarefa.id,
+                                        sub.id,
+                                        user.id,
+                                        userName
+                                      ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
+                                    }
                                   } catch (err) { console.error(err); }
                                 }}
                                 className="rounded border border-border bg-background px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1866,14 +2011,91 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                     autoFocus
                   />
                   <div className="flex items-center gap-2 flex-wrap">
-                    <select
-                      value={newSubtaskResp || ""}
-                      onChange={e => setNewSubtaskResp(e.target.value || null)}
-                      className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none flex-1 min-w-[120px]"
-                    >
-                      <option value="">Sem responsável</option>
-                      {allProfiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                    </select>
+                    {/* Compact user selector with photos */}
+                    <div className="relative flex-1 min-w-[160px]" ref={subUserPickerRef}>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSubUserPicker(!showSubUserPicker); setSubUserSearch(""); }}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] transition-all hover:border-letitia-gold/50",
+                          showSubUserPicker && "border-letitia-gold ring-1 ring-letitia-gold"
+                        )}
+                      >
+                        {newSubtaskResp ? (() => {
+                          const p = allProfiles.find(u => u.id === newSubtaskResp);
+                          if (!p) return <span className="text-muted">Responsável</span>;
+                          return (
+                            <div className="flex items-center gap-1.5 overflow-hidden">
+                              {p.avatar_url ? (
+                                <img src={p.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover flex-shrink-0" />
+                              ) : (
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-letitia-gold/20 text-[8px] font-bold text-letitia-gold flex-shrink-0">
+                                  {(p.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="truncate">{p.full_name}</span>
+                            </div>
+                          );
+                        })() : (
+                          <span className="text-muted flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Responsável</span>
+                        )}
+                        <ChevronDown className={cn("h-3 w-3 ml-auto text-muted transition-transform flex-shrink-0", showSubUserPicker && "rotate-180")} />
+                      </button>
+                      {showSubUserPicker && (
+                        <div className="absolute z-[100] bottom-full mb-1 w-full min-w-[240px] rounded-lg border border-border bg-card p-1 shadow-xl">
+                          <div className="relative mb-1">
+                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted" />
+                            <input
+                              autoFocus
+                              type="text"
+                              value={subUserSearch}
+                              onChange={e => setSubUserSearch(e.target.value)}
+                              className="w-full bg-transparent border-b border-border pl-7 pr-2 py-1.5 text-[11px] text-foreground placeholder:text-muted focus:outline-none"
+                              placeholder="Buscar nome..."
+                            />
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {/* Option: no responsible */}
+                            <button
+                              type="button"
+                              onClick={() => { setNewSubtaskResp(null); setShowSubUserPicker(false); }}
+                              className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-[11px] transition-colors hover:bg-muted/10", !newSubtaskResp && "bg-primary/5 font-medium")}
+                            >
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted/20 text-[9px]">—</div>
+                              <span>Sem responsável</span>
+                              {!newSubtaskResp && <Check className="h-3 w-3 text-primary ml-auto" />}
+                            </button>
+                            {allProfiles
+                              .filter(u => (u.full_name || "").toLowerCase().includes(subUserSearch.toLowerCase()))
+                              .map(u => {
+                                const initials = (u.full_name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                                const isSelected = newSubtaskResp === u.id;
+                                return (
+                                  <button
+                                    key={u.id}
+                                    type="button"
+                                    onClick={() => { setNewSubtaskResp(u.id); setShowSubUserPicker(false); }}
+                                    className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-[11px] transition-colors hover:bg-letitia-gold/10", isSelected && "bg-letitia-gold/5 font-medium")}
+                                  >
+                                    {u.avatar_url ? (
+                                      <img src={u.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover flex-shrink-0" />
+                                    ) : (
+                                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-bold flex-shrink-0", isSelected ? "bg-letitia-gold text-white" : "bg-letitia-gold/10 text-letitia-gold")}>
+                                        {initials}
+                                      </div>
+                                    )}
+                                    <div className="flex flex-col items-start overflow-hidden text-left">
+                                      <span className="text-[11px] truncate w-full">{u.full_name}</span>
+                                      <span className="text-[9px] text-muted truncate uppercase tracking-wider">{u.role}</span>
+                                    </div>
+                                    {isSelected && <Check className="h-3 w-3 text-letitia-gold ml-auto flex-shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <input
                       type="date"
                       value={newSubtaskPrazo}
@@ -1881,17 +2103,92 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                       className="rounded-md border border-border bg-background px-2 py-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none"
                     />
                   </div>
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
-                    <button
-                      onClick={handleAddSubtask}
-                      disabled={!newSubtaskTitle.trim() || addingSubtask}
-                      className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {addingSubtask ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                      Adicionar
-                    </button>
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Template buttons */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative" ref={subTemplateRef}>
+                        <button
+                          type="button"
+                          onClick={() => setShowSubTemplateMenu(!showSubTemplateMenu)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted hover:text-foreground hover:bg-muted/10 transition-colors"
+                          title="Usar modelo de subtarefas"
+                        >
+                          <BookTemplate className="h-3 w-3" /> Modelo
+                        </button>
+                        {showSubTemplateMenu && (
+                          <div className="absolute z-[100] bottom-full mb-1 left-0 w-64 rounded-lg border border-border bg-card p-1 shadow-xl">
+                            <p className="px-2 py-1 text-[10px] font-semibold text-muted uppercase tracking-wider">Aplicar Modelo</p>
+                            <div className="max-h-48 overflow-y-auto">
+                              {subTemplates.filter(t => (t.modelo_subtarefas?.length || 0) > 0).length === 0 ? (
+                                <p className="px-2 py-3 text-center text-[10px] text-muted italic">Nenhum modelo com subtarefas.</p>
+                              ) : (
+                                subTemplates.filter(t => (t.modelo_subtarefas?.length || 0) > 0).map(t => (
+                                  <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => handleApplySubTemplate(t)}
+                                    className="flex w-full items-center justify-between rounded px-2 py-2 text-[11px] transition-colors hover:bg-primary/5"
+                                  >
+                                    <div className="text-left overflow-hidden">
+                                      <span className="font-medium truncate block">{t.nome}</span>
+                                      <span className="text-[9px] text-muted">{t.modelo_subtarefas?.length} subtarefa{(t.modelo_subtarefas?.length || 0) > 1 ? 's' : ''}</span>
+                                    </div>
+                                    <ListChecks className="h-3.5 w-3.5 text-muted flex-shrink-0" />
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {subtasksTotal > 0 && !showSaveTemplateInput && (
+                        <button
+                          type="button"
+                          onClick={() => setShowSaveTemplateInput(true)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted hover:text-foreground hover:bg-muted/10 transition-colors"
+                          title="Salvar subtarefas atuais como modelo"
+                        >
+                          <Save className="h-3 w-3" /> Salvar Modelo
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => { setShowSubtaskForm(false); setNewSubtaskTitle(""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
+                      <button
+                        onClick={handleAddSubtask}
+                        disabled={!newSubtaskTitle.trim() || addingSubtask}
+                        className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {addingSubtask ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                        Adicionar
+                      </button>
+                    </div>
                   </div>
+                  {/* Save template input */}
+                  {showSaveTemplateInput && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-border">
+                      <input
+                        type="text"
+                        value={templateName}
+                        onChange={e => setTemplateName(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") handleSaveSubTemplate(); }}
+                        placeholder="Nome do modelo..."
+                        className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] focus:ring-1 focus:ring-primary focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveSubTemplate}
+                        disabled={!templateName.trim() || savingTemplate}
+                        className="px-2.5 py-1.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {savingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                        Salvar
+                      </button>
+                      <button onClick={() => { setShowSaveTemplateInput(false); setTemplateName(""); }} className="p-1 text-muted hover:text-foreground">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

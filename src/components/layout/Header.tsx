@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, Search, CheckCircle2, FileText, HeadphonesIcon,
-  CheckSquare, FileStack, ChevronRight, PanelLeftOpen
+  CheckSquare, FileStack, ChevronRight, PanelLeftOpen, ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -11,6 +11,7 @@ import { GlobalSearch } from '@/components/GlobalSearch';
 
 const typeIcons: Record<NotificationType, { icon: typeof Bell; color: string; bg: string }> = {
   tarefa_concluida: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
+  subtarefa_concluida: { icon: ListChecks, color: 'text-emerald-500', bg: 'bg-emerald-500/15' },
   nova_tarefa: { icon: CheckSquare, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   novo_post: { icon: FileText, color: 'text-amber-500', bg: 'bg-amber-500/10' },
   novo_documento: { icon: FileStack, color: 'text-purple-500', bg: 'bg-purple-500/10' },

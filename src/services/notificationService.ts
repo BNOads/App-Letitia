@@ -6,6 +6,7 @@ import { sendPushNotification } from './pushService';
 
 export type NotificationType =
   | 'tarefa_concluida'
+  | 'subtarefa_concluida'
   | 'nova_tarefa'
   | 'novo_post'
   | 'novo_documento'
@@ -314,10 +315,31 @@ export async function notifyTaskCompleted(
     tipo: 'tarefa_concluida',
     titulo: 'Tarefa concluída',
     descricao: `${completedByName} concluiu a tarefa "${taskTitle}"`,
-    link: '/tarefas',
+    link: `/tarefas?task=${taskId}`,
     created_by: completedByUserId,
     ref_id: taskId,
     user_id: null, // broadcast
+  });
+}
+
+/** Notify everyone: a subtask was completed (broadcast to all) */
+export async function notifySubtaskCompleted(
+  subtaskTitle: string,
+  parentTaskTitle: string,
+  parentTaskId: string,
+  subtaskId: string,
+  completedByUserId: string,
+  completedByName: string
+) {
+  // Usa tipo 'tarefa_concluida' (mesmo que tarefas) pois o DB aceita esse tipo
+  await createNotification({
+    tipo: 'tarefa_concluida',
+    titulo: 'Subtarefa concluída',
+    descricao: `${completedByName} concluiu a subtarefa "${subtaskTitle}" da tarefa "${parentTaskTitle}"`,
+    link: `/tarefas?task=${parentTaskId}`,
+    created_by: completedByUserId,
+    ref_id: subtaskId,
+    user_id: null, // broadcast para todos
   });
 }
 
@@ -333,7 +355,7 @@ export async function notifyNewTaskAssigned(
     tipo: 'nova_tarefa',
     titulo: 'Nova tarefa atribuída',
     descricao: `${assignedByName} atribuiu a tarefa "${taskTitle}" para você`,
-    link: '/tarefas',
+    link: `/tarefas?task=${taskId}`,
     created_by: assignedByUserId,
     ref_id: taskId,
     user_id: assignedToUserId,

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell, CheckCircle2, FileText, HeadphonesIcon, CheckSquare,
-  FileStack, CheckCheck, Filter, Search, ArrowLeft
+  FileStack, CheckCheck, Filter, Search, ArrowLeft, ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -14,6 +14,12 @@ const typeConfig: Record<NotificationType, { icon: typeof Bell; color: string; b
     color: 'text-emerald-600',
     bg: 'bg-emerald-500/10',
     label: 'Tarefa Concluída',
+  },
+  subtarefa_concluida: {
+    icon: ListChecks,
+    color: 'text-emerald-500',
+    bg: 'bg-gradient-to-r from-emerald-500/15 to-amber-500/10',
+    label: 'Subtarefa Concluída! 🎉',
   },
   nova_tarefa: {
     icon: CheckSquare,
@@ -43,6 +49,7 @@ const typeConfig: Record<NotificationType, { icon: typeof Bell; color: string; b
 
 const filterOptions: { value: string; label: string }[] = [
   { value: 'todas', label: 'Todas' },
+  { value: 'subtarefa_concluida', label: '🎉 Subtarefas concluídas' },
   { value: 'tarefa_concluida', label: 'Tarefas concluídas' },
   { value: 'nova_tarefa', label: 'Novas tarefas' },
   { value: 'novo_post', label: 'Pautas' },
@@ -88,7 +95,9 @@ function NotificationItem({
         'hover:scale-[1.01] hover:shadow-md',
         notif.lida
           ? 'bg-card/50 opacity-70 hover:opacity-100'
-          : 'bg-card shadow-sm border border-letitia-gold/10'
+          : notif.tipo === 'subtarefa_concluida'
+            ? 'subtask-notif-highlight'
+            : 'bg-card shadow-sm border border-letitia-gold/10'
       )}
     >
       {/* Icon */}
