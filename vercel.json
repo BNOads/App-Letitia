@@ -9,6 +9,8 @@
   ],
   "rewrites": [
     { "source": "/playbook-vendas-vcn.html", "destination": "/playbook-vendas-vcn.html" },
+    { "source": "/t/:id", "destination": "/api/og?task=:id" },
+    { "source": "/share/tarefa/:id", "destination": "/api/og?task=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

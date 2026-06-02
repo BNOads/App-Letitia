@@ -1579,7 +1579,8 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(tarefa.id);
+    const shareUrl = `${window.location.origin}/t/${tarefa.id}`;
+    navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -1617,7 +1618,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
               <div className="flex items-center gap-1 sm:gap-2">
                 <button onClick={handleCopy} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
                   {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline">{copied ? "Copiado!" : "Copiar ID"}</span>
+                  <span className="hidden sm:inline">{copied ? "Link copiado!" : "Compartilhar"}</span>
                 </button>
                 <button onClick={() => onEdit(tarefa)} className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md hover:bg-foreground/5 text-xs font-medium text-muted transition-colors">
                   <Edit3 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
