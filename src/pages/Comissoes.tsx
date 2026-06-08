@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { MetasTab } from "@/components/MetasTab";
 
 // ─── PRODUTO CATALOG (extraído dos documentos da Letitia) ──────────────────
 interface Produto {
@@ -231,6 +232,7 @@ export function Comissoes() {
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showTheWay, setShowTheWay] = useState(false);
   const [animateResult, setAnimateResult] = useState(false);
+  const [activeTab, setActiveTab] = useState<"comissoes" | "metas">("comissoes");
 
   useEffect(() => {
     if (user) {
@@ -318,6 +320,39 @@ export function Comissoes() {
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+      {/* ─── TAB NAVIGATION ──────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 border-b border-border">
+        <button
+          onClick={() => setActiveTab("comissoes")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-[1px]",
+            activeTab === "comissoes"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-border"
+          )}
+        >
+          <Percent className="h-4 w-4" />
+          Comissões
+        </button>
+        <button
+          onClick={() => setActiveTab("metas")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-[1px]",
+            activeTab === "metas"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-border"
+          )}
+        >
+          <Target className="h-4 w-4" />
+          Metas
+        </button>
+      </div>
+
+      {/* ─── TAB CONTENT ─────────────────────────────────────────────────── */}
+      {activeTab === "metas" ? (
+        <MetasTab />
+      ) : (
+        <div className="space-y-6">
       {/* ─── HEADER ──────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-[#7c3aed] via-[#8b5cf6] to-[#a78bfa] p-6 md:p-8 shadow-lg">
         {/* Decorative background elements */}
@@ -878,6 +913,8 @@ export function Comissoes() {
           </table>
         </div>
       </div>
+        </div>
+      )}
     </div>
   );
 }
