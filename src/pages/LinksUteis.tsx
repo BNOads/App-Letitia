@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getLinks, createLink, updateLink, type DBLink } from "@/services/linksService";
 import { 
-  Search, Plus, LayoutGrid, List, Star, Copy, Share2, 
+  Search, Plus, LayoutGrid, List, Star, Copy, 
   ExternalLink, MoreVertical, GripVertical, Loader2, X, Link as LinkIcon, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -194,32 +194,39 @@ function LinkCard({ link, viewMode, onToggleFav, onCopy, copySuccess }: {
 
   if (viewMode === "lista") {
     return (
-      <div className="group flex items-center gap-4 bg-card border border-border rounded-xl p-3 hover:border-letitia-gold/30 hover:shadow-sm transition-all">
-        <div className="text-muted/30 cursor-grab active:cursor-grabbing">
-          <GripVertical className="h-4 w-4" />
-        </div>
-        <div className="h-10 w-10 rounded-lg border border-border bg-background flex items-center justify-center p-2 flex-shrink-0 overflow-hidden">
-          <img src={favicon} alt="" className="h-full w-full object-contain" onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${link.titulo}&background=f1f1f1&color=666`;
-          }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-foreground truncate">{link.titulo}</h4>
-          <p className="text-[10px] text-muted truncate transition-opacity">{link.url}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tight", badgeColor)}>
-            {link.categoria}
-          </span>
-          <div className="flex items-center gap-1 transition-opacity">
+      <div className="group bg-card border border-border rounded-xl p-3 hover:border-letitia-gold/30 hover:shadow-sm transition-all">
+        {/* Desktop: single row | Mobile: stacked */}
+        <div className="flex items-center gap-3">
+          {/* Grip — hidden on mobile */}
+          <div className="hidden sm:block text-muted/30 cursor-grab active:cursor-grabbing">
+            <GripVertical className="h-4 w-4" />
+          </div>
+
+          {/* Favicon */}
+          <div className="h-10 w-10 rounded-lg border border-border bg-background flex items-center justify-center p-2 flex-shrink-0 overflow-hidden">
+            <img src={favicon} alt="" className="h-full w-full object-contain" onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${link.titulo}&background=f1f1f1&color=666`;
+            }} />
+          </div>
+
+          {/* Title + URL */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-medium text-foreground truncate">{link.titulo}</h4>
+              <span className={cn("hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tight whitespace-nowrap flex-shrink-0", badgeColor)}>
+                {link.categoria}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted truncate">{link.url}</p>
+          </div>
+
+          {/* Desktop actions */}
+          <div className="hidden sm:flex items-center gap-1">
             <button onClick={onToggleFav} className={cn("p-2 rounded-md hover:bg-foreground/5 transition-colors", link.favorito ? "text-letitia-gold" : "text-muted")}>
               <Star className={cn("h-4 w-4", link.favorito && "fill-letitia-gold")} />
             </button>
             <button onClick={onCopy} className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors relative">
               {copySuccess ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </button>
-            <button className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors">
-              <Share2 className="h-4 w-4" />
             </button>
             <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors">
               <ExternalLink className="h-4 w-4" />
@@ -227,6 +234,24 @@ function LinkCard({ link, viewMode, onToggleFav, onCopy, copySuccess }: {
             <button className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors">
               <MoreVertical className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+
+        {/* Mobile: badge + actions row */}
+        <div className="flex sm:hidden items-center justify-between mt-2 pt-2 border-t border-border/40">
+          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tight", badgeColor)}>
+            {link.categoria}
+          </span>
+          <div className="flex items-center gap-1">
+            <button onClick={onToggleFav} className={cn("p-2 rounded-md hover:bg-foreground/5 transition-colors", link.favorito ? "text-letitia-gold" : "text-muted")}>
+              <Star className={cn("h-4 w-4", link.favorito && "fill-letitia-gold")} />
+            </button>
+            <button onClick={onCopy} className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors">
+              {copySuccess ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            </button>
+            <a href={link.url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-md hover:bg-foreground/5 text-muted transition-colors">
+              <ExternalLink className="h-4 w-4" />
+            </a>
           </div>
         </div>
       </div>
