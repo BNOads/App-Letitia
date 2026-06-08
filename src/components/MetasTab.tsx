@@ -3,7 +3,7 @@ import {
   Target,
   Plus,
   Search,
-  Award,
+
   DollarSign,
   X,
   Pencil,
@@ -58,13 +58,7 @@ interface Meta {
   updated_at: string;
 }
 
-interface MetaBatida {
-  id: string;
-  meta_id: string;
-  registrado_por: string | null;
-  observacao: string | null;
-  created_at: string;
-}
+
 
 // ─── COMPONENTE PRINCIPAL ───────────────────────────────────────────────────
 export function MetasTab() {
