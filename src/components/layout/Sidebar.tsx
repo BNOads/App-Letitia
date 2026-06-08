@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound
+  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
@@ -44,6 +44,7 @@ const adminSections = [
     label: "Gestão",
     items: [
       { name: "Equipe", href: "/equipe", icon: Users },
+      { name: "Comissões", href: "/comissoes", icon: Percent },
     ],
   },
 ];

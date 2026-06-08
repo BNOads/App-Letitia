@@ -33,7 +33,8 @@ import {
   Cell,
   Legend,
   AreaChart,
-  Area
+  Area,
+  LabelList
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -287,6 +288,19 @@ export function VendasRelatorio() {
       conversao: sourceStatsMap[src].leads > 0 ? parseFloat(((sourceStatsMap[src].vendas / sourceStatsMap[src].leads) * 100).toFixed(1)) : 0
     }))
     .sort((a, b) => b.faturamento - a.faturamento);
+
+  // 2b. Dados de porcentagem de origem do lead (para gráfico "Origem do Lead (%)")
+  const totalLeadsForPercent = filteredLeads.length;
+  const origemPercentData = Object.keys(sourceStatsMap)
+    .map((src) => ({
+      origem: src.length > 20 ? src.substring(0, 18) + "..." : src,
+      origemFull: src,
+      percentual: totalLeadsForPercent > 0
+        ? parseFloat(((sourceStatsMap[src].leads / totalLeadsForPercent) * 100).toFixed(2))
+        : 0,
+      leads: sourceStatsMap[src].leads
+    }))
+    .sort((a, b) => b.percentual - a.percentual);
 
   // 3. Faturamento por Produto
   const productStatsMap: { [prod: string]: { volume: number; faturamento: number } } = {};
@@ -1040,6 +1054,76 @@ export function VendasRelatorio() {
           </div>
         </div>
 
+      </div>
+
+      {/* ─── GRÁFICO: ORIGEM DO LEAD (%) ────────────────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center justify-between">
+          <span>Origem do Lead (%)</span>
+          <span className="text-[10px] font-sans font-normal text-muted lowercase">
+            {totalLeadsForPercent} leads no período
+          </span>
+        </h3>
+        <div className="h-[420px]">
+          {origemPercentData.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted italic">
+              Sem dados de origens para os filtros aplicados.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={origemPercentData}
+                margin={{ top: 30, right: 10, left: 10, bottom: 120 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} vertical={false} />
+                <XAxis
+                  dataKey="origem"
+                  tick={{ fontSize: 9, fill: "var(--muted)" }}
+                  angle={-45}
+                  textAnchor="end"
+                  interval={0}
+                  height={120}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "var(--muted)" }}
+                  tickFormatter={(v) => v.toFixed(2).replace(".", ",")}
+                  domain={[0, "auto"]}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    color: "var(--foreground)"
+                  }}
+                  formatter={(value: any, _name: any, props: any) => [
+                    `${Number(value).toFixed(2).replace(".", ",")}% (${props.payload.leads} leads)`,
+                    props.payload.origemFull
+                  ]}
+                  labelFormatter={(label) => `Origem: ${label}`}
+                />
+                <Bar
+                  dataKey="percentual"
+                  fill="#8B3A2A"
+                  radius={[2, 2, 0, 0]}
+                  maxBarSize={45}
+                >
+                  <LabelList
+                    dataKey="percentual"
+                    position="top"
+                    formatter={(v: number) => `${v.toFixed(2).replace(".", ",")}%`}
+                    style={{
+                      fontSize: "9px",
+                      fill: "var(--foreground)",
+                      fontWeight: 600
+                    }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       {/* ─── TABELA DE LEADS DETALHADA E PAGINADA ─────────────────────────── */}
