@@ -1112,7 +1112,7 @@ export function VendasRelatorio() {
                   <LabelList
                     dataKey="percentual"
                     position="top"
-                    formatter={(v: number) => `${v.toFixed(2).replace(".", ",")}%`}
+                    formatter={(v: any) => `${Number(v).toFixed(2).replace(".", ",")}%`}
                     style={{
                       fontSize: "9px",
                       fill: "var(--foreground)",
