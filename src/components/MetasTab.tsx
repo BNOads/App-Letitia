@@ -3,7 +3,6 @@ import {
   Target,
   Plus,
   Search,
-
   DollarSign,
   X,
   Pencil,
@@ -15,9 +14,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  CalendarDays,
+  CalendarClock,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { fetchLiveSalesData, type LeadRecord } from "@/data/salesData";
 
 // ─── PRODUTO CATALOG (reutilizado de Comissoes.tsx) ─────────────────────────
 interface Produto {
@@ -44,6 +48,8 @@ interface FaixaEscalonamento {
   bonus: number;
 }
 
+type Periodicidade = 'diaria' | 'semanal' | 'mensal';
+
 interface Meta {
   id: string;
   nome: string;
@@ -54,9 +60,28 @@ interface Meta {
   bonus: number;
   descricao: string | null;
   ativo: boolean;
+  periodicidade: Periodicidade;
   created_at: string;
   updated_at: string;
 }
+
+// ─── MAPEAMENTO PRODUTO_ID → NOMES NA PLANILHA DE VENDAS ────────────────────
+const PRODUCT_ID_TO_SALES_NAMES: Record<string, string[]> = {
+  "plano-a": ["WORKSHOP PLANO A", "Workshop Plano A"],
+  "voce-dirige": ["VOCÊ DIRIGE", "VOCÃ DIRIGE", "Você Dirige", "Curso Você Dirige"],
+  "the-way-anual": ["THE WAY", "THE WAY Mentoria", "The Way"],
+  "the-way-semestral": ["THE WAY", "THE WAY Mentoria", "The Way"],
+  "estrategista": ["A Estrategista", "A ESTRATEGISTA", "Estrategista"],
+  "vcn": ["VCN", "Vida, Carreira e Negócios"],
+  "sessao-individual": ["Sessão Individual", "SESSÃO INDIVIDUAL"],
+  "bno-experience": ["BNO Experience", "BNO EXPERIENCE", "BNO Experience 2026"],
+};
+
+const PERIODICIDADE_CONFIG: Record<Periodicidade, { label: string; icon: typeof CalendarDays; color: string; bgColor: string }> = {
+  diaria: { label: "Diária", icon: Clock, color: "text-blue-600", bgColor: "bg-blue-500/10 border-blue-500/20" },
+  semanal: { label: "Semanal", icon: CalendarClock, color: "text-emerald-600", bgColor: "bg-emerald-500/10 border-emerald-500/20" },
+  mensal: { label: "Mensal", icon: CalendarDays, color: "text-amber-600", bgColor: "bg-amber-500/10 border-amber-500/20" },
+};
 
 
 
@@ -86,6 +111,11 @@ export function MetasTab() {
   const [formBonus, setFormBonus] = useState(0);
   const [formDescricao, setFormDescricao] = useState("");
   const [saving, setSaving] = useState(false);
+  const [formPeriodicidade, setFormPeriodicidade] = useState<Periodicidade>('mensal');
+
+  // Sales data for progress tracking
+  const [salesData, setSalesData] = useState<LeadRecord[]>([]);
+  const [salesLoading, setSalesLoading] = useState(true);
 
   // Registrar batida states
   const [batidaMetaId, setBatidaMetaId] = useState("");
@@ -112,7 +142,93 @@ export function MetasTab() {
 
   useEffect(() => {
     fetchMetas();
+    loadSalesData();
   }, []);
+
+  const loadSalesData = async () => {
+    setSalesLoading(true);
+    try {
+      const leads = await fetchLiveSalesData();
+      setSalesData(leads);
+    } catch (err) {
+      console.warn("Erro ao carregar dados de vendas para progresso:", err);
+    } finally {
+      setSalesLoading(false);
+    }
+  };
+
+  // ─── PROGRESS CALCULATION ─────────────────────────────────────────────────
+  const calcularProgresso = (meta: Meta) => {
+    if (!salesData.length) return { vendas: 0, alvo: meta.min_vendas || 1, percentual: 0, faixaAtingida: null as FaixaEscalonamento | null };
+
+    const produtoNames = PRODUCT_ID_TO_SALES_NAMES[meta.produto_id] || [];
+    const now = new Date();
+
+    // Helper: parse DD/MM/YYYY to Date
+    const parseDate = (d: string) => {
+      if (!d) return null;
+      const parts = d.split("/");
+      if (parts.length !== 3) return null;
+      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+    };
+
+    // Filter by period
+    const isInPeriod = (dateStr: string) => {
+      const d = parseDate(dateStr);
+      if (!d) return false;
+
+      if (meta.periodicidade === 'diaria') {
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      } else if (meta.periodicidade === 'semanal') {
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        return d >= monday && d <= sunday;
+      } else {
+        // mensal
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }
+    };
+
+    // Count sales matching product + period + "Venda Ganha"
+    const vendasNoPeriodo = salesData.filter(lead => {
+      if (lead.resultado !== "Venda Ganha") return false;
+      if (!isInPeriod(lead.dataEntrada)) return false;
+      if (produtoNames.length === 0) return false;
+      const leadProduto = (lead.produto || "").trim();
+      return produtoNames.some(name => name.toLowerCase() === leadProduto.toLowerCase());
+    }).length;
+
+    if (meta.escalonamento && meta.faixas && meta.faixas.length > 0) {
+      const sortedFaixas = [...meta.faixas].sort((a, b) => a.min_vendas - b.min_vendas);
+      const maxFaixa = sortedFaixas[sortedFaixas.length - 1];
+      const alvo = maxFaixa.min_vendas;
+      let faixaAtingida: FaixaEscalonamento | null = null;
+      for (const faixa of sortedFaixas) {
+        if (vendasNoPeriodo >= faixa.min_vendas) {
+          faixaAtingida = faixa;
+        }
+      }
+      return {
+        vendas: vendasNoPeriodo,
+        alvo,
+        percentual: Math.min(100, alvo > 0 ? (vendasNoPeriodo / alvo) * 100 : 0),
+        faixaAtingida,
+      };
+    } else {
+      const alvo = meta.min_vendas || 1;
+      return {
+        vendas: vendasNoPeriodo,
+        alvo,
+        percentual: Math.min(100, (vendasNoPeriodo / alvo) * 100),
+        faixaAtingida: null,
+      };
+    }
+  };
 
   // ─── COMPUTED VALUES ──────────────────────────────────────────────────────
   const filteredMetas = useMemo(() => {
@@ -162,6 +278,7 @@ export function MetasTab() {
     setFormMinVendas(1);
     setFormBonus(0);
     setFormDescricao("");
+    setFormPeriodicidade('mensal');
   };
 
   const openCreateModal = () => {
@@ -185,6 +302,7 @@ export function MetasTab() {
     setFormMinVendas(meta.min_vendas);
     setFormBonus(Number(meta.bonus));
     setFormDescricao(meta.descricao || "");
+    setFormPeriodicidade(meta.periodicidade || 'mensal');
     setEditingMeta(meta);
     setShowCreateModal(true);
   };
@@ -201,6 +319,7 @@ export function MetasTab() {
       min_vendas: formEscalonamento ? 0 : formMinVendas,
       bonus: formEscalonamento ? 0 : formBonus,
       descricao: formDescricao.trim() || null,
+      periodicidade: formPeriodicidade,
       updated_at: new Date().toISOString(),
     };
 
@@ -466,11 +585,14 @@ export function MetasTab() {
                   <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted">
                     Produto
                   </th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                    Período
+                  </th>
                   <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted">
                     Escalonamento / Bônus
                   </th>
-                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted hidden lg:table-cell">
-                    Descrição
+                  <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted min-w-[200px]">
+                    Progresso
                   </th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-muted">
                     Status
@@ -497,11 +619,13 @@ export function MetasTab() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">{meta.nome}</p>
-                          {meta.escalonamento && (
-                            <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[9px] font-bold uppercase tracking-wider">
-                              <Layers className="h-2.5 w-2.5" /> Escalonada
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {meta.escalonamento && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[9px] font-bold uppercase tracking-wider">
+                                <Layers className="h-2.5 w-2.5" /> Escalonada
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -511,6 +635,20 @@ export function MetasTab() {
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-800 text-[11px] font-semibold border border-amber-500/15">
                         {getProdutoEmoji(meta.produto_id)} {getProdutoNome(meta.produto_id)}
                       </span>
+                    </td>
+
+                    {/* Periodicidade */}
+                    <td className="px-4 py-4 text-center">
+                      {(() => {
+                        const config = PERIODICIDADE_CONFIG[meta.periodicidade || 'mensal'];
+                        const Icon = config.icon;
+                        return (
+                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border", config.bgColor, config.color)}>
+                            <Icon className="h-3 w-3" />
+                            {config.label}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Escalonamento / Bônus */}
@@ -538,11 +676,55 @@ export function MetasTab() {
                       )}
                     </td>
 
-                    {/* Descrição */}
-                    <td className="px-4 py-4 hidden lg:table-cell">
-                      <p className="text-xs text-muted max-w-[200px] truncate">
-                        {meta.descricao || "—"}
-                      </p>
+                    {/* Progresso */}
+                    <td className="px-4 py-4">
+                      {(() => {
+                        const progresso = calcularProgresso(meta);
+                        const barColor = progresso.percentual >= 100
+                          ? 'bg-emerald-500'
+                          : progresso.percentual > 0
+                            ? 'bg-amber-500'
+                            : 'bg-gray-300';
+                        const textColor = progresso.percentual >= 100
+                          ? 'text-emerald-600'
+                          : progresso.percentual > 0
+                            ? 'text-amber-600'
+                            : 'text-muted';
+
+                        if (salesLoading) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-3 w-3 animate-spin text-muted" />
+                              <span className="text-[10px] text-muted">Carregando...</span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-1.5 min-w-[160px]">
+                            <div className="flex items-center justify-between">
+                              <span className={cn("text-[11px] font-semibold", textColor)}>
+                                {progresso.vendas} de {progresso.alvo} venda{progresso.alvo !== 1 ? 's' : ''}
+                              </span>
+                              {progresso.percentual >= 100 && (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              )}
+                            </div>
+                            <div className="w-full bg-foreground/5 rounded-full h-2 overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full transition-all duration-700 ease-out", barColor)}
+                                style={{ width: `${Math.max(progresso.percentual, 2)}%` }}
+                              />
+                            </div>
+                            {meta.escalonamento && progresso.faixaAtingida && (
+                              <p className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1">
+                                <TrendingUp className="h-2.5 w-2.5" />
+                                Faixa {progresso.faixaAtingida.min_vendas}v → {formatCurrency(progresso.faixaAtingida.bonus)} atingida
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Status Toggle */}
@@ -661,6 +843,36 @@ export function MetasTab() {
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Periodicidade */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Periodicidade <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(Object.keys(PERIODICIDADE_CONFIG) as Periodicidade[]).map((key) => {
+                    const config = PERIODICIDADE_CONFIG[key];
+                    const Icon = config.icon;
+                    const isActive = formPeriodicidade === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFormPeriodicidade(key)}
+                        className={cn(
+                          "flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 transition-all text-center",
+                          isActive
+                            ? cn("border-current shadow-sm", config.color, config.bgColor)
+                            : "border-border bg-background hover:bg-foreground/[0.02] text-muted"
+                        )}
+                      >
+                        <Icon className={cn("h-5 w-5", isActive ? config.color : "text-muted")} />
+                        <span className={cn("text-xs font-semibold", isActive ? config.color : "text-muted")}>{config.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

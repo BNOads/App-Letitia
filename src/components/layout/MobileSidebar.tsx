@@ -34,6 +34,7 @@ const sections = [
     items: [
       { name: "Treinamentos", href: "/treinamentos", icon: GraduationCap },
       { name: "Senhas Úteis", href: "/senhas", icon: KeyRound },
+      { name: "Comissões e Metas", href: "/comissoes", icon: Percent },
     ],
   },
 ];
@@ -43,7 +44,6 @@ const adminSections = [
     label: "Gestão",
     items: [
       { name: "Equipe", href: "/equipe", icon: Users },
-      { name: "Comissões", href: "/comissoes", icon: Percent },
     ],
   },
 ];

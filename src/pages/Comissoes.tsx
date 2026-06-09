@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Calculator,
   Percent,
@@ -13,11 +14,9 @@ import {
   ShoppingBag,
   Zap,
   Target,
-  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
+
 import { MetasTab } from "@/components/MetasTab";
 
 // ─── PRODUTO CATALOG (extraído dos documentos da Letitia) ──────────────────
@@ -222,34 +221,22 @@ function calcularComissao(valorVenda: number): {
 
 // ─── COMPONENTE PRINCIPAL ───────────────────────────────────────────────────
 export function Comissoes() {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
   // States
   const [valorVenda, setValorVenda] = useState<string>("");
   const [produtoSelecionado, setProdutoSelecionado] = useState<string>("");
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [showTheWay, setShowTheWay] = useState(false);
   const [animateResult, setAnimateResult] = useState(false);
-  const [activeTab, setActiveTab] = useState<"comissoes" | "metas">("comissoes");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<"comissoes" | "metas">(() => {
+    const t = searchParams.get("tab");
+    return t === "metas" ? "metas" : "comissoes";
+  });
 
-  useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const { data } = await supabase
-          .from("profiles")
-          .select("full_name, avatar_url, role")
-          .eq("id", user.id)
-          .single();
-        if (data) setProfile(data);
-        setLoading(false);
-      };
-      fetchProfile();
-    }
-  }, [user]);
-
-  const isAdmin = profile?.role === "CEO" || profile?.role === "Diretoria";
+  const handleTabChange = (tab: "comissoes" | "metas") => {
+    setActiveTab(tab);
+    setSearchParams(tab === "metas" ? { tab: "metas" } : {}, { replace: true });
+  };
 
   // Valor numérico parseado
   const valorNumerico = useMemo(() => {
@@ -285,45 +272,14 @@ export function Comissoes() {
   // Tabela de exemplo de comissões por valor
   const exemploValores = [200, 500, 501, 1000, 1001, 2000, 2001, 3000, 5000];
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
-        <div className="relative">
-          <div className="h-12 w-12 rounded-full border-2 border-letitia-gold/30 animate-pulse" />
-          <Percent className="h-5 w-5 text-letitia-gold absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-        </div>
-        <p className="text-sm text-muted">Carregando...</p>
-      </div>
-    );
-  }
 
-  if (!isAdmin) {
-    return (
-      <div className="flex h-[70vh] flex-col items-center justify-center gap-6">
-        <div className="relative">
-          <div className="h-20 w-20 rounded-full bg-letitia-gold/10 flex items-center justify-center border border-letitia-gold/20">
-            <Lock className="h-8 w-8 text-letitia-gold" />
-          </div>
-        </div>
-        <div className="text-center max-w-md">
-          <h2 className="font-serif text-2xl font-medium text-foreground mb-2">
-            Acesso Restrito
-          </h2>
-          <p className="text-sm text-muted leading-relaxed">
-            A ferramenta de cálculo de comissões está disponível apenas para administradores.
-            Entre em contato com a liderança caso precise de acesso.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* ─── TAB NAVIGATION ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 border-b border-border">
         <button
-          onClick={() => setActiveTab("comissoes")}
+          onClick={() => handleTabChange("comissoes")}
           className={cn(
             "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-[1px]",
             activeTab === "comissoes"
@@ -335,7 +291,7 @@ export function Comissoes() {
           Comissões
         </button>
         <button
-          onClick={() => setActiveTab("metas")}
+          onClick={() => handleTabChange("metas")}
           className={cn(
             "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-[1px]",
             activeTab === "metas"

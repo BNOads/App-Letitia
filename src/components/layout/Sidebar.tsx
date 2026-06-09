@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { SidebarMetasCarousel } from "./SidebarMetasCarousel";
 
 const sections = [
   {
@@ -35,6 +36,7 @@ const sections = [
     items: [
       { name: "Treinamentos", href: "/treinamentos", icon: GraduationCap },
       { name: "Senhas Úteis", href: "/senhas", icon: KeyRound },
+      { name: "Comissões e Metas", href: "/comissoes", icon: Percent },
     ],
   },
 ];
@@ -44,7 +46,6 @@ const adminSections = [
     label: "Gestão",
     items: [
       { name: "Equipe", href: "/equipe", icon: Users },
-      { name: "Comissões", href: "/comissoes", icon: Percent },
     ],
   },
 ];
@@ -124,6 +125,9 @@ export function Sidebar() {
 
       {/* Nav */}
       <div className="flex flex-1 flex-col overflow-y-auto px-2 py-4">
+        {/* Metas Carousel */}
+        {!collapsed && <SidebarMetasCarousel />}
+
         <nav className="flex-1 space-y-5">
           {sections.map((section) => (
             <div key={section.label}>
