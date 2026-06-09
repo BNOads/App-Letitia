@@ -162,7 +162,9 @@ export function SidebarMetasCarousel() {
             {meta.nome}
           </span>
           {meta.escalonamento && (
-            <Layers className="h-3 w-3 text-emerald-600 flex-shrink-0" title="Escalonada" />
+            <span title="Escalonada" className="flex-shrink-0">
+              <Layers className="h-3 w-3 text-emerald-600" />
+            </span>
           )}
         </div>
 
