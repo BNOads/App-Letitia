@@ -97,9 +97,24 @@ function calcProgress(meta: Meta, salesData: LeadRecord[]) {
     return names.some((n) => n.toLowerCase() === (l.produto || "").trim().toLowerCase());
   }).length;
 
-  const target = meta.escalonamento && meta.faixas?.length
-    ? Math.max(...meta.faixas.map((f) => f.min_vendas))
-    : meta.min_vendas || 1;
+  // For escalonamento: target is the FIRST unachieved faixa (progressive)
+  let target: number;
+  let currentFaixaIdx = -1;
+  const sortedFaixas = meta.escalonamento && meta.faixas?.length
+    ? [...meta.faixas].sort((a, b) => a.min_vendas - b.min_vendas)
+    : [];
+
+  if (sortedFaixas.length > 0) {
+    for (let i = 0; i < sortedFaixas.length; i++) {
+      if (sold >= sortedFaixas[i].min_vendas) currentFaixaIdx = i;
+    }
+    const nextIdx = currentFaixaIdx + 1 < sortedFaixas.length ? currentFaixaIdx + 1 : currentFaixaIdx;
+    target = currentFaixaIdx >= sortedFaixas.length - 1
+      ? sortedFaixas[sortedFaixas.length - 1].min_vendas
+      : sortedFaixas[nextIdx].min_vendas;
+  } else {
+    target = meta.min_vendas || 1;
+  }
 
   // Max bonus for this meta
   let maxBonus = 0;
@@ -109,13 +124,17 @@ function calcProgress(meta: Meta, salesData: LeadRecord[]) {
     maxBonus = Number(meta.bonus) || 0;
   }
 
-  return { sold, target, pct: Math.min(100, target > 0 ? (sold / target) * 100 : 0), maxBonus };
+  const allAchieved = sortedFaixas.length > 0 && currentFaixaIdx >= sortedFaixas.length - 1;
+
+  return { sold, target, pct: Math.min(100, target > 0 ? (sold / target) * 100 : 0), maxBonus, sortedFaixas, currentFaixaIdx, allAchieved };
 }
 
 function fmtCurrency(v: number) {
   if (v >= 1000) return `R$${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
   return `R$${v.toFixed(0)}`;
 }
+
+const FAIXA_LABELS = ['🥉', '🥈', '🥇', '💎', '🏆'];
 
 // ─── COMPONENT ──────────────────────────────────────────────────────────────
 export function SidebarMetasCarousel() {
@@ -150,7 +169,7 @@ export function SidebarMetasCarousel() {
   const prodName = PRODUTOS_MAP[meta.produto_id] || meta.produto_id;
   const periodLabel = PERIOD_LABEL[meta.periodicidade || "mensal"];
 
-  const barColor = p.pct >= 100 ? "bg-emerald-500" : p.pct > 0 ? "bg-amber-500" : "bg-gray-300";
+  const barColor = p.allAchieved ? "bg-emerald-500" : p.pct > 0 ? "bg-amber-500" : "bg-gray-300";
 
   return (
     <div className="px-1 pb-2">
@@ -185,16 +204,39 @@ export function SidebarMetasCarousel() {
           </div>
         </div>
 
-        {/* Row 4: Status text */}
-        <div className="flex items-center justify-between mb-1.5">
+        {/* Row 4: Status text + tier dots */}
+        <div className="flex items-center justify-between mb-1">
           <span className={cn(
             "text-[9px] font-bold",
-            p.pct >= 100 ? "text-emerald-600" : p.pct > 0 ? "text-amber-600" : "text-muted"
+            p.allAchieved ? "text-emerald-600" : p.pct > 0 ? "text-amber-600" : "text-muted"
           )}>
-            {p.pct >= 100 ? "✓ Meta batida!" : remaining > 0 ? `Faltam ${remaining} venda${remaining !== 1 ? "s" : ""}` : "Sem vendas"}
+            {p.allAchieved ? "✓ Todas batidas!" : remaining > 0 ? `Faltam ${remaining} venda${remaining !== 1 ? "s" : ""}` : "Sem vendas"}
           </span>
-          <span className="text-[9px] font-bold text-muted">{p.sold}/{p.target}</span>
+          <span className="text-[9px] font-bold text-muted">{p.sold}/{p.target} vendas</span>
         </div>
+
+        {/* Row 4b: Tier indicators for escalonamento */}
+        {p.sortedFaixas.length > 0 && (
+          <div className="flex items-center gap-1 mb-1.5 flex-wrap">
+            {p.sortedFaixas.map((faixa, i) => {
+              const achieved = p.sold >= faixa.min_vendas;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "text-[8px] font-bold px-1 py-0.5 rounded",
+                    achieved
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-foreground/5 text-muted opacity-60"
+                  )}
+                  title={`${faixa.min_vendas} vendas → ${fmtCurrency(faixa.bonus)}`}
+                >
+                  {achieved ? '✓' : (FAIXA_LABELS[i % FAIXA_LABELS.length])} {faixa.min_vendas}v
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Row 5: Footer */}
         <div className="flex items-center justify-between">

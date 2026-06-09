@@ -157,9 +157,28 @@ export function MetasTab() {
     }
   };
 
+  // ─── FAIXA COLORS (for escalonamento tiers) ────────────────────────────────
+  const FAIXA_COLORS = [
+    { bg: 'bg-amber-500', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-800 border-amber-200/60', label: '🥉' },
+    { bg: 'bg-sky-500', text: 'text-sky-700', badge: 'bg-sky-100 text-sky-800 border-sky-200/60', label: '🥈' },
+    { bg: 'bg-emerald-500', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200/60', label: '🥇' },
+    { bg: 'bg-violet-500', text: 'text-violet-700', badge: 'bg-violet-100 text-violet-800 border-violet-200/60', label: '💎' },
+    { bg: 'bg-rose-500', text: 'text-rose-700', badge: 'bg-rose-100 text-rose-800 border-rose-200/60', label: '🏆' },
+  ];
+
+  const getFaixaColor = (idx: number) => FAIXA_COLORS[idx % FAIXA_COLORS.length];
+
   // ─── PROGRESS CALCULATION ─────────────────────────────────────────────────
   const calcularProgresso = (meta: Meta) => {
-    if (!salesData.length) return { vendas: 0, alvo: meta.min_vendas || 1, percentual: 0, faixaAtingida: null as FaixaEscalonamento | null };
+    if (!salesData.length) return {
+      vendas: 0,
+      alvo: meta.escalonamento && meta.faixas?.length ? meta.faixas.sort((a, b) => a.min_vendas - b.min_vendas)[0].min_vendas : (meta.min_vendas || 1),
+      percentual: 0,
+      faixaAtingida: null as FaixaEscalonamento | null,
+      sortedFaixas: meta.escalonamento && meta.faixas?.length ? [...meta.faixas].sort((a, b) => a.min_vendas - b.min_vendas) : [],
+      currentFaixaIdx: -1,
+      nextFaixaIdx: 0,
+    };
 
     const produtoNames = PRODUCT_ID_TO_SALES_NAMES[meta.produto_id] || [];
     const now = new Date();
@@ -205,19 +224,33 @@ export function MetasTab() {
 
     if (meta.escalonamento && meta.faixas && meta.faixas.length > 0) {
       const sortedFaixas = [...meta.faixas].sort((a, b) => a.min_vendas - b.min_vendas);
-      const maxFaixa = sortedFaixas[sortedFaixas.length - 1];
-      const alvo = maxFaixa.min_vendas;
-      let faixaAtingida: FaixaEscalonamento | null = null;
-      for (const faixa of sortedFaixas) {
-        if (vendasNoPeriodo >= faixa.min_vendas) {
-          faixaAtingida = faixa;
+
+      // Determine which faixas are achieved and what the next target is
+      let currentFaixaIdx = -1; // last achieved faixa index
+      for (let i = 0; i < sortedFaixas.length; i++) {
+        if (vendasNoPeriodo >= sortedFaixas[i].min_vendas) {
+          currentFaixaIdx = i;
         }
       }
+
+      // Next faixa to pursue
+      const nextFaixaIdx = currentFaixaIdx + 1 < sortedFaixas.length ? currentFaixaIdx + 1 : currentFaixaIdx;
+
+      // The target is always the NEXT faixa to achieve (or current if all achieved)
+      const alvo = currentFaixaIdx >= sortedFaixas.length - 1
+        ? sortedFaixas[sortedFaixas.length - 1].min_vendas  // all achieved
+        : sortedFaixas[nextFaixaIdx].min_vendas;             // next target
+
+      const faixaAtingida = currentFaixaIdx >= 0 ? sortedFaixas[currentFaixaIdx] : null;
+
       return {
         vendas: vendasNoPeriodo,
         alvo,
         percentual: Math.min(100, alvo > 0 ? (vendasNoPeriodo / alvo) * 100 : 0),
         faixaAtingida,
+        sortedFaixas,
+        currentFaixaIdx,
+        nextFaixaIdx,
       };
     } else {
       const alvo = meta.min_vendas || 1;
@@ -226,6 +259,9 @@ export function MetasTab() {
         alvo,
         percentual: Math.min(100, (vendasNoPeriodo / alvo) * 100),
         faixaAtingida: null,
+        sortedFaixas: [] as FaixaEscalonamento[],
+        currentFaixaIdx: -1,
+        nextFaixaIdx: 0,
       };
     }
   };
@@ -589,7 +625,7 @@ export function MetasTab() {
                     Período
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted">
-                    Escalonamento / Bônus
+                    Metas de Vendas / Bônus
                   </th>
                   <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted min-w-[200px]">
                     Progresso
@@ -651,27 +687,44 @@ export function MetasTab() {
                       })()}
                     </td>
 
-                    {/* Escalonamento / Bônus */}
+                    {/* Metas de Vendas / Bônus */}
                     <td className="px-4 py-4">
                       {meta.escalonamento && meta.faixas && meta.faixas.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {meta.faixas.map((faixa, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100/80 text-amber-800 text-[10px] font-semibold border border-amber-200/60"
-                            >
-                              {faixa.min_vendas}v → {formatCurrency(faixa.bonus)}
-                            </span>
-                          ))}
+                        <div className="space-y-1">
+                          {[...meta.faixas].sort((a, b) => a.min_vendas - b.min_vendas).map((faixa, idx) => {
+                            const color = getFaixaColor(idx);
+                            const progresso = calcularProgresso(meta);
+                            const isAchieved = progresso.vendas >= faixa.min_vendas;
+                            return (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold border w-full",
+                                  isAchieved
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                                    : color.badge
+                                )}
+                              >
+                                {isAchieved ? (
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                ) : (
+                                  <span className="flex-shrink-0">{color.label}</span>
+                                )}
+                                <span>
+                                  Faça {faixa.min_vendas} venda{faixa.min_vendas !== 1 ? 's' : ''} → ganhe {formatCurrency(faixa.bonus)}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="space-y-0.5">
                           <span className="text-sm font-medium text-foreground">
                             {formatCurrency(Number(meta.bonus))}
                           </span>
-                          <span className="text-[10px] text-muted">
-                            (mín. {meta.min_vendas} venda{meta.min_vendas !== 1 ? "s" : ""})
-                          </span>
+                          <p className="text-[10px] text-muted">
+                            Faça {meta.min_vendas} venda{meta.min_vendas !== 1 ? 's' : ''} para ganhar
+                          </p>
                         </div>
                       )}
                     </td>
@@ -680,6 +733,80 @@ export function MetasTab() {
                     <td className="px-4 py-4">
                       {(() => {
                         const progresso = calcularProgresso(meta);
+
+                        if (salesLoading) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-3 w-3 animate-spin text-muted" />
+                              <span className="text-[10px] text-muted">Carregando...</span>
+                            </div>
+                          );
+                        }
+
+                        // For escalonamento metas: progressive display
+                        if (meta.escalonamento && progresso.sortedFaixas.length > 0) {
+                          const allAchieved = progresso.currentFaixaIdx >= progresso.sortedFaixas.length - 1;
+                          const nextFaixa = progresso.sortedFaixas[progresso.nextFaixaIdx];
+                          const barColor = allAchieved
+                            ? 'bg-emerald-500'
+                            : progresso.currentFaixaIdx >= 0
+                              ? getFaixaColor(progresso.nextFaixaIdx).bg
+                              : 'bg-amber-500';
+                          const pctToNext = allAchieved
+                            ? 100
+                            : Math.min(100, nextFaixa.min_vendas > 0 ? (progresso.vendas / nextFaixa.min_vendas) * 100 : 0);
+
+                          return (
+                            <div className="space-y-1.5 min-w-[180px]">
+                              {/* Current target */}
+                              <div className="flex items-center justify-between">
+                                <span className={cn("text-[11px] font-semibold", allAchieved ? 'text-emerald-600' : progresso.vendas > 0 ? getFaixaColor(progresso.nextFaixaIdx).text : 'text-muted')}>
+                                  {progresso.vendas} de {progresso.alvo} vendas
+                                </span>
+                                {allAchieved && (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                )}
+                              </div>
+                              {/* Progress bar */}
+                              <div className="w-full bg-foreground/5 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={cn("h-full rounded-full transition-all duration-700 ease-out", barColor)}
+                                  style={{ width: `${Math.max(pctToNext, 2)}%` }}
+                                />
+                              </div>
+                              {/* Tier indicators */}
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {progresso.sortedFaixas.map((faixa, idx) => {
+                                  const isAchieved = progresso.vendas >= faixa.min_vendas;
+                                  const color = getFaixaColor(idx);
+                                  return (
+                                    <span
+                                      key={idx}
+                                      className={cn(
+                                        "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold",
+                                        isAchieved
+                                          ? "bg-emerald-100 text-emerald-700"
+                                          : `${color.badge} opacity-60`
+                                      )}
+                                      title={`${faixa.min_vendas} vendas → ${formatCurrency(faixa.bonus)}`}
+                                    >
+                                      {isAchieved ? '✓' : color.label} {faixa.min_vendas}v
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                              {/* Achievement message */}
+                              {progresso.faixaAtingida && (
+                                <p className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1">
+                                  <TrendingUp className="h-2.5 w-2.5" />
+                                  {allAchieved ? 'Todas as metas batidas!' : `${progresso.faixaAtingida.min_vendas} vendas atingidas → ${formatCurrency(progresso.faixaAtingida.bonus)}`}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Non-escalonamento (fixed bonus)
                         const barColor = progresso.percentual >= 100
                           ? 'bg-emerald-500'
                           : progresso.percentual > 0
@@ -690,15 +817,6 @@ export function MetasTab() {
                           : progresso.percentual > 0
                             ? 'text-amber-600'
                             : 'text-muted';
-
-                        if (salesLoading) {
-                          return (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-3 w-3 animate-spin text-muted" />
-                              <span className="text-[10px] text-muted">Carregando...</span>
-                            </div>
-                          );
-                        }
 
                         return (
                           <div className="space-y-1.5 min-w-[160px]">
@@ -716,12 +834,6 @@ export function MetasTab() {
                                 style={{ width: `${Math.max(progresso.percentual, 2)}%` }}
                               />
                             </div>
-                            {meta.escalonamento && progresso.faixaAtingida && (
-                              <p className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1">
-                                <TrendingUp className="h-2.5 w-2.5" />
-                                Faixa {progresso.faixaAtingida.min_vendas}v → {formatCurrency(progresso.faixaAtingida.bonus)} atingida
-                              </p>
-                            )}
                           </div>
                         );
                       })()}
