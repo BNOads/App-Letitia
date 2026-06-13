@@ -18,10 +18,12 @@ import {
   Pencil,
   Trash2,
   X,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { MetasTab } from "@/components/MetasTab";
+import { PlaybookRecebimentoTab } from "@/components/PlaybookRecebimentoTab";
 
 // ─── PRODUTO CATALOG (extraído dos documentos da Letitia) ──────────────────
 interface Produto {
@@ -299,14 +301,16 @@ export function Comissoes() {
   const [showTheWay, setShowTheWay] = useState(false);
   const [animateResult, setAnimateResult] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<"comissoes" | "metas">(() => {
+  const [activeTab, setActiveTab] = useState<"comissoes" | "metas" | "playbook">(() => {
     const t = searchParams.get("tab");
-    return t === "metas" ? "metas" : "comissoes";
+    if (t === "metas") return "metas";
+    if (t === "playbook") return "playbook";
+    return "comissoes";
   });
 
-  const handleTabChange = (tab: "comissoes" | "metas") => {
+  const handleTabChange = (tab: "comissoes" | "metas" | "playbook") => {
     setActiveTab(tab);
-    setSearchParams(tab === "metas" ? { tab: "metas" } : {}, { replace: true });
+    setSearchParams(tab === "comissoes" ? {} : { tab }, { replace: true });
   };
 
   // Valor numérico parseado
@@ -373,11 +377,25 @@ export function Comissoes() {
           <Target className="h-4 w-4" />
           Metas
         </button>
+        <button
+          onClick={() => handleTabChange("playbook")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-[1px]",
+            activeTab === "playbook"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-border"
+          )}
+        >
+          <BookOpen className="h-4 w-4" />
+          Playbook
+        </button>
       </div>
 
       {/* ─── TAB CONTENT ─────────────────────────────────────────────────── */}
       {activeTab === "metas" ? (
         <MetasTab />
+      ) : activeTab === "playbook" ? (
+        <PlaybookRecebimentoTab />
       ) : (
         <div className="space-y-6">
       {/* ─── HEADER ──────────────────────────────────────────────────────── */}
