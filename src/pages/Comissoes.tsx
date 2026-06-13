@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Calculator,
@@ -14,6 +14,10 @@ import {
   ShoppingBag,
   Zap,
   Target,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +33,7 @@ interface Produto {
   emoji: string;
 }
 
-const PRODUTOS: Produto[] = [
+const PRODUTOS_INICIAIS: Produto[] = [
   {
     id: "plano-a",
     nome: "Workshop Plano A",
@@ -222,6 +226,73 @@ function calcularComissao(valorVenda: number): {
 // ─── COMPONENTE PRINCIPAL ───────────────────────────────────────────────────
 export function Comissoes() {
   // States
+  const [produtos, setProdutos] = useState<Produto[]>(() => {
+    const saved = localStorage.getItem("@letitia:produtos");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return PRODUTOS_INICIAIS;
+      }
+    }
+    return PRODUTOS_INICIAIS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("@letitia:produtos", JSON.stringify(produtos));
+  }, [produtos]);
+
+  const [isProdutoModalOpen, setIsProdutoModalOpen] = useState(false);
+  const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
+  const [prodForm, setProdForm] = useState<Partial<Produto>>({});
+
+  const handleOpenAddProduto = () => {
+    setEditingProduto(null);
+    setProdForm({ categoria: "curso", emoji: "📦" });
+    setIsProdutoModalOpen(true);
+  };
+
+  const handleOpenEditProduto = (p: Produto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingProduto(p);
+    setProdForm(p);
+    setIsProdutoModalOpen(true);
+  };
+
+  const handleDeleteProduto = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Deseja realmente excluir este produto?")) {
+      setProdutos(prev => prev.filter(p => p.id !== id));
+      if (produtoSelecionado === id) {
+        setProdutoSelecionado("");
+        setValorVenda("");
+      }
+    }
+  };
+
+  const handleSaveProduto = () => {
+    if (!prodForm.nome || !prodForm.valor) return;
+    
+    const novoProduto: Produto = {
+      id: editingProduto ? editingProduto.id : (prodForm.id || prodForm.nome.toLowerCase().replace(/\s+/g, '-')),
+      nome: prodForm.nome || "",
+      valor: Number(prodForm.valor) || 0,
+      descricao: prodForm.descricao || "",
+      categoria: (prodForm.categoria as any) || "curso",
+      emoji: prodForm.emoji || "📦",
+    };
+
+    if (editingProduto) {
+      setProdutos(prev => prev.map(p => p.id === editingProduto.id ? novoProduto : p));
+      if (produtoSelecionado === editingProduto.id) {
+         setValorVenda(novoProduto.valor.toFixed(2).replace(".", ","));
+      }
+    } else {
+      setProdutos(prev => [...prev, novoProduto]);
+    }
+    setIsProdutoModalOpen(false);
+  };
+
   const [valorVenda, setValorVenda] = useState<string>("");
   const [produtoSelecionado, setProdutoSelecionado] = useState<string>("");
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -253,7 +324,7 @@ export function Comissoes() {
   // Quando um produto é selecionado, preenche o valor
   const handleProdutoSelect = (produtoId: string) => {
     setProdutoSelecionado(produtoId);
-    const produto = PRODUTOS.find((p) => p.id === produtoId);
+    const produto = produtos.find((p) => p.id === produtoId);
     if (produto) {
       setValorVenda(produto.valor.toFixed(2).replace(".", ","));
       setAnimateResult(true);
@@ -396,15 +467,24 @@ export function Comissoes() {
 
       {/* ─── SELEÇÃO DE PRODUTO ──────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-5">
-          <ShoppingBag className="h-4 w-4 text-muted" />
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-            Produtos da Letitia
-          </h3>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-muted" />
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
+              Produtos da Letitia
+            </h3>
+          </div>
+          <button 
+            onClick={handleOpenAddProduto}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-letitia-gold text-white text-xs font-semibold hover:bg-letitia-gold/90 transition-colors"
+          >
+            <Plus className="h-3 w-3" />
+            Novo Produto
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {PRODUTOS.map((produto) => {
+          {produtos.map((produto) => {
             const isSelected = produtoSelecionado === produto.id;
             const comissaoProd = calcularComissao(produto.valor);
             return (
@@ -420,11 +500,27 @@ export function Comissoes() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-xl">{produto.emoji}</span>
-                  {isSelected && (
-                    <span className="px-1.5 py-0.5 rounded bg-letitia-gold/20 text-letitia-gold text-[8px] font-bold uppercase tracking-wider">
-                      Selecionado
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isSelected && (
+                      <span className="px-1.5 py-0.5 rounded bg-letitia-gold/20 text-letitia-gold text-[8px] font-bold uppercase tracking-wider">
+                        Selecionado
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => handleOpenEditProduto(produto, e)}
+                      className="p-1 text-muted hover:text-foreground transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteProduto(produto.id, e)}
+                      className="p-1 text-muted hover:text-red-500 transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-sm font-medium text-foreground leading-tight mb-1">
                   {produto.nome}
@@ -821,7 +917,7 @@ export function Comissoes() {
               </tr>
             </thead>
             <tbody>
-              {PRODUTOS.map((produto) => {
+              {produtos.map((produto) => {
                 const res = calcularComissao(produto.valor);
                 return (
                   <tr
@@ -869,6 +965,113 @@ export function Comissoes() {
           </table>
         </div>
       </div>
+        </div>
+      )}
+
+      {/* ─── MODAL DE PRODUTO ────────────────────────────────────────────── */}
+      {isProdutoModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">
+                {editingProduto ? "Editar Produto" : "Novo Produto"}
+              </h2>
+              <button
+                onClick={() => setIsProdutoModalOpen(false)}
+                className="p-2 text-muted hover:text-foreground rounded-lg hover:bg-foreground/5 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Nome do Produto
+                </label>
+                <input
+                  type="text"
+                  value={prodForm.nome || ""}
+                  onChange={(e) => setProdForm({ ...prodForm, nome: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
+                  placeholder="Ex: Mentoria VIP"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Valor (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={prodForm.valor || ""}
+                    onChange={(e) => setProdForm({ ...prodForm, valor: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
+                    placeholder="Ex: 997.00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Emoji
+                  </label>
+                  <input
+                    type="text"
+                    value={prodForm.emoji || ""}
+                    onChange={(e) => setProdForm({ ...prodForm, emoji: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
+                    placeholder="Ex: 🚀"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Categoria
+                </label>
+                <select
+                  value={prodForm.categoria || "curso"}
+                  onChange={(e) => setProdForm({ ...prodForm, categoria: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
+                >
+                  <option value="curso">Curso</option>
+                  <option value="mentoria">Mentoria</option>
+                  <option value="sessao">Sessão</option>
+                  <option value="workshop">Workshop</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Descrição Breve
+                </label>
+                <textarea
+                  value={prodForm.descricao || ""}
+                  onChange={(e) => setProdForm({ ...prodForm, descricao: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold resize-none"
+                  rows={2}
+                  placeholder="Ex: Produto de entrada focado em..."
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 p-5 border-t border-border bg-muted/20">
+              <button
+                onClick={() => setIsProdutoModalOpen(false)}
+                className="px-4 py-2 text-sm font-semibold text-muted hover:text-foreground transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveProduto}
+                disabled={!prodForm.nome || !prodForm.valor}
+                className="px-4 py-2 rounded-lg bg-letitia-gold text-white text-sm font-semibold hover:bg-letitia-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
