@@ -201,7 +201,7 @@ BEGIN
     LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
         IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Equipe acesso total' AND polrelid = ('public.' || t)::regclass) THEN
-            EXECUTE format('CREATE POLICY "Equipe acesso total" ON public.%I FOR ALL USING (auth.role() = ''authenticated'')', t);
+            EXECUTE format('CREATE POLICY "Equipe acesso total" ON public.%I FOR ALL USING (auth.role() = ''authenticated'') WITH CHECK (auth.role() = ''authenticated'')', t);
         END IF;
     END LOOP;
 END $$;

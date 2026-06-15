@@ -3,19 +3,14 @@ import {
   ChevronDown,
   ChevronUp,
   Shield,
-  Info,
   Sparkles,
   Zap,
-  Target,
   CreditCard,
   Banknote,
   ArrowDown,
-  CheckCircle2,
-  AlertTriangle,
   MessageSquare,
   Crown,
   BookOpen,
-  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
