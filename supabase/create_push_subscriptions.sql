@@ -24,7 +24,8 @@ BEGIN
         CREATE POLICY "Usuários gerenciam suas próprias assinaturas" 
           ON public.push_subscriptions 
           FOR ALL 
-          USING (auth.uid() = user_id);
+          USING (auth.uid() = user_id)
+          WITH CHECK (auth.uid() = user_id);
     END IF;
 END $$;
 

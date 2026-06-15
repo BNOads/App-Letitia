@@ -3,6 +3,10 @@ import { supabase } from '@/lib/supabase';
 // Chave Pública VAPID Gerada
 const VAPID_PUBLIC_KEY = 'BFus97kRwt6LrSp9jzHocgtdpZ4uFmDsCrUazBsvdhsi4J8lzROnVDIVJ3hmCWZDCVS_SIty8IuyAkSX2f1INvg';
 
+// Evita tentativas repetidas na mesma sessão se já falhou
+let pushInitAttempted = false;
+let pushInitResult: boolean | null = null;
+
 /** Helper to convert VAPID base64 string to Uint8Array */
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -26,8 +30,14 @@ export function isPushSupported(): boolean {
 
 /** Request permission, subscribe, and register on Supabase automatically */
 export async function initializePushNotifications(userId: string): Promise<boolean> {
+  // Se já tentou nesta sessão, retorna o resultado anterior sem repetir
+  if (pushInitAttempted) {
+    return pushInitResult ?? false;
+  }
+  pushInitAttempted = true;
+
   if (!isPushSupported()) {
-    console.warn('Push Notifications não são suportadas neste navegador/dispositivo.');
+    pushInitResult = false;
     return false;
   }
 
@@ -86,14 +96,18 @@ export async function initializePushNotifications(userId: string): Promise<boole
 
       if (error) {
         console.warn('Erro ao salvar assinatura de push no banco de dados:', error.message);
+        pushInitResult = false;
         return false;
       }
+      pushInitResult = true;
       return true;
     }
 
+    pushInitResult = false;
     return false;
   } catch (err) {
-    console.error('Falha ao inicializar Notificações Push:', err);
+    console.warn('Falha ao inicializar Notificações Push:', err);
+    pushInitResult = false;
     return false;
   }
 }
