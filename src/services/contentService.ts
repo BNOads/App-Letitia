@@ -30,10 +30,13 @@ export interface DBConteudoComentario {
 }
 
 export async function getContent() {
+  // Supabase retorna no máximo 1000 rows por padrão.
+  // Aumentamos o limite para garantir que todo o conteúdo seja carregado.
   const { data, error } = await supabase
     .from('conteudo_pautas')
     .select('*')
-    .order('data_prevista', { ascending: true });
+    .order('data_prevista', { ascending: true })
+    .limit(5000);
 
   if (error) throw error;
   return data as DBContent[];
