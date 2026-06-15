@@ -23,7 +23,8 @@ type TabFilter = "minhas" | "time" | "aprovacoes";
 const kanbanColumns = [
   { id: "fazer" as const, label: "A Fazer", color: "border-t-gray-400" },
   { id: "progresso" as const, label: "Em Progresso", color: "border-t-blue-400" },
-  { id: "revisao" as const, label: "Revisão", color: "border-t-amber-400" },
+  { id: "espera" as const, label: "Em Espera", color: "border-t-amber-400" },
+  { id: "revisao" as const, label: "Revisão", color: "border-t-orange-400" },
   { id: "concluido" as const, label: "Concluído", color: "border-t-green-400" },
 ];
 
@@ -31,6 +32,7 @@ export const getStatusBadge = (status: string) => {
   switch (status) {
     case 'concluido': return { label: 'Concluído', color: 'bg-green-500/10 text-green-600 border-green-500/20' };
     case 'progresso': return { label: 'Em Andamento', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' };
+    case 'espera': return { label: 'Em Espera', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' };
     case 'revisao': return { label: 'Revisão', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' };
     case 'aprovacao': return { label: 'Aprovação', color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' };
     case 'fazer':
@@ -820,6 +822,7 @@ export function Tarefas() {
             <option value="Todas">Todas</option>
             <option value="fazer">A fazer</option>
             <option value="progresso">Em progresso</option>
+            <option value="espera">Em espera</option>
             <option value="revisao">Em revisão</option>
             <option value="concluido">Concluídas</option>
           </select>
@@ -1676,6 +1679,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                   >
                     <option value="fazer">A Fazer</option>
                     <option value="progresso">Em Progresso</option>
+                    <option value="espera">Em Espera</option>
                     <option value="revisao">Revisão</option>
                     <option value="concluido">Concluído</option>
                     <option value="aprovacao">Aprovação</option>
@@ -1872,6 +1876,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                               >
                                 <option value="fazer">A Fazer</option>
                                 <option value="progresso">Em Andamento</option>
+                                <option value="espera">Em Espera</option>
                                 <option value="revisao">Revisão</option>
                                 <option value="aprovacao">Aprovação</option>
                                 <option value="concluido">Concluído</option>
@@ -1933,6 +1938,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                               >
                                 <option value="fazer">A Fazer</option>
                                 <option value="progresso">Em Andamento</option>
+                                <option value="espera">Em Espera</option>
                                 <option value="revisao">Revisão</option>
                                 <option value="aprovacao">Aprovação</option>
                                 <option value="concluido">Concluído</option>
@@ -2649,6 +2655,7 @@ function TaskRow({ tarefa, onClick, onToggle, onEdit, onDelete, isOverdue, isDon
               >
                 <option value="fazer">Fazer</option>
                 <option value="progresso">Em andamento</option>
+                <option value="espera">Em espera</option>
                 <option value="aprovacao">Aprovação</option>
                 <option value="revisao">Revisão</option>
                 <option value="concluido">Concluído</option>

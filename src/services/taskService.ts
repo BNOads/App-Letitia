@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido';
+export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido' | 'espera';
 export type TaskPriority = 'baixa' | 'normal' | 'alta' | 'urgente';
 export type RecurrenceType = 'diario' | 'semanal' | 'quinzenal' | 'mensal' | 'semestral' | 'anual';
 
