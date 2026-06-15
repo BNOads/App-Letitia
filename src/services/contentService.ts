@@ -30,16 +30,33 @@ export interface DBConteudoComentario {
 }
 
 export async function getContent() {
-  // Supabase retorna no máximo 1000 rows por padrão.
-  // Aumentamos o limite para garantir que todo o conteúdo seja carregado.
-  const { data, error } = await supabase
-    .from('conteudo_pautas')
-    .select('*')
-    .order('data_prevista', { ascending: true })
-    .limit(5000);
+  let allData: DBContent[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  let hasMore = true;
 
-  if (error) throw error;
-  return data as DBContent[];
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('conteudo_pautas')
+      .select('*')
+      .order('data_prevista', { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      allData = [...allData, ...(data as DBContent[])];
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allData;
 }
 
 export async function updateContentStatus(id: string, status: string) {

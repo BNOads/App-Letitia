@@ -15,6 +15,13 @@ import { ConteudoDetailModal } from "@/components/ConteudoDetailModal";
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
 
+function getLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const statusCols = [
   { id: "legenda" as const, label: "🟠 Escrever Legenda", color: "border-t-orange-400" },
   { id: "ajuste" as const, label: "⚠️ Precisa de Ajuste", color: "border-t-yellow-400" },
@@ -329,7 +336,7 @@ function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, 
     pilar: "pessoal",
     formato: "reels",
     plataforma: socialProfiles[0]?.nome || "",
-    data_prevista: initialDate || new Date().toISOString().split("T")[0],
+    data_prevista: initialDate || getLocalDateString(new Date()),
     status: initialStatus || "legenda",
     responsavel_id: user?.id || ""
   });
@@ -616,7 +623,7 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
   if (mode === "dia") {
     const day = new Date(today);
     day.setDate(day.getDate() + weekOffset);
-    const dayStr = day.toISOString().split("T")[0];
+    const dayStr = getLocalDateString(day);
     const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
     const label = day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
@@ -653,9 +660,9 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2">
         {days.map((day) => {
-          const dayStr = day.toISOString().split("T")[0];
+          const dayStr = getLocalDateString(day);
           const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
-          const isToday = dayStr === today.toISOString().split("T")[0];
+          const isToday = dayStr === getLocalDateString(today);
           return (
             <div key={dayStr} className={cn("rounded-xl border overflow-hidden min-h-[180px]", isToday ? "border-letitia-gold bg-letitia-gold/5" : "border-border bg-card")}>
               <div className={cn("px-3 py-2 border-b text-center", isToday ? "border-letitia-gold/30 bg-letitia-gold/10" : "border-border bg-background/50")}>
@@ -715,9 +722,9 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
         ))}
         {cells.map((day, i) => {
           if (!day) return <div key={i} className="border-b border-r border-border min-h-[80px] bg-background/30" />;
-          const dayStr = day.toISOString().split("T")[0];
+          const dayStr = getLocalDateString(day);
           const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
-          const isToday = dayStr === today.toISOString().split("T")[0];
+          const isToday = dayStr === getLocalDateString(today);
           return (
           <div key={i} className={cn("border-b border-r border-border min-h-[80px] p-1 group/cell", isToday ? "bg-letitia-gold/5" : "")}>
               <div className="flex items-center justify-between px-1 mb-1">
