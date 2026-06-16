@@ -26,14 +26,14 @@ interface ProdutoPlaybook {
 }
 
 const PRODUTOS_PLAYBOOK: ProdutoPlaybook[] = [
-  { nome: "THE WAY Anual", valor: 80000, tipo: "high", cartao: 6667, entrada: 40000, restante: 40000, parc10: 4000 },
-  { nome: "THE WAY Semestral", valor: 45000, tipo: "high", cartao: 3750, entrada: 22500, restante: 22500, parc10: 2250 },
-  { nome: "THE WAY Trimestral", valor: 30000, tipo: "high", cartao: 2500, entrada: 15000, restante: 15000, parc10: 1500 },
-  { nome: "VCN — Vida, Carreira e Negócios", valor: 20000, tipo: "high", cartao: 1667, entrada: 10000, restante: 10000, parc10: 1000 },
-  { nome: "Sessão Individual", valor: 5000, tipo: "low", cartao: 417, entrada: 2500, restante: 2500, parc10: 250 },
-  { nome: "A Estrategista (Gravado)", valor: 2000, tipo: "low", cartao: 167, entrada: 1000, restante: 1000, parc10: 100 },
-  { nome: "Curso Você Dirige", valor: 970, tipo: "low", cartao: 81, entrada: 485, restante: 485, parc10: 48 },
-  { nome: "Workshop Plano A", valor: 97, tipo: "low", cartao: 8, entrada: 48, restante: 49, parc10: 5 },
+  { nome: "THE WAY Anual", valor: 80000, tipo: "high", cartao: 6667, entrada: 28000, restante: 52000, parc10: 5200 },
+  { nome: "THE WAY Semestral", valor: 45000, tipo: "high", cartao: 3750, entrada: 15750, restante: 29250, parc10: 2925 },
+  { nome: "THE WAY Trimestral", valor: 30000, tipo: "high", cartao: 2500, entrada: 10500, restante: 19500, parc10: 1950 },
+  { nome: "VCN — Vida, Carreira e Negócios", valor: 20000, tipo: "high", cartao: 1667, entrada: 7000, restante: 13000, parc10: 1300 },
+  { nome: "Sessão Individual", valor: 5000, tipo: "low", cartao: 417, entrada: 1750, restante: 3250, parc10: 325 },
+  { nome: "A Estrategista (Gravado)", valor: 2000, tipo: "low", cartao: 167, entrada: 700, restante: 1300, parc10: 130 },
+  { nome: "Curso Você Dirige", valor: 970, tipo: "low", cartao: 81, entrada: 340, restante: 630, parc10: 63 },
+  { nome: "Workshop Plano A", valor: 97, tipo: "low", cartao: 8, entrada: 34, restante: 63, parc10: 6 },
 ];
 
 const brl = (n: number) => "R$ " + n.toLocaleString("pt-BR");
@@ -238,7 +238,7 @@ export function PlaybookRecebimentoTab() {
                       <span className="text-base font-bold text-foreground">{brl(produto.entrada)} + 10x {brl(produto.parc10)}</span>
                     </div>
                     <p className="text-[11px] text-muted mt-1">
-                      Entrada mínima de <strong className="text-foreground">50%</strong> (Pix, cartão ou os dois juntos via <strong className="text-foreground">Asaas</strong>) + restante em até 10x.
+                      Entrada mínima de <strong className="text-foreground">35%</strong> (Pix, cartão ou os dois juntos via <strong className="text-foreground">Asaas</strong>) + restante em até 10x.
                     </p>
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export function PlaybookRecebimentoTab() {
             {/* Footer */}
             {isHigh ? (
               <p className="text-xs text-muted">
-                Entrada mínima de 50% = <strong className="text-foreground">{brl(produto.entrada)}</strong>. Qualquer condição além disso (entrada menor, mais de 10x, exceções) → consultar a gestão.
+                Entrada mínima de 35% = <strong className="text-foreground">{brl(produto.entrada)}</strong>. Qualquer condição além disso (entrada menor, mais de 10x, exceções) → consultar a gestão.
               </p>
             ) : (
               <div className="rounded-lg bg-letitia-gold/5 border border-letitia-gold/20 px-4 py-3">
@@ -368,10 +368,10 @@ export function PlaybookRecebimentoTab() {
             <div className="flex-1 p-4">
               <div className="flex items-baseline justify-between flex-wrap gap-2">
                 <h4 className="text-base font-semibold text-foreground">Entrada + parcelas</h4>
-                <span className="text-lg font-bold text-foreground">R$ 40.000 + 10x R$ 4.000</span>
+                <span className="text-lg font-bold text-foreground">R$ 28.000 + 10x R$ 5.200</span>
               </div>
               <p className="text-xs text-muted mt-1">
-                Entrada mínima de <strong className="text-foreground">50%</strong> (Pix, cartão ou os dois juntos via <strong className="text-foreground">Asaas</strong>) + restante em até 10x no cartão. Combina caixa imediato com fôlego de parcela.
+                Entrada mínima de <strong className="text-foreground">35%</strong> (Pix, cartão ou os dois juntos via <strong className="text-foreground">Asaas</strong>) + restante em até 10x no cartão. Combina caixa imediato com fôlego de parcela.
               </p>
             </div>
           </div>
@@ -396,7 +396,7 @@ export function PlaybookRecebimentoTab() {
       {/* ─── QUANTO COLETAR ───────────────────────────────────────────── */}
       <Section id="pb-coletar" eyebrow="O número que protege a venda" title="Quanto a gente precisa coletar.">
         <p className="text-sm text-muted leading-relaxed">
-          Em qualquer parcelamento customizado, a <strong className="text-foreground">entrada mínima é de 50% do valor do produto</strong>, paga no ato. A entrada pode ser no Pix, no cartão, ou <strong className="text-foreground">os dois juntos via Asaas</strong>. Isso garante caixa e mede o comprometimento real do lead.
+          Em qualquer parcelamento customizado, a <strong className="text-foreground">entrada mínima é de 35% do valor do produto</strong>, paga no ato. A entrada pode ser no Pix, no cartão, ou <strong className="text-foreground">os dois juntos via Asaas</strong>. Isso garante caixa e mede o comprometimento real do lead.
         </p>
 
         <div className="overflow-x-auto rounded-xl border border-border">
@@ -405,7 +405,7 @@ export function PlaybookRecebimentoTab() {
               <tr className="border-b border-border bg-[#8E1B1B]">
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-left">Produto</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Valor cheio</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Entrada mín. (50%)</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Entrada mín. (35%)</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Restante</th>
               </tr>
             </thead>
@@ -423,8 +423,8 @@ export function PlaybookRecebimentoTab() {
         </div>
 
         <NoteBox>
-          <strong className="text-foreground">O teste dos 50%:</strong> se o lead não consegue dar a entrada mínima, questione (com elegância) a real capacidade financeira dele para o programa. Entrada baixa = caixa frágil e risco de inadimplência.<br /><br />
-          <strong className="text-foreground">Qualquer condição além disso — entrada menor que 50%, mais de 10 parcelas, ou qualquer exceção — precisa ser consultada com a gestão antes de prometer ao lead.</strong>
+          <strong className="text-foreground">O teste dos 35%:</strong> se o lead não consegue dar a entrada mínima, questione (com elegância) a real capacidade financeira dele para o programa. Entrada baixa = caixa frágil e risco de inadimplência.<br /><br />
+          <strong className="text-foreground">Qualquer condição além disso — entrada menor que 35%, mais de 10 parcelas, ou qualquer exceção — precisa ser consultada com a gestão antes de prometer ao lead.</strong>
         </NoteBox>
       </Section>
 
@@ -439,8 +439,8 @@ export function PlaybookRecebimentoTab() {
           {[
             { icon: <Banknote className="h-3.5 w-3.5 text-letitia-gold" />, title: "Pix cheio:", desc: "tudo à vista. Sempre a primeira tentativa." },
             { icon: <CreditCard className="h-3.5 w-3.5 text-letitia-gold" />, title: "Cartão cheio:", desc: "100% no cartão em até 12x, se o limite cobrir." },
-            { icon: <Sparkles className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada + cartão:", desc: "entrada de 50%+ (Pix, cartão, ou Pix + cartão juntos via Asaas) e o restante em até 10x no cartão. A combinação mais usada." },
-            { icon: <Zap className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada combinada (Asaas):", desc: "quando o limite do cartão não cobre os 50% sozinho, o Asaas permite somar Pix + cartão na mesma entrada." },
+            { icon: <Sparkles className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada + cartão:", desc: "entrada de 35%+ (Pix, cartão, ou Pix + cartão juntos via Asaas) e o restante em até 10x no cartão. A combinação mais usada." },
+            { icon: <Zap className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada combinada (Asaas):", desc: "quando o limite do cartão não cobre os 35% sozinho, o Asaas permite somar Pix + cartão na mesma entrada." },
             { icon: <ArrowDown className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada maior = menos parcelas:", desc: "quanto maior a entrada, melhor o caixa e menor o risco. Incentive sempre subir a entrada." },
             { icon: <Shield className="h-3.5 w-3.5 text-letitia-gold" />, title: "Financiamento:", desc: "só quando o cartão não comporta. Empresa recebe à vista." },
           ].map((item, i) => (
@@ -454,7 +454,7 @@ export function PlaybookRecebimentoTab() {
         </div>
 
         <NoteBox>
-          <strong className="text-foreground">Limite do que o closer pode oferecer sozinho:</strong> entrada de 50%+ (Pix/cartão/Asaas) e restante em até 10x. <strong className="text-foreground">Qualquer coisa além disso — entrada menor, mais parcelas, prazos especiais — só com aval da gestão.</strong>
+          <strong className="text-foreground">Limite do que o closer pode oferecer sozinho:</strong> entrada de 35%+ (Pix/cartão/Asaas) e restante em até 10x. <strong className="text-foreground">Qualquer coisa além disso — entrada menor, mais parcelas, prazos especiais — só com aval da gestão.</strong>
         </NoteBox>
 
         <h3 className="font-serif text-base font-semibold text-foreground mt-2">Tabela de parcelamento por produto</h3>
@@ -465,7 +465,7 @@ export function PlaybookRecebimentoTab() {
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-left">Produto</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Pix à vista</th>
                 <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Cartão 12x</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Entrada 50% + 10x</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-white text-right">Entrada 35% + 10x</th>
               </tr>
             </thead>
             <tbody>
@@ -543,7 +543,7 @@ export function PlaybookRecebimentoTab() {
                   resposta: "Ofereça entrada (Pix + cartão via Asaas) + restante no cartão. \"A gente monta a entrada juntando Pix e cartão no Asaas e parcela o restante, assim não estoura o limite.\""
                 },
                 {
-                  lead: "\"Não consigo nem os 50% de entrada\"",
+                  lead: "\"Não consigo nem os 35% de entrada\"",
                   resposta: "Verifique o perfil do lead: se for um lead bom e comprometido, consulte a gestão sobre a possibilidade de uma condição diferenciada. Não prometa nada por conta própria — leve o caso com contexto para a gestão avaliar."
                 },
                 {
@@ -629,10 +629,10 @@ export function PlaybookRecebimentoTab() {
           {/* Regras Absolutas */}
           {[
             { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Sempre na ordem: Pix → Cartão → Entrada+Parcelas → Financiamento", desc: "Cada opção tem melhor caixa que a seguinte. Não pule etapas nem ofereça tudo de uma vez." },
-            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Entrada mínima de 50% em qualquer parcelamento customizado", desc: "No ato — Pix, cartão ou os dois juntos via Asaas. Protege o caixa e mede comprometimento. Se não dá os 50%, questione a capacidade financeira." },
-            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Qualquer condição além do padrão = consultar a gestão", desc: "O closer fecha sozinho até: entrada de 50%+ (Pix/cartão/Asaas) + restante em até 10x. Entrada menor, mais parcelas ou qualquer exceção só com aval da gestão." },
+            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Entrada mínima de 35% em qualquer parcelamento customizado", desc: "No ato — Pix, cartão ou os dois juntos via Asaas. Protege o caixa e mede comprometimento. Se não dá os 35%, questione a capacidade financeira." },
+            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Qualquer condição além do padrão = consultar a gestão", desc: "O closer fecha sozinho até: entrada de 35%+ (Pix/cartão/Asaas) + restante em até 10x. Entrada menor, mais parcelas ou qualquer exceção só com aval da gestão." },
             { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Nunca mostre o preço antes de ancorar o valor", desc: "SPIN completo → dor → todas as entregas → \"quanto vale?\" → só então o investimento com ancoragem." },
-            { level: "Importante", color: "bg-letitia-gold/10 text-[#9A6E12]", title: "Entrada robusta (Pix/cartão/Asaas), restante no cartão", desc: "Use o Asaas para somar Pix + cartão e bater os 50% de entrada quando o limite não cobre sozinho. Restante sempre no cartão = recebimento garantido." },
+            { level: "Importante", color: "bg-letitia-gold/10 text-[#9A6E12]", title: "Entrada robusta (Pix/cartão/Asaas), restante no cartão", desc: "Use o Asaas para somar Pix + cartão e bater os 35% de entrada quando o limite não cobre sozinho. Restante sempre no cartão = recebimento garantido." },
             { level: "Importante", color: "bg-letitia-gold/10 text-[#9A6E12]", title: "Cartas na manga uma por vez, na ordem certa", desc: "Acompanhamento de verdade → Sessão com a Letícia. Cada carta é calibrada para uma objeção específica; a sessão com a Letícia é a mais forte, reserve para o fim." },
             { level: "Importante", color: "bg-letitia-gold/10 text-[#9A6E12]", title: "Saia da reunião com próximo passo: dia, hora e responsável", desc: "Se fechou, o próximo passo é o pagamento. Se não, é o follow-up. Nunca termine com \"depois eu te retorno\"." },
             { level: "Recomendado", color: "bg-emerald-50 text-emerald-700", title: "Incentive sempre a maior entrada possível", desc: "Quanto maior a entrada, melhor o caixa e menor o risco. Suba a entrada antes de aumentar o número de parcelas." },
