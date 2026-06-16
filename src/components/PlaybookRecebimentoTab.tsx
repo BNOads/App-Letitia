@@ -244,24 +244,7 @@ export function PlaybookRecebimentoTab() {
                 </div>
               )}
 
-              {/* 4 - Financiamento (só high-ticket) */}
-              {isHigh && (
-                <div className="flex items-stretch rounded-xl border border-border bg-card overflow-hidden">
-                  <div className="flex-shrink-0 w-12 bg-[#8E1B1B] flex items-center justify-center">
-                    <span className="text-white font-serif text-lg font-bold">4</span>
-                  </div>
-                  <div className="flex-1 p-3.5">
-                    <div className="flex items-baseline justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-muted" />
-                        <h4 className="text-sm font-semibold text-foreground">Financiamento</h4>
-                      </div>
-                      <span className="text-base font-bold text-foreground">último recurso</span>
-                    </div>
-                    <p className="text-[11px] text-muted mt-1">Para quem não tem limite no cartão. TMB, PrincipiaPay e outras (a contratar).</p>
-                  </div>
-                </div>
-              )}
+
             </div>
 
             {/* Footer */}
@@ -300,7 +283,7 @@ export function PlaybookRecebimentoTab() {
                 { num: "1º", forma: "Pix à vista", porque: "100% do caixa na hora. Ofereça SEMPRE primeiro." },
                 { num: "2º", forma: "Cartão de crédito (até 12x)", porque: "Parcelamento padrão. Recebimento garantido, com antecipação possível." },
                 { num: "3º", forma: "Entrada + parcelas", porque: "Entrada mínima no Pix + restante no cartão. Protege o caixa." },
-                { num: "4º", forma: "Financiamento", porque: "Último recurso. Para quem não tem limite no cartão." },
+
               ].map((row) => (
                 <tr key={row.num} className="border-b border-border/50 last:border-0 hover:bg-background/50 transition-colors">
                   <td className="px-4 py-3 text-sm font-bold text-foreground">{row.num}</td>
@@ -376,20 +359,7 @@ export function PlaybookRecebimentoTab() {
             </div>
           </div>
 
-          {/* Opção 4 */}
-          <div className="flex items-stretch rounded-xl border border-border bg-card overflow-hidden">
-            <div className="flex-shrink-0 w-14 bg-[#8E1B1B] flex flex-col items-center justify-center">
-              <span className="text-white font-serif text-xl font-bold">4</span>
-              <span className="text-white/80 text-[7px] uppercase tracking-wider mt-0.5">último recurso</span>
-            </div>
-            <div className="flex-1 p-4">
-              <div className="flex items-baseline justify-between flex-wrap gap-2">
-                <h4 className="text-base font-semibold text-foreground">Financiamento</h4>
-                <span className="text-lg font-bold text-foreground">aprovação rápida</span>
-              </div>
-              <p className="text-xs text-muted mt-1">Para leads sem limite no cartão. A empresa recebe à vista. Ferramentas: <strong className="text-foreground">TMB, PrincipiaPay</strong> e outras do mercado <em>(a contratar)</em>.</p>
-            </div>
-          </div>
+
         </div>
       </Section>
 
@@ -442,7 +412,7 @@ export function PlaybookRecebimentoTab() {
             { icon: <Sparkles className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada + cartão:", desc: "entrada de 35%+ (Pix, cartão, ou Pix + cartão juntos via Asaas) e o restante em até 6x no cartão. A combinação mais usada." },
             { icon: <Zap className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada combinada (Asaas):", desc: "quando o limite do cartão não cobre os 35% sozinho, o Asaas permite somar Pix + cartão na mesma entrada." },
             { icon: <ArrowDown className="h-3.5 w-3.5 text-letitia-gold" />, title: "Entrada maior = menos parcelas:", desc: "quanto maior a entrada, melhor o caixa e menor o risco. Incentive sempre subir a entrada." },
-            { icon: <Shield className="h-3.5 w-3.5 text-letitia-gold" />, title: "Financiamento:", desc: "só quando o cartão não comporta. Empresa recebe à vista." },
+
           ].map((item, i) => (
             <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3">
               <div className="flex-shrink-0 mt-0.5">{item.icon}</div>
@@ -546,10 +516,7 @@ export function PlaybookRecebimentoTab() {
                   lead: "\"Não consigo nem os 35% de entrada\"",
                   resposta: "Verifique o perfil do lead: se for um lead bom e comprometido, consulte a gestão sobre a possibilidade de uma condição diferenciada. Não prometa nada por conta própria — leve o caso com contexto para a gestão avaliar."
                 },
-                {
-                  lead: "\"Não tenho limite nenhum\"",
-                  resposta: "Financiamento (TMB / PrincipiaPay / a contratar). \"Tem uma linha de financiamento com aprovação rápida — a empresa recebe à vista e você parcela lá.\""
-                },
+
                 {
                   lead: "\"Não tenho limite nenhum e nem a entrada\"",
                   resposta: "Ofereça outros produtos do portfólio que se encaixem na realidade financeira do lead. Apresente opções como Sessão Individual, A Estrategista ou Você Dirige — produtos de entrada que entregam valor e podem ser o primeiro passo antes do high-ticket."
@@ -628,7 +595,7 @@ export function PlaybookRecebimentoTab() {
         <div className="space-y-3">
           {/* Regras Absolutas */}
           {[
-            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Sempre na ordem: Pix → Cartão → Entrada+Parcelas → Financiamento", desc: "Cada opção tem melhor caixa que a seguinte. Não pule etapas nem ofereça tudo de uma vez." },
+            { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Sempre na ordem: Pix → Cartão → Entrada+Parcelas", desc: "Cada opção tem melhor caixa que a seguinte. Não pule etapas nem ofereça tudo de uma vez." },
             { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Entrada mínima de 35% em qualquer parcelamento customizado", desc: "No ato — Pix, cartão ou os dois juntos via Asaas. Protege o caixa e mede comprometimento. Se não dá os 35%, questione a capacidade financeira." },
             { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Qualquer condição além do padrão = consultar a gestão", desc: "O closer fecha sozinho até: entrada de 35%+ (Pix/cartão/Asaas) + restante em até 6x. Entrada menor, mais parcelas ou qualquer exceção só com aval da gestão." },
             { level: "Absoluta", color: "bg-red-50 text-[#8E1B1B]", title: "Nunca mostre o preço antes de ancorar o valor", desc: "SPIN completo → dor → todas as entregas → \"quanto vale?\" → só então o investimento com ancoragem." },
