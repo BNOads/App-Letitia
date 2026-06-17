@@ -44,6 +44,12 @@ interface ConteudoDetailModalProps {
   onUpdate: () => void;
 }
 
+// Strip seconds from time string: "14:27:00" → "14:27"
+function formatTime(t: string | null | undefined): string {
+  if (!t) return "";
+  return t.split(":").slice(0, 2).join(":");
+}
+
 export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClose, onUpdate }: ConteudoDetailModalProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -64,6 +70,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
     plataforma: conteudo.plataforma,
     responsavel_id: conteudo.responsavel_id || "",
     data_prevista: conteudo.data_prevista,
+    horario_previsto: formatTime(conteudo.horario_previsto),
     prazo_seguranca: conteudo.prazo_seguranca || "",
     big_idea: conteudo.big_idea || "",
     roteiro: conteudo.roteiro || "",
@@ -135,6 +142,11 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
       if (form.formato !== conteudo.formato) {
         trails.push(`Mudou formato: ${conteudo.formato} → ${form.formato}`);
       }
+      if (form.horario_previsto !== formatTime(conteudo.horario_previsto)) {
+        const oldTime = formatTime(conteudo.horario_previsto) || "Nenhum";
+        const newTime = form.horario_previsto || "Nenhum";
+        trails.push(`Mudou horário: ${oldTime} → ${newTime}`);
+      }
 
       await updateContent(conteudo.id, {
         titulo: form.titulo,
@@ -143,6 +155,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
         plataforma: form.plataforma,
         responsavel_id: form.responsavel_id || null,
         data_prevista: form.data_prevista,
+        horario_previsto: form.horario_previsto || null,
         prazo_seguranca: form.prazo_seguranca || null,
         big_idea: form.big_idea || null,
         roteiro: form.roteiro || null,
@@ -321,8 +334,8 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
             </div>
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Dates + Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-xl border border-border p-4">
               <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2 flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> Data Prevista
@@ -333,6 +346,42 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                 onChange={e => setForm({ ...form, data_prevista: e.target.value })}
                 className="w-full bg-transparent text-sm font-medium text-foreground border-0 focus:outline-none cursor-pointer"
               />
+            </div>
+            <div className="rounded-xl border border-letitia-gold/30 bg-letitia-gold/5 p-4">
+              <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-letitia-clay mb-2 flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Horário do Post
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  value={form.horario_previsto}
+                  onChange={async (e) => {
+                    const newTime = e.target.value;
+                    setForm(prev => ({ ...prev, horario_previsto: newTime }));
+                    // Auto-save time
+                    try {
+                      await updateContent(conteudo.id, { horario_previsto: newTime || null });
+                      if (newTime !== formatTime(conteudo.horario_previsto)) {
+                        const oldT = formatTime(conteudo.horario_previsto) || "Nenhum";
+                        await logRastro(`Mudou horário: ${oldT} → ${newTime}`);
+                      }
+                    } catch (err) { console.error("Erro ao salvar horário:", err); }
+                  }}
+                  className="flex-1 bg-transparent text-sm font-medium text-foreground border-0 focus:outline-none cursor-pointer"
+                />
+                {form.horario_previsto && (
+                  <button type="button" onClick={async () => {
+                    setForm(prev => ({ ...prev, horario_previsto: "" }));
+                    try {
+                      await updateContent(conteudo.id, { horario_previsto: null });
+                      const oldT = formatTime(conteudo.horario_previsto) || "Nenhum";
+                      if (oldT !== "Nenhum") await logRastro(`Removeu horário (era ${oldT})`);
+                    } catch (err) { console.error("Erro ao remover horário:", err); }
+                  }} className="text-[9px] text-red-400 hover:text-red-500 transition-colors">
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
             <div className="rounded-xl border border-border p-4">
               <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-orange-500 mb-2 flex items-center gap-1">

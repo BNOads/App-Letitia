@@ -4,7 +4,7 @@ import { getContent, updateContentStatus, createContent, type DBContent } from "
 import { notifyNewPost } from "@/services/notificationService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2 } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2, Clock } from "lucide-react";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";
@@ -20,6 +20,12 @@ function getLocalDateString(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Strip seconds from DB time: "14:27:00" → "14:27"
+function fmtTime(t: string | null | undefined): string {
+  if (!t) return "";
+  return t.split(":").slice(0, 2).join(":");
 }
 
 const statusCols = [
@@ -337,6 +343,7 @@ function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, 
     formato: "reels",
     plataforma: socialProfiles[0]?.nome || "",
     data_prevista: initialDate || getLocalDateString(new Date()),
+    horario_previsto: "",
     status: initialStatus || "legenda",
     responsavel_id: user?.id || ""
   });
@@ -350,6 +357,7 @@ function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, 
     setLoading(true);
     try {
       const payload: any = { ...formData };
+      if (!payload.horario_previsto) payload.horario_previsto = null;
       if (isCollab && collabProfiles.length > 0) {
         payload.collab_plataformas = collabProfiles.filter(n => n !== formData.plataforma);
       }
@@ -415,6 +423,27 @@ function NovoPautaModal({ profiles, socialProfiles, initialDate, initialStatus, 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Data Prevista</label>
               <input required type="date" value={formData.data_prevista} onChange={e => setFormData({ ...formData, data_prevista: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none" />
+            </div>
+          </div>
+
+          {/* Horário */}
+          <div className="rounded-xl border border-letitia-gold/30 bg-letitia-gold/5 p-4">
+            <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-letitia-clay mb-2">
+              <Clock className="h-3.5 w-3.5" /> Horário do Post
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="time"
+                value={formData.horario_previsto}
+                onChange={e => setFormData({ ...formData, horario_previsto: e.target.value })}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+              />
+              <span className="text-[10px] text-muted">Opcional — ex: 14:00, 18:30</span>
+              {formData.horario_previsto && (
+                <button type="button" onClick={() => setFormData({ ...formData, horario_previsto: "" })} className="text-[10px] text-red-400 hover:text-red-500 transition-colors">
+                  Limpar
+                </button>
+              )}
             </div>
           </div>
 
@@ -552,7 +581,7 @@ function ListView({ pautas, socialProfiles, onSelect, onAdd }: { pautas: DBConte
     { key: "plataforma", label: "Plataforma", hide: "hidden md:table-cell" },
     { key: "pilar", label: "Pilar", hide: "hidden md:table-cell" },
     { key: "status", label: "Status", hide: "" },
-    { key: "data_prevista", label: "Data", hide: "" },
+    { key: "data_prevista", label: "Data / Horário", hide: "" },
   ];
 
   return (
@@ -602,7 +631,17 @@ function ListView({ pautas, socialProfiles, onSelect, onAdd }: { pautas: DBConte
                   <td className="px-4 py-3 hidden md:table-cell"><PlataformaBadge plataforma={p.plataforma} socialProfiles={socialProfiles} /></td>
                   <td className="px-4 py-3 hidden md:table-cell"><span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", pilar.bg, pilar.text)}>{pilar.label}</span></td>
                   <td className="px-4 py-3"><StatusBadge status={p.status || "legenda"} /></td>
-                  <td className="px-4 py-3 text-sm text-muted">{new Date(p.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted">{new Date(p.data_prevista + 'T00:00:00').toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+                      {p.horario_previsto && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-bold text-letitia-clay bg-letitia-gold/15 px-1.5 py-0.5 rounded-full tabular-nums">
+                          <Clock className="h-2.5 w-2.5" />
+                          {fmtTime(p.horario_previsto)}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -624,19 +663,68 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
     const day = new Date(today);
     day.setDate(day.getDate() + weekOffset);
     const dayStr = getLocalDateString(day);
-    const dayPautas = pautas.filter((p) => p.data_prevista === dayStr);
+    const dayPautas = pautas.filter((p) => p.data_prevista === dayStr)
+      .sort((a, b) => (a.horario_previsto || "99:99").localeCompare(b.horario_previsto || "99:99"));
     const label = day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+    // Group pautas by hour for timeline view
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+    const pautasWithTime = dayPautas.filter(p => p.horario_previsto);
+    const pautasWithoutTime = dayPautas.filter(p => !p.horario_previsto);
+    const usedHours = [...new Set(pautasWithTime.map(p => p.horario_previsto!.split(':')[0]))].sort();
 
     return (
       <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-background/50">
+        <div className="px-4 py-3 border-b border-border bg-background/50 flex items-center justify-between">
           <p className="text-sm font-semibold text-foreground capitalize">{label}</p>
+          <div className="flex items-center gap-1.5 text-[10px] text-muted">
+            <Clock className="h-3 w-3" />
+            {pautasWithTime.length} com horário
+          </div>
         </div>
-        <div className="p-4 space-y-2 min-h-[200px]">
-          {dayPautas.length === 0 ? (
+        <div className="p-4 space-y-1 min-h-[200px]">
+          {/* Timeline by hour */}
+          {pautasWithTime.length > 0 && (
+            <div className="space-y-0.5 mb-4">
+              {usedHours.map(hour => {
+                const hourPautas = pautasWithTime.filter(p => p.horario_previsto!.split(':')[0] === hour);
+                return (
+                  <div key={hour} className="flex gap-3 group">
+                    <div className="flex-shrink-0 w-14 pt-2.5 text-right">
+                      <span className="text-xs font-bold text-letitia-clay tabular-nums">{hour}:00</span>
+                    </div>
+                    <div className="flex-shrink-0 flex flex-col items-center pt-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-letitia-gold border-2 border-letitia-gold/30 shadow-sm shadow-letitia-gold/20" />
+                      <div className="w-0.5 flex-1 bg-letitia-gold/20" />
+                    </div>
+                    <div className="flex-1 space-y-1.5 pb-3">
+                      {hourPautas.map(p => (
+                        <div key={p.id} className="relative">
+                          <div className="absolute -left-[3.25rem] top-2.5 text-[10px] text-muted font-medium tabular-nums hidden">
+                            {fmtTime(p.horario_previsto)}
+                          </div>
+                          <PautaCard pauta={p} wide socialProfiles={socialProfiles} onClick={() => onSelect(p)} showTime />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Posts without time */}
+          {pautasWithoutTime.length > 0 && (
+            <div className="space-y-2">
+              {pautasWithTime.length > 0 && (
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted mt-2 mb-1">Sem horário definido</p>
+              )}
+              {pautasWithoutTime.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} onClick={() => onSelect(p)} />)}
+            </div>
+          )}
+
+          {dayPautas.length === 0 && (
             <p className="text-sm text-muted italic py-8 text-center">Nenhum conteúdo para este dia.</p>
-          ) : (
-            dayPautas.map((p) => <PautaCard key={p.id} pauta={p} wide socialProfiles={socialProfiles} onClick={() => onSelect(p)} />)
           )}
           <button onClick={() => onAdd(dayStr)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-border text-muted hover:text-letitia-gold hover:border-letitia-gold/40 hover:bg-letitia-gold/5 transition-all text-xs font-medium">
             <Plus className="h-3.5 w-3.5" /> Adicionar conteúdo
@@ -670,7 +758,9 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
                 <p className={cn("text-lg font-semibold", isToday ? "text-letitia-clay" : "text-foreground")}>{day.getDate()}</p>
               </div>
               <div className="p-1.5 space-y-1 flex-1">
-                {dayPautas.map((p) => {
+                {dayPautas
+                  .sort((a, b) => (a.horario_previsto || "99:99").localeCompare(b.horario_previsto || "99:99"))
+                  .map((p) => {
                   const mainSp = socialProfiles?.find(s => s.nome === p.plataforma);
                   const collabSps = (p.collab_plataformas || []).map(n => socialProfiles?.find(s => s.nome === n)).filter(Boolean) as SocialProfile[];
                   return (
@@ -679,6 +769,12 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
                         {mainSp && <ProfileAvatar sp={mainSp} size="sm" />}
                         {collabSps.map(cp => <ProfileAvatar key={cp.id} sp={cp} size="sm" />)}
                         {collabSps.length > 0 && <Link2 className="h-2.5 w-2.5 text-letitia-gold" />}
+                        {p.horario_previsto && (
+                          <span className="ml-auto flex items-center gap-0.5 text-[9px] font-bold text-letitia-clay bg-letitia-gold/15 px-1.5 py-0.5 rounded-full tabular-nums">
+                            <Clock className="h-2 w-2" />
+                            {fmtTime(p.horario_previsto)}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[10px] font-medium text-foreground leading-tight line-clamp-2">{p.titulo}</p>
                       <StatusBadge status={p.status || "legenda"} tiny />
@@ -733,9 +829,14 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
                   <Plus className="h-3 w-3" />
                 </button>
               </div>
-              {dayPautas.slice(0, 2).map((p) => (
+              {dayPautas
+                .sort((a, b) => (a.horario_previsto || "99:99").localeCompare(b.horario_previsto || "99:99"))
+                .slice(0, 2).map((p) => (
                 <div key={p.id} onClick={() => onSelect(p)} className="rounded px-1.5 py-0.5 mb-0.5 bg-background/60 border border-border cursor-pointer hover:shadow-sm">
-                  <p className="text-[9px] font-medium text-foreground truncate">{formatoIcons[p.formato as keyof typeof formatoIcons]} {p.titulo}</p>
+                  <p className="text-[9px] font-medium text-foreground truncate">
+                    {p.horario_previsto && <span className="font-bold text-letitia-clay">{fmtTime(p.horario_previsto)} </span>}
+                    {formatoIcons[p.formato as keyof typeof formatoIcons]} {p.titulo}
+                  </p>
                 </div>
               ))}
               {dayPautas.length > 2 && <p className="text-[9px] text-muted px-1">+{dayPautas.length - 2} mais</p>}
@@ -761,7 +862,7 @@ function ProfileAvatar({ sp, size = "md" }: { sp: SocialProfile | undefined; siz
   );
 }
 
-function PautaCard({ pauta, wide, socialProfiles, onClick }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[]; onClick?: () => void }) {
+function PautaCard({ pauta, wide, socialProfiles, onClick, showTime }: { pauta: DBContent; wide?: boolean; socialProfiles?: SocialProfile[]; onClick?: () => void; showTime?: boolean }) {
   const pilar = pilarColors[pauta.pilar as keyof typeof pilarColors] || pilarColors.pessoal;
   const mainProfile = socialProfiles?.find(p => p.nome === pauta.plataforma);
   const collabProfilesList = (pauta.collab_plataformas || []).map(name => socialProfiles?.find(p => p.nome === name)).filter(Boolean) as SocialProfile[];
@@ -785,7 +886,15 @@ function PautaCard({ pauta, wide, socialProfiles, onClick }: { pauta: DBContent;
           )}
         </div>
         <div className={cn("flex-1 min-w-0", isCollab && "mt-0")}>
-          <p className="text-sm font-medium text-foreground leading-snug">{pauta.titulo}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-foreground leading-snug flex-1">{pauta.titulo}</p>
+            {(showTime || !wide) && pauta.horario_previsto && (
+              <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-bold text-letitia-clay bg-letitia-gold/15 px-2 py-0.5 rounded-full tabular-nums border border-letitia-gold/20">
+                <Clock className="h-2.5 w-2.5" />
+                {fmtTime(pauta.horario_previsto)}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", pilar.bg, pilar.text)}>{pilar.label}</span>
             <PlataformaBadge plataforma={pauta.plataforma} socialProfiles={socialProfiles} />

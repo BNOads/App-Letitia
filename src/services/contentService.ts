@@ -8,6 +8,7 @@ export interface DBContent {
   status: string;
   plataforma: string;
   data_prevista: string;
+  horario_previsto: string | null;
   responsavel_id: string | null;
   descricao: string | null;
   big_idea: string | null;
