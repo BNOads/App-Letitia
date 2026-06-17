@@ -326,6 +326,14 @@ export function Conteudo() {
           socialProfiles={socialProfiles}
           onClose={() => setSelectedConteudo(null)}
           onUpdate={() => { setSelectedConteudo(null); fetchPautas(); }}
+          onSilentRefresh={async () => {
+            try {
+              const data = await getContent();
+              setPautas(data);
+              const updated = data.find(p => p.id === selectedConteudo.id);
+              if (updated) setSelectedConteudo(updated);
+            } catch (err) { console.error("Erro ao atualizar:", err); }
+          }}
         />
       )}
     </div>

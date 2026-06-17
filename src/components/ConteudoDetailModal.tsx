@@ -42,6 +42,7 @@ interface ConteudoDetailModalProps {
   socialProfiles: SocialProfile[];
   onClose: () => void;
   onUpdate: () => void;
+  onSilentRefresh?: () => void;
 }
 
 // Strip seconds from time string: "14:27:00" → "14:27"
@@ -50,7 +51,7 @@ function formatTime(t: string | null | undefined): string {
   return t.split(":").slice(0, 2).join(":");
 }
 
-export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClose, onUpdate }: ConteudoDetailModalProps) {
+export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClose, onUpdate, onSilentRefresh }: ConteudoDetailModalProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -365,6 +366,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                         const oldT = formatTime(conteudo.horario_previsto) || "Nenhum";
                         await logRastro(`Mudou horário: ${oldT} → ${newTime}`);
                       }
+                      onSilentRefresh?.();
                     } catch (err) { console.error("Erro ao salvar horário:", err); }
                   }}
                   className="flex-1 bg-transparent text-sm font-medium text-foreground border-0 focus:outline-none cursor-pointer"
@@ -376,6 +378,7 @@ export function ConteudoDetailModal({ conteudo, profiles, socialProfiles, onClos
                       await updateContent(conteudo.id, { horario_previsto: null });
                       const oldT = formatTime(conteudo.horario_previsto) || "Nenhum";
                       if (oldT !== "Nenhum") await logRastro(`Removeu horário (era ${oldT})`);
+                      onSilentRefresh?.();
                     } catch (err) { console.error("Erro ao remover horário:", err); }
                   }} className="text-[9px] text-red-400 hover:text-red-500 transition-colors">
                     ✕
