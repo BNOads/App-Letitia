@@ -471,7 +471,7 @@ export function PlaybookRecebimentoTab() {
         <div className="rounded-xl border border-dashed border-[#B23A3A]/40 bg-background p-5 space-y-3">
           <p className="text-sm text-foreground italic leading-relaxed">
             <strong className="not-italic text-[#8E1B1B]">[ao chegar no slide de preço]</strong><br />
-            "Olha, se você fosse contratar cada uma dessas entregas separadamente — os encontros, as imersões, as sessões individuais, todo o método — o investimento passaria de muito mais do que isso. No programa, tudo está reunido por <strong>[valor do produto]</strong>. À vista no Pix você fecha hoje; no cartão, em até 12x."
+            "Olha, se você fosse contratar cada uma dessas entregas separadamente — os encontros, as imersões, o acompanhamento, todo o método — o investimento passaria de muito mais do que isso. No programa, tudo está reunido por <strong>[valor do produto]</strong>. À vista no Pix você fecha hoje; no cartão, em até 12x."
           </p>
           <p className="text-sm text-foreground italic">
             <strong className="not-italic text-[#8E1B1B]">[pausa — deixe o lead processar. Não preencha o silêncio.]</strong>
