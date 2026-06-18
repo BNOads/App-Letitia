@@ -676,7 +676,6 @@ function CalendarView({ pautas, mode, weekOffset, socialProfiles, onSelect, onAd
     const label = day.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
     // Group pautas by hour for timeline view
-    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
     const pautasWithTime = dayPautas.filter(p => p.horario_previsto);
     const pautasWithoutTime = dayPautas.filter(p => !p.horario_previsto);
     const usedHours = [...new Set(pautasWithTime.map(p => p.horario_previsto!.split(':')[0]))].sort();
