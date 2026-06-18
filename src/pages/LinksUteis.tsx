@@ -5,6 +5,7 @@ import {
   ExternalLink, MoreVertical, GripVertical, Loader2, X, Link as LinkIcon, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PRODUTO_OPTIONS } from "@/data/produtosData";
 
 type ViewMode = "grid" | "lista";
 
@@ -300,7 +301,8 @@ function NovoLinkModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
     titulo: "",
     url: "",
     categoria: "GERAL",
-    favorito: false
+    favorito: false,
+    produto_id: "" as string | null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -311,7 +313,7 @@ function NovoLinkModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
       if (!formattedUrl.startsWith('http')) {
         formattedUrl = 'https://' + formattedUrl;
       }
-      await createLink({ ...formData, url: formattedUrl });
+      await createLink({ ...formData, url: formattedUrl, produto_id: formData.produto_id || null });
       onSuccess();
     } catch (error) {
       console.error("Erro ao criar link:", error);
@@ -371,6 +373,21 @@ function NovoLinkModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
               <option value="FORMULÁRIOS">Formulários</option>
               <option value="CHECKOUTS">Checkouts</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Produto Associado</label>
+            <select
+              value={formData.produto_id || ""}
+              onChange={e => setFormData({ ...formData, produto_id: e.target.value || null })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+            >
+              <option value="">Nenhum (link geral)</option>
+              {PRODUTO_OPTIONS.map(p => (
+                <option key={p.id} value={p.id}>{p.emoji} {p.nome}</option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted mt-1">Ao associar, este link aparece na página pública de Produtos.</p>
           </div>
 
           <div className="flex items-center gap-2 py-2">

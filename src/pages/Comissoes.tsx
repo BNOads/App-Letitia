@@ -24,8 +24,9 @@ import { cn } from "@/lib/utils";
 
 import { MetasTab } from "@/components/MetasTab";
 import { PlaybookRecebimentoTab } from "@/components/PlaybookRecebimentoTab";
+import { PRODUTOS_CATALOGO } from "@/data/produtosData";
 
-// ─── PRODUTO CATALOG (extraído dos documentos da Letitia) ──────────────────
+// ─── PRODUTO CATALOG (extraído do catálogo compartilhado) ──────────────────
 interface Produto {
   id: string;
   nome: string;
@@ -35,64 +36,14 @@ interface Produto {
   emoji: string;
 }
 
-const PRODUTOS_INICIAIS: Produto[] = [
-  {
-    id: "plano-a",
-    nome: "Workshop Plano A",
-    valor: 97.0,
-    descricao: "Porta de entrada paga — workshop prático",
-    categoria: "workshop",
-    emoji: "📋",
-  },
-  {
-    id: "voce-dirige",
-    nome: "Curso Você Dirige",
-    valor: 970.0,
-    descricao: "Produto intermediário — curso completo",
-    categoria: "curso",
-    emoji: "🚗",
-  },
-  {
-    id: "the-way-anual",
-    nome: "THE WAY Mentoria (Anual)",
-    valor: 80000.0,
-    descricao: "Mentoria anual premium — programa exclusivo",
-    categoria: "mentoria",
-    emoji: "✦",
-  },
-  {
-    id: "the-way-semestral",
-    nome: "THE WAY Mentoria (Semestral)",
-    valor: 45000.0,
-    descricao: "Downsell — 6 meses com entregas quinzenais e 1 encontro presencial",
-    categoria: "mentoria",
-    emoji: "✦",
-  },
-  {
-    id: "estrategista",
-    nome: "A Estrategista (Gravado)",
-    valor: 2000.0,
-    descricao: "Curso gravado de estratégia de vida e negócios",
-    categoria: "curso",
-    emoji: "🎯",
-  },
-  {
-    id: "vcn",
-    nome: "Vida, Carreira e Negócios (VCN)",
-    valor: 20000.0,
-    descricao: "Programa completo de transformação — vida, carreira e negócios",
-    categoria: "mentoria",
-    emoji: "🏅",
-  },
-  {
-    id: "sessao-individual",
-    nome: "Sessão Individual",
-    valor: 5000.0,
-    descricao: "Sessão estratégica individual com Letícia",
-    categoria: "sessao",
-    emoji: "💡",
-  },
-];
+const PRODUTOS_INICIAIS: Produto[] = PRODUTOS_CATALOGO.map(p => ({
+  id: p.id,
+  nome: p.nome,
+  valor: p.valor,
+  descricao: p.descricao,
+  categoria: p.categoria,
+  emoji: p.emoji,
+}));
 
 // ─── FAIXAS DE COMISSÃO (Faixa 1+2 mescladas em 15%) ───────────────────────
 interface FaixaComissao {

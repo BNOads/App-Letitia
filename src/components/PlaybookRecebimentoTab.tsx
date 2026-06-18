@@ -13,6 +13,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PRODUTOS_CATALOGO, brl } from "@/data/produtosData";
 
 // ─── DADOS DOS PRODUTOS (Playbook) ─────────────────────────────────────────
 interface ProdutoPlaybook {
@@ -25,18 +26,15 @@ interface ProdutoPlaybook {
   parc6: number;
 }
 
-const PRODUTOS_PLAYBOOK: ProdutoPlaybook[] = [
-  { nome: "THE WAY Anual", valor: 80000, tipo: "high", cartao: 6667, entrada: 28000, restante: 52000, parc6: 8667 },
-  { nome: "THE WAY Semestral", valor: 45000, tipo: "high", cartao: 3750, entrada: 15750, restante: 29250, parc6: 4875 },
-  { nome: "THE WAY Trimestral", valor: 30000, tipo: "high", cartao: 2500, entrada: 10500, restante: 19500, parc6: 3250 },
-  { nome: "VCN — Vida, Carreira e Negócios", valor: 20000, tipo: "high", cartao: 1667, entrada: 7000, restante: 13000, parc6: 2167 },
-  { nome: "Sessão Individual", valor: 5000, tipo: "low", cartao: 417, entrada: 1750, restante: 3250, parc6: 542 },
-  { nome: "A Estrategista (Gravado)", valor: 2000, tipo: "low", cartao: 167, entrada: 700, restante: 1300, parc6: 217 },
-  { nome: "Curso Você Dirige", valor: 970, tipo: "low", cartao: 81, entrada: 340, restante: 630, parc6: 105 },
-  { nome: "Workshop Plano A", valor: 97, tipo: "low", cartao: 8, entrada: 34, restante: 63, parc6: 11 },
-];
-
-const brl = (n: number) => "R$ " + n.toLocaleString("pt-BR");
+const PRODUTOS_PLAYBOOK: ProdutoPlaybook[] = PRODUTOS_CATALOGO.map(p => ({
+  nome: p.nome,
+  valor: p.valor,
+  tipo: p.tipo,
+  cartao: p.cartao12x,
+  entrada: p.entrada35,
+  restante: p.restante,
+  parc6: p.parc6,
+}));
 
 // ─── SEÇÕES COLAPSÁVEIS ─────────────────────────────────────────────────────
 function Section({

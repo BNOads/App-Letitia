@@ -12,6 +12,7 @@ import { Senhas } from "./pages/Senhas";
 import { Suporte } from "./pages/Suporte";
 import { LinksUteis } from "./pages/LinksUteis";
 import { PublicDocument } from "./pages/PublicDocument";
+import { Produtos } from "./pages/Produtos";
 import { Perfil } from "./pages/Perfil";
 import { Equipe } from "./pages/Equipe";
 import { Notificacoes } from "./pages/Notificacoes";
@@ -33,6 +34,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/publico/documento/:id" element={<PublicDocument />} />
+            <Route path="/publico/produtos" element={<Produtos />} />
             
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<AppLayout />}>

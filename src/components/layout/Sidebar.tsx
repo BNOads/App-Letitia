@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent
+  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent, ShoppingBag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
@@ -22,6 +22,7 @@ const sections = [
       { name: "Alunos", href: "/alunos", icon: ContactRound },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
       { name: "Links Úteis", href: "/links", icon: Link2 },
+      { name: "Produtos", href: "/publico/produtos", icon: ShoppingBag, external: true },
     ],
   },
 
@@ -137,29 +138,42 @@ export function Sidebar() {
                 </p>
               )}
               <div className="space-y-0.5">
-                {section.items.map((item) => {
-                  const isActive = item.href === "/" ? location.pathname === "/" : location.pathname.startsWith(item.href);
+              {section.items.map((item) => {
+                  const isExternal = (item as any).external;
+                  const isActive = isExternal ? false : item.href === "/" ? location.pathname === "/" : location.pathname.startsWith(item.href);
+                  const linkClasses = cn(
+                    isActive
+                      ? "bg-letitia-gold/10 text-foreground font-medium"
+                      : "text-muted hover:bg-foreground/5 hover:text-foreground",
+                    "group flex items-center rounded-md transition-colors",
+                    collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2 text-sm"
+                  );
+                  const iconEl = (
+                    <item.icon
+                      className={cn(
+                        isActive ? "text-letitia-clay" : "text-muted group-hover:text-foreground",
+                        "h-4 w-4 flex-shrink-0 transition-colors",
+                        collapsed ? "" : "mr-3"
+                      )}
+                      aria-hidden="true"
+                    />
+                  );
+                  if (isExternal) {
+                    return (
+                      <a key={item.name} href={item.href} target="_blank" rel="noopener noreferrer" title={collapsed ? item.name : undefined} className={linkClasses}>
+                        {iconEl}
+                        {!collapsed && item.name}
+                      </a>
+                    );
+                  }
                   return (
                     <Link
                       key={item.name}
                       to={item.href}
                       title={collapsed ? item.name : undefined}
-                      className={cn(
-                        isActive
-                          ? "bg-letitia-gold/10 text-foreground font-medium"
-                          : "text-muted hover:bg-foreground/5 hover:text-foreground",
-                        "group flex items-center rounded-md transition-colors",
-                        collapsed ? "justify-center px-2 py-2.5" : "px-3 py-2 text-sm"
-                      )}
+                      className={linkClasses}
                     >
-                      <item.icon
-                        className={cn(
-                          isActive ? "text-letitia-clay" : "text-muted group-hover:text-foreground",
-                          "h-4 w-4 flex-shrink-0 transition-colors",
-                          collapsed ? "" : "mr-3"
-                        )}
-                        aria-hidden="true"
-                      />
+                      {iconEl}
                       {!collapsed && item.name}
                     </Link>
                   );

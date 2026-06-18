@@ -7,6 +7,7 @@ export interface DBLink {
   categoria: string;
   favorito: boolean;
   ordem: number;
+  produto_id?: string | null;
   created_at: string;
 }
 
@@ -50,4 +51,15 @@ export async function deleteLink(id: string) {
     .eq('id', id);
 
   if (error) throw error;
+}
+
+export async function getLinksWithProduto() {
+  const { data, error } = await supabase
+    .from('links_uteis')
+    .select('*')
+    .not('produto_id', 'is', null)
+    .order('ordem', { ascending: true });
+
+  if (error) throw error;
+  return data as DBLink[];
 }
