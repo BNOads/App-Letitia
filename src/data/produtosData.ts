@@ -7,7 +7,7 @@ export interface ProdutoCatalogo {
   valor: number;
   valorOriginal?: number; // "De R$ X" (riscado) — preço antes do desconto
   descricao: string;
-  categoria: "curso" | "mentoria" | "sessao" | "workshop";
+  categoria: "curso" | "mentoria" | "workshop";
   emoji: string;
   tipo: "high" | "low";
   cartao12x: number;
@@ -111,29 +111,10 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
       "Módulos sobre vida pessoal, carreira e negócios",
       "Comunidade exclusiva de alunos VCN",
       "Material de apoio completo",
-      "Certificado de conclusão",
     ],
     pdfUrl: "/propostas/Proposta-VCN.pdf",
   },
-  {
-    id: "sessao-individual",
-    nome: "Sessão Individual",
-    valor: 5000,
-    descricao: "Sessão estratégica individual com Letícia",
-    categoria: "sessao",
-    emoji: "💡",
-    tipo: "low",
-    cartao12x: 417,
-    entrada35: 1750,
-    restante: 3250,
-    parc6: 542,
-    entregaveis: [
-      "1 sessão estratégica individual com Letícia (90 min)",
-      "Diagnóstico personalizado da sua situação",
-      "Plano de ação prático e direcionado",
-      "Gravação da sessão para revisão",
-    ],
-  },
+
   {
     id: "estrategista",
     nome: "A Estrategista (Gravado)",
@@ -172,7 +153,6 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
       "Aulas gravadas com Letícia",
       "Material de apoio e exercícios",
       "Acesso vitalício ao conteúdo",
-      "Certificado de conclusão",
     ],
     pdfUrl: "/propostas/Proposta-VoceDirige.pdf",
   },
@@ -211,7 +191,7 @@ export function getProdutoById(id: string): ProdutoCatalogo | undefined {
 export const CATEGORIAS_PRODUTO: { value: ProdutoCatalogo["categoria"]; label: string }[] = [
   { value: "curso", label: "Curso" },
   { value: "mentoria", label: "Mentoria" },
-  { value: "sessao", label: "Sessão" },
+
   { value: "workshop", label: "Workshop" },
 ];
 

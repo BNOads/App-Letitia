@@ -38,7 +38,6 @@ const PRODUTOS: Produto[] = [
   { id: "the-way-semestral", nome: "THE WAY Mentoria (Semestral)", valor: 45000.0, emoji: "✦" },
   { id: "estrategista", nome: "A Estrategista (Gravado)", valor: 2000.0, emoji: "🎯" },
   { id: "vcn", nome: "Vida, Carreira e Negócios (VCN)", valor: 20000.0, emoji: "🏅" },
-  { id: "sessao-individual", nome: "Sessão Individual", valor: 5000.0, emoji: "💡" },
   { id: "bno-experience", nome: "BNO Experience 2026", valor: 3000.0, emoji: "🌟" },
 ];
 
@@ -73,7 +72,6 @@ const PRODUCT_ID_TO_SALES_NAMES: Record<string, string[]> = {
   "the-way-semestral": ["THE WAY", "THE WAY Mentoria", "The Way"],
   "estrategista": ["A Estrategista", "A ESTRATEGISTA", "Estrategista"],
   "vcn": ["VCN", "Vida, Carreira e Negócios"],
-  "sessao-individual": ["Sessão Individual", "SESSÃO INDIVIDUAL"],
   "bno-experience": ["BNO Experience", "BNO EXPERIENCE", "BNO Experience 2026"],
 };
 

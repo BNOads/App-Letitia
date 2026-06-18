@@ -136,7 +136,7 @@ export function PlaybookRecebimentoTab() {
           Sempre ofereça na ordem definida. <strong className="text-foreground">Cada opção tem melhor caixa imediato que a seguinte.</strong> O closer não pergunta "como você quer pagar?" — ele <em>conduz</em> pela escada, do melhor recebimento para o último recurso.
         </p>
         <NoteBox>
-          <strong className="text-foreground">Vale para os produtos high-ticket</strong> (THE WAY Anual, Semestral, Trimestral, VCN). Produtos de entrada — Sessão Individual, A Estrategista, Você Dirige, Workshop — são à vista direto (Pix ou cartão), sem escada de parcelamento.
+          <strong className="text-foreground">Vale para os produtos high-ticket</strong> (THE WAY Anual, Semestral, Trimestral, VCN). Produtos de entrada — A Estrategista, Você Dirige, Workshop — são à vista direto (Pix ou cartão), sem escada de parcelamento.
         </NoteBox>
       </Section>
 
@@ -517,7 +517,7 @@ export function PlaybookRecebimentoTab() {
 
                 {
                   lead: "\"Não tenho limite nenhum e nem a entrada\"",
-                  resposta: "Ofereça outros produtos do portfólio que se encaixem na realidade financeira do lead. Apresente opções como Sessão Individual, A Estrategista ou Você Dirige — produtos de entrada que entregam valor e podem ser o primeiro passo antes do high-ticket."
+                  resposta: "Ofereça outros produtos do portfólio que se encaixem na realidade financeira do lead. Apresente opções como A Estrategista ou Você Dirige — produtos de entrada que entregam valor e podem ser o primeiro passo antes do high-ticket."
                 },
                 {
                   lead: "\"Preciso pensar / sem urgência\"",
@@ -570,10 +570,10 @@ export function PlaybookRecebimentoTab() {
             </div>
             <h4 className="font-serif text-base font-semibold text-foreground flex items-center gap-2">
               <Crown className="h-4 w-4 text-letitia-gold" />
-              Sessão diagnóstica com a Letícia
+              Conversa diagnóstica com a Letícia
             </h4>
             <p className="text-xs text-muted leading-relaxed">
-              Sessão individual de diagnóstico direto com a Letícia. Não é call de vendas — é estratégia real com quem conduz o método.
+              Conversa de diagnóstico direto com a Letícia. Não é call de vendas — é estratégia real com quem conduz o método.
             </p>
             <div className="rounded-lg bg-card border border-border px-3 py-2">
               <p className="text-[11px] text-foreground">
@@ -584,7 +584,7 @@ export function PlaybookRecebimentoTab() {
         </div>
 
         <NoteBox>
-          <strong className="text-foreground">A sessão com a Letícia é o recurso mais poderoso.</strong> Reserve para leads de alto potencial a um passo de fechar. Não ofereça para todos — é o que perde força se for banalizado.
+          <strong className="text-foreground">A conversa com a Letícia é o recurso mais poderoso.</strong> Reserve para leads de alto potencial a um passo de fechar. Não ofereça para todos — é o que perde força se for banalizado.
         </NoteBox>
       </Section>
 

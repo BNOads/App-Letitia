@@ -32,7 +32,7 @@ interface Produto {
   nome: string;
   valor: number;
   descricao: string;
-  categoria: "curso" | "mentoria" | "sessao" | "workshop";
+  categoria: "curso" | "mentoria" | "workshop";
   emoji: string;
 }
 
@@ -1006,7 +1006,6 @@ export function Comissoes() {
                 >
                   <option value="curso">Curso</option>
                   <option value="mentoria">Mentoria</option>
-                  <option value="sessao">Sessão</option>
                   <option value="workshop">Workshop</option>
                 </select>
               </div>

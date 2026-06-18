@@ -38,7 +38,6 @@ const PRODUTOS_MAP: Record<string, string> = {
   "the-way-semestral": "THE WAY (Sem.)",
   "estrategista": "Estrategista",
   "vcn": "VCN",
-  "sessao-individual": "Sessão Individual",
   "bno-experience": "BNO Experience",
 };
 
@@ -49,7 +48,6 @@ const PRODUCT_ID_TO_SALES_NAMES: Record<string, string[]> = {
   "the-way-semestral": ["THE WAY", "THE WAY Mentoria", "The Way"],
   "estrategista": ["A Estrategista", "A ESTRATEGISTA", "Estrategista"],
   "vcn": ["VCN", "Vida, Carreira e Negócios"],
-  "sessao-individual": ["Sessão Individual", "SESSÃO INDIVIDUAL"],
   "bno-experience": ["BNO Experience", "BNO EXPERIENCE", "BNO Experience 2026"],
 };
 
