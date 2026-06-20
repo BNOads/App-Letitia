@@ -19,7 +19,7 @@ const sections = [
       { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
       { name: "Alunos", href: "/alunos", icon: ContactRound },
-      { name: "Processos Comerciais", href: "/processos-comerciais", icon: Handshake },
+      { name: "Processos", href: "/processos-comerciais", icon: Handshake },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
       { name: "Links Úteis", href: "/links", icon: Link2 },
       { name: "Produtos", href: "/publico/produtos", icon: ShoppingBag, external: true },

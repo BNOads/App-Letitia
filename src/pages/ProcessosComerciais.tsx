@@ -9,12 +9,16 @@ import {
   AlertTriangle,
   HeadphonesIcon,
   MessageCircle,
+  Sparkles,
+  Eye,
+  Megaphone,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ─── Types ────────────────────────────────────────────── */
 
-type TabId = "fluxo" | "cx" | "renovacao" | "equipe" | "inadimplencia";
+type TabId = "cultura" | "gestao" | "fluxo" | "cx" | "mkt" | "financeiro" | "renovacao" | "equipe" | "inadimplencia";
 
 interface Tab {
   id: TabId;
@@ -23,11 +27,15 @@ interface Tab {
 }
 
 const tabs: Tab[] = [
-  { id: "fluxo", label: "Fluxo de Venda", icon: Handshake },
-  { id: "cx", label: "CX & Protocolos", icon: HeadphonesIcon },
+  { id: "cultura", label: "Cultura", icon: Sparkles },
+  { id: "gestao", label: "Gestão", icon: Eye },
+  { id: "fluxo", label: "Comercial", icon: Handshake },
+  { id: "cx", label: "CX", icon: HeadphonesIcon },
+  { id: "mkt", label: "Marketing", icon: Megaphone },
+  { id: "financeiro", label: "Financeiro", icon: Wallet },
   { id: "renovacao", label: "Renovações", icon: RefreshCw },
   { id: "equipe", label: "Equipe", icon: Users },
-  { id: "inadimplencia", label: "Inadimplência", icon: AlertTriangle },
+  { id: "inadimplencia", label: "Inadimpl.", icon: AlertTriangle },
 ];
 
 /* ─── Small Helpers ────────────────────────────────────── */
@@ -65,6 +73,9 @@ function MsgBox({ label, children }: { label?: string; children: React.ReactNode
       <div className="bg-emerald-50/50 border-l-[3px] border-emerald-500/60 rounded-r-lg px-3 py-2.5 text-xs text-foreground/70 leading-relaxed italic">
         {children}
       </div>
+      <p className="text-[9px] text-amber-600/80 mt-1.5 flex items-center gap-1">
+        <span>⚠️</span> Modelo inicial — traga humanidade e pessoalidade para cada comunicação.
+      </p>
     </div>
   );
 }
@@ -594,6 +605,9 @@ function PanelRenovacao() {
             <div className="bg-emerald-50/50 border-l-[3px] border-emerald-500/60 rounded-r-lg px-3 py-2.5 text-xs text-foreground/70 leading-relaxed italic">
               {m.msg}
             </div>
+            <p className="text-[9px] text-amber-600/80 mt-1.5 flex items-center gap-1">
+              <span>⚠️</span> Modelo inicial — traga humanidade e pessoalidade para cada comunicação.
+            </p>
           </CollapsibleCard>
         ))}
       </div>
@@ -755,11 +769,493 @@ function PanelInadimplencia() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PANEL: CULTURA
+   ═══════════════════════════════════════════════════════ */
+
+function PanelCultura() {
+  const valores = [
+    {
+      icon: "✦",
+      titulo: "Excelência — não perfeição",
+      sub: "Fazer o melhor possível com o que temos, sempre",
+      principio: '"A excelência não é um padrão externo que nos pressiona. É uma expressão interna do respeito que temos por quem servimos."',
+      items: [
+        "Toda entrega — uma mensagem, uma arte, um relatório — merece atenção e cuidado",
+        "Erros acontecem; o que define a excelência é a forma como respondemos a eles",
+        'Antes de enviar qualquer comunicação à cliente: \"Isso honra quem ela é?\"',
+        "Processos existem para libertar energia para o que importa — o cuidado humano",
+      ],
+    },
+    {
+      icon: "🌱",
+      titulo: "Cuidado genuíno — não protocolo",
+      sub: "A alma por trás de cada atendimento",
+      principio: '"Protocolo diz o que fazer. Cultura diz por que fazer. O cuidado genuíno transforma uma mensagem em conexão."',
+      items: [
+        "Conhecer o nome, a história e o momento de cada cliente",
+        "Celebrar conquistas dela como se fossem nossas — porque são",
+        "Quando ela some, não interpretamos como inconveniente — investigamos com amor",
+        "Toda insatisfação é um pedido de cuidado disfarçado",
+      ],
+    },
+    {
+      icon: "🕊️",
+      titulo: "Presença — não automatismo",
+      sub: "Estar de verdade em cada ponto de contato",
+      principio: '"Automação é eficiência. Presença é diferencial. Usamos as duas — mas nunca deixamos a automação substituir o olhar humano."',
+      items: [
+        "Mensagens-modelo existem para não esquecer — mas sempre com personalização mínima",
+        "Carol lê o que a pessoa responde de verdade, não só confirma o recebimento",
+        "A gestão está próxima da operação — não distante dela",
+        "Nenhuma cliente deve sentir que está falando com um sistema",
+      ],
+    },
+    {
+      icon: "🔑",
+      titulo: "Integridade — em tudo, sempre",
+      sub: "O que prometemos, entregamos",
+      principio: '"Integridade não é apenas não mentir. É não prometer o que não pode ser entregue. É comunicar erros antes que a cliente perceba."',
+      items: [
+        "Prazos combinados com a cliente são sagrados",
+        "Se algo falhar, a equipe avisa antes de ser cobrada",
+        "Cobranças são feitas com respeito — nunca com constrangimento",
+        "O contrato existe para proteger as duas partes — não para prender a cliente",
+      ],
+    },
+    {
+      icon: "🌟",
+      titulo: "Propósito — a bússola de tudo",
+      sub: "Por que existimos",
+      principio: '"Quando a operação ficar pesada, quando o processo parecer burocrático, quando o dia estiver difícil — lembre-se: do outro lado há uma mulher que acreditou em nós."',
+      items: [
+        "A cliente não comprou um produto — investiu em si mesma",
+        "Nosso resultado não é apenas a venda fechada — é a transformação entregue",
+        "Cada pessoa que sai mais forte da mentoria é testemunho do nosso propósito",
+        "Excelência sem propósito é vaidade. Com propósito, é missão.",
+      ],
+    },
+  ];
+
+  const perguntas = [
+    { area: "Comercial", pergunta: '"Essa venda serve bem a essa pessoa?"' },
+    { area: "CX", pergunta: '"Se eu fosse ela, me sentiria cuidada?"' },
+    { area: "Marketing", pergunta: '"Esse conteúdo honra quem a Letícia é?"' },
+    { area: "Financeiro", pergunta: '"Estou tratando o dinheiro dela com respeito?"' },
+    { area: "Gestão", pergunta: '"Essa decisão está alinhada ao nosso propósito?"' },
+    { area: "Design", pergunta: '"Essa peça é digna do que entregamos?"' },
+  ];
+
+  return (
+    <div>
+      <h2 className="font-serif text-xl font-semibold text-foreground mb-1">A Alma da Empresa</h2>
+      <p className="text-xs text-muted leading-relaxed mb-5">
+        Antes de qualquer processo, existe um propósito. É ele que define como fazemos tudo.
+      </p>
+
+      {/* Manifesto */}
+      <div className="bg-gradient-to-br from-[#2A1E0E] to-[#3D2E1E] rounded-xl p-4 mb-5 border border-letitia-gold/30">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-letitia-gold mb-2">✦ Manifesto</p>
+        <p className="font-serif text-sm text-letitia-gold/80 italic leading-[1.8]">
+          &ldquo;Não vendemos cursos. Acompanhamos jornadas.<br />
+          Não gerenciamos clientes. Cuidamos de almas.<br />
+          Não executamos processos. Servimos com excelência.<br /><br />
+          Cada pessoa que chega até nós traz uma história, uma dor e uma esperança.<br />
+          Nosso trabalho é honrar isso em cada mensagem, cada entrega, cada detalhe.&rdquo;
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {["Excelência", "Cuidado genuíno", "Presença", "Integridade", "Propósito"].map((v) => (
+            <span key={v} className="text-[9px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full bg-letitia-gold/15 text-letitia-gold/90 border border-letitia-gold/30">
+              ✦ {v}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 5 Valores */}
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Os 5 valores que guiam cada decisão
+      </p>
+      <div className="space-y-2 mb-6">
+        {valores.map((val) => (
+          <CollapsibleCard
+            key={val.titulo}
+            header={
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">{val.icon}</span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{val.titulo}</p>
+                  <p className="text-[10px] text-muted">{val.sub}</p>
+                </div>
+              </div>
+            }
+          >
+            <div className="bg-amber-50/50 border-l-[3px] border-letitia-gold rounded-r-md px-3 py-2 text-xs text-foreground/80 italic leading-relaxed mb-3 font-serif">
+              {val.principio}
+            </div>
+            <ul className="space-y-1 mb-2">
+              {val.items.map((item, i) => (
+                <ArrowItem key={i}>{item}</ArrowItem>
+              ))}
+            </ul>
+            <Badge variant="gest">Valor Central</Badge>
+          </CollapsibleCard>
+        ))}
+      </div>
+
+      {/* Perguntas de Ouro */}
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        A pergunta de ouro de cada time
+      </p>
+      <CollapsibleCard
+        header={
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">❓</span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Antes de qualquer ação, se pergunte:</p>
+              <p className="text-[10px] text-muted">Perguntas que guiam cada área</p>
+            </div>
+          </div>
+        }
+      >
+        <ul className="space-y-1">
+          {perguntas.map((p) => (
+            <ArrowItem key={p.area}>
+              <strong>{p.area}:</strong> {p.pergunta}
+            </ArrowItem>
+          ))}
+        </ul>
+      </CollapsibleCard>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL: GESTÃO
+   ═══════════════════════════════════════════════════════ */
+
+function PanelGestao() {
+  return (
+    <div>
+      <div className="bg-gradient-to-r from-[#3D2E1E] to-[#6B4F35] rounded-xl p-4 mb-5 flex items-center gap-3">
+        <span className="text-3xl">👁</span>
+        <div>
+          <h2 className="font-serif text-xl font-semibold text-white">Gestão Estratégica</h2>
+          <p className="text-[11px] text-white/60 italic">Guardiã da cultura · Decisões · Visão do todo</p>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-[#2A1E0E] to-[#3D2E1E] rounded-xl p-4 mb-5 border border-letitia-gold/30">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-letitia-gold mb-2">✦ Cultura · Gestão</p>
+        <p className="font-serif text-sm text-letitia-gold/80 italic leading-relaxed">
+          &ldquo;A gestão não gerencia processos. Guarda a alma da empresa. É ela que decide quando o protocolo cede ao cuidado — e quando o cuidado exige um limite claro.&rdquo;
+        </p>
+      </div>
+
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Ritmo semanal
+      </p>
+      <div className="space-y-2 mb-6">
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📅</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">O que a gestão recebe toda semana</p>
+                <p className="text-[10px] text-muted">Dados para decisão com propósito</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem><strong>Segunda:</strong> Resumo de vendas (Mônica)</ArrowItem>
+            <ArrowItem><strong>Quarta:</strong> Relatório financeiro — recebimentos, pendências (Financeiro)</ArrowItem>
+            <ArrowItem><strong>Quinta:</strong> Status das clientes — engajamento, riscos, renovações (Carol)</ArrowItem>
+            <ArrowItem><strong>Sexta:</strong> Desempenho de conteúdo e prévia da próxima grade (Marketing PJ)</ArrowItem>
+            <ArrowItem>Decisões estratégicas tomadas na sexta para a semana seguinte</ArrowItem>
+          </ul>
+          <Badge variant="gest">Gestão</Badge>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🚨</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">O que escala para a gestão</p>
+                <p className="text-[10px] text-muted">Apenas o que exige decisão ou julgamento humano</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Cancelamentos — nenhum sem aval da gestão</ArrowItem>
+            <ArrowItem>Renegociações financeiras ou condições especiais</ArrowItem>
+            <ArrowItem>Insatisfações graves — a gestão entra pessoalmente quando necessário</ArrowItem>
+            <ArrowItem>Mudanças de posicionamento ou grade de conteúdo</ArrowItem>
+            <ArrowItem>Inadimplência acima de 15 dias</ArrowItem>
+            <ArrowItem>Decisões jurídicas e contratuais</ArrowItem>
+          </ul>
+          <div className="bg-amber-50/50 border-l-[3px] border-letitia-gold rounded-r-md px-3 py-2 text-xs text-foreground/80 italic leading-relaxed mb-3 font-serif">
+            &ldquo;Quando a equipe escala, confia que a gestão vai decidir com sabedoria — não apenas com eficiência.&rdquo;
+          </div>
+          <Badge variant="gest">Gestão</Badge>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📊</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Indicadores com alma</p>
+                <p className="text-[10px] text-muted">Números que revelam a saúde do cuidado</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Taxa de renovação — quanto as pessoas querem continuar</ArrowItem>
+            <ArrowItem>Taxa de engajamento — quantas estão sendo genuinamente transformadas</ArrowItem>
+            <ArrowItem>NPS informal — o que dizem quando ninguém está vendendo</ArrowItem>
+            <ArrowItem>Depoimentos espontâneos — o melhor termômetro de impacto real</ArrowItem>
+            <ArrowItem>Taxa de inadimplência — sinal de desalinhamento de expectativa ou dificuldade real</ArrowItem>
+          </ul>
+          <Badge variant="gest">Gestão</Badge>
+        </CollapsibleCard>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL: MARKETING
+   ═══════════════════════════════════════════════════════ */
+
+function PanelMarketing() {
+  const etapasMkt = [
+    {
+      num: 1,
+      titulo: "Briefing semanal — toda segunda-feira",
+      responsavel: "Letícia + Gestão → Marketing PJ",
+      items: [
+        "Letícia envia ideias, temas e demandas da semana",
+        "Gestão valida na mesma reunião — decisão imediata, sem espera",
+        "Marketing PJ recebe briefing consolidado até segunda à tarde e já inicia a produção",
+        "Demandas urgentes: mínimo 48h — qualidade não se negocia",
+      ],
+    },
+    {
+      num: 2,
+      titulo: "Produção com identidade",
+      responsavel: "Marketing PJ (2 pessoas)",
+      items: [
+        "Designer produz artes fiéis à identidade visual — sem improvisos",
+        "Copy produz legendas, e-mails e roteiros com a voz da Letícia",
+        'Pergunta antes de cada peça: \"Isso é digno do que entregamos?\"',
+        "Peças enviadas para aprovação até sábado",
+      ],
+      principio: '"Design de excelência não é o mais bonito. É o que comunica com clareza e honra a marca que representa."',
+    },
+    {
+      num: 3,
+      titulo: "Aprovação e publicação",
+      responsavel: "Gestão ou Letícia aprova → Marketing publica",
+      items: [
+        "Aprovação via drive ou ferramenta de gestão de conteúdo",
+        "Marketing programa publicações nos canais e horários definidos",
+        "E-mails: revisados pela gestão antes do disparo — sempre",
+        "Stories espontâneos de Letícia: ela publica diretamente",
+      ],
+    },
+    {
+      num: 4,
+      titulo: "Análise e aprendizado",
+      responsavel: "Marketing PJ → Gestão",
+      items: [
+        "Relatório semanal: alcance, engajamento, salvamentos, leads",
+        "O que tocou as pessoas? O que gerou ação? O que foi ignorado?",
+        "Dados retroalimentam o briefing da semana seguinte",
+        "Gestão usa os dados para direcionamento estratégico",
+      ],
+    },
+  ];
+
+  const grade = [
+    { dia: "SEG", items: ["Feed: Post de valor / reflexão — abre a semana com intenção", "Stories: Bastidores ou rotina de Letícia"] },
+    { dia: "TER", items: ["E-mail: Newsletter — conteúdo exclusivo para a base", "Stories: Enquete / interação genuína com a audiência"] },
+    { dia: "QUA", items: ["Reels: Conteúdo de alcance / autoridade / provocação", "Stories: Depoimento de aluna — transformação real"] },
+    { dia: "QUI", items: ["Feed: Case / resultado de mentorada (com autorização)", "Stories: Abertura para DMs — conexão direta"] },
+    { dia: "SEX", items: ["Reels: Conteúdo leve — conexão pessoal de Letícia", "E-mail: CTA ou oferta (em períodos comerciais)"] },
+    { dia: "SAB", items: ["Feed: Conteúdo de fé, propósito e vida — encerra a semana com sentido"] },
+  ];
+
+  const gatilhosMkt = [
+    "gatilho · briefing aprovado",
+    "gatilho · peças produzidas",
+    "gatilho · conteúdo aprovado",
+  ];
+
+  return (
+    <div>
+      <div className="bg-gradient-to-r from-[#5B2E8A] to-[#7B4EAA] rounded-xl p-4 mb-5 flex items-center gap-3">
+        <span className="text-3xl">📣</span>
+        <div>
+          <h2 className="font-serif text-xl font-semibold text-white">Marketing &amp; Design</h2>
+          <p className="text-[11px] text-white/60 italic">Conteúdo que honra · Alcança · Transforma</p>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-[#2A1E0E] to-[#3D2E1E] rounded-xl p-4 mb-5 border border-letitia-gold/30">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-letitia-gold mb-2">✦ Cultura · Marketing</p>
+        <p className="font-serif text-sm text-letitia-gold/80 italic leading-relaxed">
+          &ldquo;Nosso conteúdo não é estratégia de alcance. É extensão do que acreditamos. Cada post, cada e-mail, cada arte precisa ser digno de quem vai receber — e fiel à voz da Letícia.&rdquo;
+        </p>
+      </div>
+
+      <Nota>
+        <strong>Como funciona:</strong> Letícia é a fonte e a voz. A empresa PJ transforma em peças. A gestão aprova. Demandas espontâneas de Letícia entram com prazo mínimo de 48h — a excelência não se faz com pressa.
+      </Nota>
+
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Fluxo de produção
+      </p>
+      <div className="space-y-1.5 mb-6">
+        {etapasMkt.map((etapa, idx) => (
+          <div key={etapa.num}>
+            <CollapsibleCard
+              header={
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-violet-700 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
+                    {etapa.num}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground leading-tight">{etapa.titulo}</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wide mt-0.5">{etapa.responsavel}</p>
+                  </div>
+                </div>
+              }
+            >
+              <ul className="space-y-1 mb-3 pl-10">
+                {etapa.items.map((item, i) => (
+                  <ArrowItem key={i}>{item}</ArrowItem>
+                ))}
+              </ul>
+              {etapa.principio && (
+                <div className="bg-amber-50/50 border-l-[3px] border-letitia-gold rounded-r-md px-3 py-2 text-xs text-foreground/80 italic leading-relaxed mb-3 font-serif pl-10">
+                  {etapa.principio}
+                </div>
+              )}
+            </CollapsibleCard>
+            {idx < gatilhosMkt.length && <Gatilho text={gatilhosMkt[idx]} />}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Grade semanal padrão
+      </p>
+      <div className="bg-white rounded-xl border border-border overflow-hidden mb-4">
+        <div className="bg-[#3D1E4A] px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-letitia-gold/90">
+            📅 Grade Semanal · Referência
+          </p>
+        </div>
+        {grade.map((g, idx) => (
+          <div key={g.dia} className={cn("flex items-start gap-3 px-4 py-3", idx < grade.length - 1 && "border-b border-border/50")}>
+            <span className="w-9 flex-shrink-0 text-[10px] font-bold text-foreground pt-0.5">{g.dia}</span>
+            <div className="flex-1 space-y-1">
+              {g.items.map((item, i) => (
+                <p key={i} className="text-[11px] text-foreground/70 leading-relaxed">{item}</p>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <Nota>
+        <strong>Flexibilidade com excelência:</strong> A grade é referência, não prisão. Em semanas de lançamento ou evento, o calendário comercial tem prioridade. Mas toda mudança de última hora tem um custo de qualidade — e isso precisa ser avaliado.
+      </Nota>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL: FINANCEIRO
+   ═══════════════════════════════════════════════════════ */
+
+function PanelFinanceiro() {
+  return (
+    <div>
+      <div className="bg-gradient-to-r from-[#9B6A1A] to-[#C8922A] rounded-xl p-4 mb-5 flex items-center gap-3">
+        <span className="text-3xl">💰</span>
+        <div>
+          <h2 className="font-serif text-xl font-semibold text-white">Financeiro</h2>
+          <p className="text-[11px] text-white/60 italic">Integridade em cada centavo · Respeito em cada cobrança</p>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-[#2A1E0E] to-[#3D2E1E] rounded-xl p-4 mb-5 border border-letitia-gold/30">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-letitia-gold mb-2">✦ Cultura · Financeiro</p>
+        <p className="font-serif text-sm text-letitia-gold/80 italic leading-relaxed">
+          &ldquo;O financeiro é o ato de respeitar o investimento que a aluna fez em si mesma. Cobrar com dignidade e pagar fornecedores em dia são expressões da nossa integridade — não apenas obrigações.&rdquo;
+        </p>
+      </div>
+
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Rotina financeira
+      </p>
+      <div className="space-y-2 mb-4">
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📥</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Registro de nova venda</p>
+                <p className="text-[10px] text-muted">Cada venda é uma responsabilidade assumida</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Recebe a ficha de venda de Mônica imediatamente após o fechamento</ArrowItem>
+            <ArrowItem>Registra: produto, valor, forma de pgto, parcelas, vencimentos</ArrowItem>
+            <ArrowItem>Confirma geração do link/boleto ou recebimento via plataforma</ArrowItem>
+            <ArrowItem>Notifica gestão que a venda está registrada financeiramente</ArrowItem>
+          </ul>
+          <Badge variant="fin">Financeiro</Badge>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📆</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Controle semanal de vencimentos</p>
+                <p className="text-[10px] text-muted">Antecipar é cuidar</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Toda segunda: verifica vencimentos da semana e confirma recebimentos</ArrowItem>
+            <ArrowItem>Concilia plataforma (Hotmart/Kiwify) com controle interno</ArrowItem>
+            <ArrowItem>Identifica pendências antes que virem problemas</ArrowItem>
+            <ArrowItem>Relatório enviado até domingo para entrar na pauta da reunião de segunda</ArrowItem>
+          </ul>
+          <div className="flex gap-1.5">
+            <Badge variant="fin">Financeiro</Badge>
+            <Badge variant="gest">→ Gestão</Badge>
+          </div>
+        </CollapsibleCard>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════════ */
 
 export function ProcessosComerciais() {
-  const [activeTab, setActiveTab] = useState<TabId>("fluxo");
+  const [activeTab, setActiveTab] = useState<TabId>("cultura");
 
   return (
     <div className="min-h-full">
@@ -769,10 +1265,10 @@ export function ProcessosComerciais() {
           Laetitia Educação · LaCademia
         </p>
         <h1 className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
-          Processos Comerciais
+          Processos da Empresa
         </h1>
         <p className="text-sm text-muted mt-1 italic">
-          Venda · CX · Mentoradas · Renovações · Inadimplência
+          Cultura · Gestão · Comercial · CX · Marketing · Financeiro · Renovações · Inadimplência
         </p>
       </div>
 
@@ -801,8 +1297,12 @@ export function ProcessosComerciais() {
 
       {/* Panel content */}
       <div className="max-w-2xl">
+        {activeTab === "cultura" && <PanelCultura />}
+        {activeTab === "gestao" && <PanelGestao />}
         {activeTab === "fluxo" && <PanelFluxo />}
         {activeTab === "cx" && <PanelCX />}
+        {activeTab === "mkt" && <PanelMarketing />}
+        {activeTab === "financeiro" && <PanelFinanceiro />}
         {activeTab === "renovacao" && <PanelRenovacao />}
         {activeTab === "equipe" && <PanelEquipe />}
         {activeTab === "inadimplencia" && <PanelInadimplencia />}

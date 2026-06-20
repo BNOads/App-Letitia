@@ -41,6 +41,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
       "Método THE WAY completo — vida, carreira e negócios",
       "Material de apoio e frameworks exclusivos",
       "Networking com mentorandas de alto nível",
+      "2 sessões estratégicas individuais de 1 hora cada (1 sessão a cada ciclo de 6 meses)",
       "Encontro presencial semestral de alto padrão (à parte, ~R$ 6-8 mil — à escolha da mentorada)",
     ],
     pdfUrl: "/propostas/Proposta-TheWay-SemPreco.pdf",
@@ -66,6 +67,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
       "Dúvidas no ambiente do Grupo (WhatsApp e aulas ao vivo) — sem calls individuais",
       "Método THE WAY completo — vida, carreira e negócios",
       "Material de apoio e frameworks exclusivos",
+      "1 sessão estratégica individual de 1 hora",
       "Encontro presencial semestral de alto padrão (à parte, ~R$ 6-8 mil — à escolha da mentorada)",
     ],
     pdfUrl: "/propostas/Proposta-TheWay-SemPreco.pdf",
@@ -111,7 +113,6 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     entregaveis: [
       "Programa completo de transformação pessoal e profissional",
       "Encontros em grupo com Letícia",
-      "Sessões de estratégia de carreira",
       "Módulos sobre vida pessoal, carreira e negócios",
       "Comunidade exclusiva de alunos VCN",
       "Material de apoio completo",
@@ -159,7 +160,6 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
       "Módulos de estratégia pessoal e profissional",
       "Exercícios práticos e templates",
       "Acesso vitalício ao conteúdo",
-      "Comunidade de alunos",
     ],
   },
   {
