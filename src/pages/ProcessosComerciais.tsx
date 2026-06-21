@@ -13,12 +13,13 @@ import {
   Eye,
   Megaphone,
   Wallet,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ─── Types ────────────────────────────────────────────── */
 
-type TabId = "cultura" | "gestao" | "fluxo" | "cx" | "mkt" | "financeiro" | "renovacao" | "equipe" | "inadimplencia";
+type TabId = "cultura" | "gestao" | "fluxo" | "cx" | "mkt" | "design" | "financeiro" | "renovacao" | "equipe" | "inadimplencia";
 
 interface Tab {
   id: TabId;
@@ -32,6 +33,7 @@ const tabs: Tab[] = [
   { id: "fluxo", label: "Comercial", icon: Handshake },
   { id: "cx", label: "CX", icon: HeadphonesIcon },
   { id: "mkt", label: "Marketing", icon: Megaphone },
+  { id: "design", label: "Design", icon: Palette },
   { id: "financeiro", label: "Financeiro", icon: Wallet },
   { id: "renovacao", label: "Renovações", icon: RefreshCw },
   { id: "equipe", label: "Equipe", icon: Users },
@@ -662,6 +664,13 @@ function PanelEquipe() {
       desc: "Visão estratégica de todo o ciclo. Decide sobre exceções, cancelamentos, renegociações, condições especiais de renovação. Recebe relatório consolidado semanal.",
       badges: [{ v: "gest", t: "Gestão" }],
     },
+    {
+      icon: "📋",
+      iconBg: "bg-violet-100/60",
+      nome: "Andressa",
+      desc: "Assistente da gestão. Apoio operacional e administrativo à Lidiane, organização de demandas, acompanhamento de prazos e suporte na comunicação entre áreas.",
+      badges: [{ v: "gest", t: "Assistente Gestão" }],
+    },
   ];
 
   return (
@@ -1048,10 +1057,10 @@ function PanelMarketing() {
       titulo: "Produção com identidade",
       responsavel: "Marketing PJ (2 pessoas)",
       items: [
-        "Designer produz artes fiéis à identidade visual — sem improvisos",
         "Copy produz legendas, e-mails e roteiros com a voz da Letícia",
         'Pergunta antes de cada peça: \"Isso é digno do que entregamos?\"',
         "Peças enviadas para aprovação até sábado",
+        "Designer recebe briefing do Marketing e produz artes alinhadas à identidade visual",
       ],
       principio: '"Design de excelência não é o mais bonito. É o que comunica com clareza e honra a marca que representa."',
     },
@@ -1099,7 +1108,7 @@ function PanelMarketing() {
       <div className="bg-gradient-to-r from-[#5B2E8A] to-[#7B4EAA] rounded-xl p-4 mb-5 flex items-center gap-3">
         <span className="text-3xl">📣</span>
         <div>
-          <h2 className="font-serif text-xl font-semibold text-white">Marketing &amp; Design</h2>
+          <h2 className="font-serif text-xl font-semibold text-white">Marketing</h2>
           <p className="text-[11px] text-white/60 italic">Conteúdo que honra · Alcança · Transforma</p>
         </div>
       </div>
@@ -1251,6 +1260,107 @@ function PanelFinanceiro() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PANEL: DESIGN
+   ═══════════════════════════════════════════════════════ */
+
+function PanelDesign() {
+  return (
+    <div>
+      <div className="bg-gradient-to-r from-[#2E7A8A] to-[#3DA0B0] rounded-xl p-4 mb-5 flex items-center gap-3">
+        <span className="text-3xl">🎨</span>
+        <div>
+          <h2 className="font-serif text-xl font-semibold text-white">Design</h2>
+          <p className="text-[11px] text-white/60 italic">Identidade visual · Artes · Comunicação visual com excelência</p>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-[#2A1E0E] to-[#3D2E1E] rounded-xl p-4 mb-5 border border-letitia-gold/30">
+        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-letitia-gold mb-2">✦ Cultura · Design</p>
+        <p className="font-serif text-sm text-letitia-gold/80 italic leading-relaxed">
+          &ldquo;Design de excelência não é o mais bonito. É o que comunica com clareza e honra a marca que representa. Cada peça é uma extensão da identidade da Letícia — e merece o mesmo cuidado que damos às pessoas.&rdquo;
+        </p>
+      </div>
+
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-letitia-gold mb-3 pb-1 border-b border-border">
+        Responsabilidades do Design
+      </p>
+      <div className="space-y-2 mb-6">
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🖌️</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Produção de artes e peças visuais</p>
+                <p className="text-[10px] text-muted">Fidelidade à identidade visual da marca</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Produz artes para Feed, Reels, Stories e materiais de apoio</ArrowItem>
+            <ArrowItem>Segue rigorosamente o manual de identidade visual da Laetitia</ArrowItem>
+            <ArrowItem>Sem improvisos — cada peça passa por revisão antes da entrega</ArrowItem>
+            <ArrowItem>Trabalha em conjunto com o Marketing, recebendo o briefing e entregando as peças finalizadas</ArrowItem>
+          </ul>
+          <Badge variant="cx">Design</Badge>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📐</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Materiais institucionais e de produto</p>
+                <p className="text-[10px] text-muted">Propostas, PDFs, apresentações e materiais de venda</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Criação e atualização de propostas comerciais em PDF</ArrowItem>
+            <ArrowItem>Materiais de apoio para mentoradas (templates, frameworks visuais)</ArrowItem>
+            <ArrowItem>Apresentações para eventos e encontros presenciais</ArrowItem>
+            <ArrowItem>Peças de e-mail marketing alinhadas ao tom da marca</ArrowItem>
+          </ul>
+          <Badge variant="cx">Design</Badge>
+        </CollapsibleCard>
+
+        <CollapsibleCard
+          header={
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">✅</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Fluxo de trabalho com Marketing</p>
+                <p className="text-[10px] text-muted">Integração clara e prazos definidos</p>
+              </div>
+            </div>
+          }
+        >
+          <ul className="space-y-1 mb-2">
+            <ArrowItem>Marketing envia briefing consolidado na segunda-feira</ArrowItem>
+            <ArrowItem>Design produz as peças ao longo da semana</ArrowItem>
+            <ArrowItem>Entrega para aprovação até sábado</ArrowItem>
+            <ArrowItem>Ajustes finais com prazo mínimo de 24h antes da publicação</ArrowItem>
+            <ArrowItem>Demandas urgentes: mínimo 48h — qualidade não se negocia</ArrowItem>
+          </ul>
+          <div className="bg-amber-50/50 border-l-[3px] border-letitia-gold rounded-r-md px-3 py-2 text-xs text-foreground/80 italic leading-relaxed mb-3 font-serif">
+            &ldquo;Pergunta antes de cada peça: Isso é digno do que entregamos?&rdquo;
+          </div>
+          <div className="flex gap-1.5">
+            <Badge variant="cx">Design</Badge>
+            <Badge variant="renovacao">Marketing</Badge>
+          </div>
+        </CollapsibleCard>
+      </div>
+
+      <Nota>
+        <strong>Regra de ouro:</strong> A identidade visual é sagrada. Nenhuma peça sai sem estar alinhada ao manual da marca. Design e Marketing são parceiros — mas cada um tem sua zona de responsabilidade clara.
+      </Nota>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════════ */
 
@@ -1302,6 +1412,7 @@ export function ProcessosComerciais() {
         {activeTab === "fluxo" && <PanelFluxo />}
         {activeTab === "cx" && <PanelCX />}
         {activeTab === "mkt" && <PanelMarketing />}
+        {activeTab === "design" && <PanelDesign />}
         {activeTab === "financeiro" && <PanelFinanceiro />}
         {activeTab === "renovacao" && <PanelRenovacao />}
         {activeTab === "equipe" && <PanelEquipe />}
