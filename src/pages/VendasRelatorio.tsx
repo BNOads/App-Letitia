@@ -34,7 +34,8 @@ import {
   Legend,
   AreaChart,
   Area,
-  LabelList
+  LabelList,
+  ReferenceLine
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -231,6 +232,94 @@ export function VendasRelatorio() {
   })();
 
   const metaAchievedPercent = Math.min(100, (filteredRevenue / activeMonthMeta) * 100);
+
+  // ─── DADOS SEMANAIS PARA GRÁFICO META X VENDA ────────────────────────────
+
+  const weeklyMetaData = (() => {
+    // Determinar o mês/ano ativo para calcular semanas
+    let targetMonth: number | null = null;
+    let targetYear: number | null = null;
+
+    if (monthFilter !== "all") {
+      // Ex: "Junho/26" -> Junho = 5 (0-indexed), 2026
+      const monthNames = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+      const parts = monthFilter.split("/");
+      const mIdx = monthNames.indexOf(parts[0]);
+      if (mIdx >= 0) {
+        targetMonth = mIdx;
+        targetYear = 2000 + parseInt(parts[1], 10);
+      }
+    } else {
+      // Se "all", usar o mês atual
+      const now = new Date();
+      targetMonth = now.getMonth();
+      targetYear = now.getFullYear();
+    }
+
+    if (targetMonth === null || targetYear === null) return [];
+
+    // Calcular número de dias no mês
+    const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+    // Definir as semanas do mês
+    const weeks: { label: string; startDay: number; endDay: number }[] = [];
+    const weekRanges = [
+      { start: 1, end: 7 },
+      { start: 8, end: 14 },
+      { start: 15, end: 21 },
+      { start: 22, end: daysInMonth }
+    ];
+
+    weekRanges.forEach((range, idx) => {
+      const endDay = Math.min(range.end, daysInMonth);
+      weeks.push({
+        label: `Semana ${idx + 1} (${String(range.start).padStart(2, '0')}/${String(targetMonth! + 1).padStart(2, '0')} - ${String(endDay).padStart(2, '0')}/${String(targetMonth! + 1).padStart(2, '0')})`,
+        startDay: range.start,
+        endDay: endDay
+      });
+    });
+
+    // Meta proporcional por semana
+    const weeklyMeta = activeMonthMeta / weeks.length;
+
+    // Calcular vendas por semana
+    return weeks.map((week) => {
+      let weekRevenue = 0;
+      filteredLeads.forEach((l) => {
+        if (l.resultado === "Venda Ganha" && l.valorVenda > 0) {
+          const leadDate = parseLeadDate(l.dataEntrada);
+          if (leadDate) {
+            const day = leadDate.getDate();
+            const leadMonth = leadDate.getMonth();
+            const leadYear = leadDate.getFullYear();
+            if (leadMonth === targetMonth && leadYear === targetYear && day >= week.startDay && day <= week.endDay) {
+              weekRevenue += l.valorVenda;
+            }
+          }
+        }
+      });
+
+      const faltante = Math.max(0, weeklyMeta - weekRevenue);
+      return {
+        semana: week.label,
+        vendido: weekRevenue,
+        faltante: faltante,
+        meta: weeklyMeta,
+        percentual: weeklyMeta > 0 ? Math.min(100, (weekRevenue / weeklyMeta) * 100) : 0
+      };
+    });
+  })();
+
+  // Dados para o gráfico consolidado (barra única de meta total)
+  const metaTotalChartData = [{
+    label: "Meta de Venda",
+    vendido: filteredRevenue,
+    faltante: Math.max(0, activeMonthMeta - filteredRevenue),
+    meta: activeMonthMeta
+  }];
 
   // ─── MODELAGEM DOS DADOS PARA GRÁFICOS ───────────────────────────────────
 
@@ -644,6 +733,150 @@ export function VendasRelatorio() {
           <p className="text-[10px] text-muted uppercase tracking-wider">
             Meta Ajustada para o Período
           </p>
+        </div>
+      </div>
+
+      {/* ─── GRÁFICO: META TOTAL X QUANTIDADE DE VENDA ────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-5 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+            Meta Total X Quantidade de Venda
+          </span>
+          <span className="text-[10px] font-sans font-normal text-muted lowercase">
+            meta: R$ {activeMonthMeta.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </span>
+        </h3>
+
+        {/* Barra consolidada - Meta Total */}
+        <div className="h-[90px] mb-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={metaTotalChartData}
+              layout="vertical"
+              margin={{ top: 5, right: 80, left: 100, bottom: 5 }}
+            >
+              <XAxis
+                type="number"
+                domain={[0, activeMonthMeta * 1.05]}
+                tick={{ fontSize: 10, fill: "var(--muted)" }}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
+                dataKey="label"
+                type="category"
+                tick={{ fontSize: 11, fill: "var(--foreground)", fontWeight: 600 }}
+                width={100}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  color: "var(--foreground)"
+                }}
+                formatter={(value: any, name: any) => [
+                  `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+                  name === "vendido" ? "Vendido" : "Faltante"
+                ]}
+              />
+              <Bar dataKey="vendido" stackId="meta" fill="#B6D7A8" radius={[0, 0, 0, 0]} name="vendido">
+                <LabelList
+                  dataKey="vendido"
+                  position="insideLeft"
+                  formatter={(v: any) => `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                  style={{ fontSize: "12px", fill: "#1A1A1A", fontWeight: 700 }}
+                  offset={12}
+                />
+              </Bar>
+              <Bar dataKey="faltante" stackId="meta" fill="#8B3A2A" radius={[0, 4, 4, 0]} name="faltante">
+                <LabelList
+                  dataKey="faltante"
+                  position="insideRight"
+                  formatter={(v: any) => Number(v) > 0 ? `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+                  style={{ fontSize: "11px", fill: "#FFFFFF", fontWeight: 700 }}
+                  offset={8}
+                />
+              </Bar>
+              <ReferenceLine x={activeMonthMeta} stroke={CHARCOAL_COLOR} strokeDasharray="3 3" strokeWidth={1.5} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Progresso semanal */}
+        <div className="border-t border-border/50 pt-5">
+          <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+            Progresso Semanal da Meta
+          </h4>
+
+          {weeklyMetaData.length === 0 ? (
+            <p className="text-xs text-muted italic">Selecione um mês específico para ver o detalhamento semanal.</p>
+          ) : (
+            <div className="space-y-3">
+              {weeklyMetaData.map((week, idx) => {
+                const isMetaReached = week.vendido >= week.meta;
+                return (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">{week.semana}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-muted">
+                          Meta: R$ {week.meta.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-[10px] font-bold ${isMetaReached ? "text-green-600" : "text-foreground"}`}>
+                          {isMetaReached ? "✓ " : ""}R$ {week.vendido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{
+                          backgroundColor: isMetaReached ? "rgba(34,197,94,0.1)" : week.percentual > 50 ? "rgba(196,164,124,0.15)" : "rgba(139,58,42,0.1)",
+                          color: isMetaReached ? "#16a34a" : week.percentual > 50 ? GOLD_COLOR : "#8B3A2A"
+                        }}>
+                          {week.percentual.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-foreground/5 rounded-full h-3 overflow-hidden relative">
+                      <div
+                        className="h-full rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          width: `${Math.min(100, week.percentual)}%`,
+                          backgroundColor: isMetaReached ? "#22c55e" : week.percentual > 50 ? "#B6D7A8" : "#D4A88C"
+                        }}
+                      />
+                      {!isMetaReached && (
+                        <div
+                          className="absolute top-0 h-full rounded-r-full transition-all duration-700"
+                          style={{
+                            left: `${Math.min(100, week.percentual)}%`,
+                            width: `${Math.min(100 - week.percentual, 100)}%`,
+                            backgroundColor: "#8B3A2A",
+                            opacity: 0.25
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Resumo totais semanais */}
+              <div className="flex items-center justify-between pt-3 border-t border-border/30 text-xs">
+                <span className="text-muted font-semibold uppercase tracking-wider text-[10px]">
+                  Total Vendido no Mês
+                </span>
+                <span className="font-serif font-semibold text-foreground">
+                  R$ {filteredRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  <span className="text-muted font-sans font-normal ml-2">
+                    / R$ {activeMonthMeta.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
