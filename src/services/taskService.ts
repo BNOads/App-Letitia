@@ -1,5 +1,30 @@
 import { supabase } from '@/lib/supabase';
 
+// ─── AUREA Webhook ─────────────────────────────────────────
+const AUREA_WEBHOOK_URL = 'https://aureawook.redbearid.com.br/webhook/838ae18f-330a-424b-bd4a-bb509bce699e-lc';
+
+type WebhookAction = 'criado' | 'atualizado';
+
+/**
+ * Dispara webhook para AUREA com todas as informações da demanda.
+ * Fire-and-forget: não bloqueia a operação principal.
+ */
+async function sendAureaWebhook(action: WebhookAction, taskData: Record<string, any>) {
+  try {
+    await fetch(AUREA_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: action,
+        timestamp: new Date().toISOString(),
+        tarefa: taskData,
+      }),
+    });
+  } catch (err) {
+    console.warn(`[AUREA Webhook] Erro ao enviar (${action}):`, err);
+  }
+}
+
 export type TaskStatus = 'fazer' | 'progresso' | 'revisao' | 'concluido' | 'espera';
 export type TaskPriority = 'baixa' | 'normal' | 'alta' | 'urgente';
 export type RecurrenceType = 'diario' | 'semanal' | 'quinzenal' | 'mensal' | 'semestral' | 'anual';
@@ -123,7 +148,8 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
             prazo: nextDates[0],
             created_by: task.created_by,
           };
-          await supabase.from('tarefas').insert([nextTask]);
+          const { data: newRecurring } = await supabase.from('tarefas').insert([nextTask]).select().single();
+          if (newRecurring) sendAureaWebhook('criado', newRecurring);
         }
       }
     }
@@ -135,6 +161,10 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
     .eq('id', taskId);
 
   if (error) throw error;
+
+  // Webhook AUREA – status atualizado
+  const { data: updatedTask } = await supabase.from('tarefas').select('*').eq('id', taskId).single();
+  if (updatedTask) sendAureaWebhook('atualizado', updatedTask);
 }
 
 export async function updateTask(taskId: string, updates: Partial<DBTask>) {
@@ -144,6 +174,10 @@ export async function updateTask(taskId: string, updates: Partial<DBTask>) {
     .eq('id', taskId);
 
   if (error) throw error;
+
+  // Webhook AUREA – tarefa atualizada
+  const { data: updatedTask } = await supabase.from('tarefas').select('*').eq('id', taskId).single();
+  if (updatedTask) sendAureaWebhook('atualizado', updatedTask);
 }
 
 export async function createTask(task: Partial<DBTask>) {
@@ -154,6 +188,9 @@ export async function createTask(task: Partial<DBTask>) {
     .single();
 
   if (error) throw error;
+
+  // Webhook AUREA – tarefa criada
+  sendAureaWebhook('criado', data);
 
   return data;
 }
@@ -174,6 +211,12 @@ export async function createBulkTasks(tasks: Partial<DBTask>[]): Promise<DBTask[
     `);
 
   if (error) throw error;
+
+  // Webhook AUREA – cada tarefa criada em massa
+  for (const t of (data as DBTask[])) {
+    sendAureaWebhook('criado', t);
+  }
+
   return data as DBTask[];
 }
 
@@ -669,6 +712,9 @@ export async function createTaskFromTemplate(
     }));
     await supabase.from('subtarefas').insert(subs);
   }
+
+  // Webhook AUREA – tarefa criada a partir de modelo
+  sendAureaWebhook('criado', data);
 
   return data as DBTask;
 }
