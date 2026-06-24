@@ -301,7 +301,7 @@ export function PlaybookRecebimentoTab() {
       {/* ─── FLUXO (ESCADA VISUAL) ─────────────────────────────────────── */}
       <Section id="pb-fluxo" eyebrow="A escada do recebimento" title="As 4 formas, em detalhe.">
         <p className="text-sm text-muted leading-relaxed">
-          Exemplo com o <strong className="text-foreground">THE WAY Anual (R$ 80.000)</strong>. A mesma lógica vale para os outros high-ticket — ver a tabela por produto na seção "Parcelamento inteligente".
+          Exemplo com o <strong className="text-foreground">THE WAY Anual (R$ 72.000)</strong>. A mesma lógica vale para os outros high-ticket — ver a tabela por produto na seção "Parcelamento inteligente".
         </p>
 
         <div className="flex flex-col gap-3 mt-2">
@@ -319,7 +319,7 @@ export function PlaybookRecebimentoTab() {
                     melhor opção
                   </span>
                 </div>
-                <span className="text-lg font-bold text-foreground">R$ 80.000</span>
+                <span className="text-lg font-bold text-foreground">R$ 72.000</span>
               </div>
               <p className="text-xs text-muted mt-1">100% do caixa imediato, sem taxa de cartão. Ofereça primeiro, sempre. Sem desconto — a vantagem é o recebimento na hora e zero risco.</p>
             </div>
@@ -334,7 +334,7 @@ export function PlaybookRecebimentoTab() {
             <div className="flex-1 p-4">
               <div className="flex items-baseline justify-between flex-wrap gap-2">
                 <h4 className="text-base font-semibold text-foreground">Cartão de crédito</h4>
-                <span className="text-lg font-bold text-foreground">até 12x R$ 6.667</span>
+                <span className="text-lg font-bold text-foreground">até 12x R$ 6.000</span>
               </div>
               <p className="text-xs text-muted mt-1">Parcelamento padrão no cartão. Recebimento em ~30 dias ou antecipado. Confirme o limite do lead antes de oferecer.</p>
             </div>
@@ -349,7 +349,7 @@ export function PlaybookRecebimentoTab() {
             <div className="flex-1 p-4">
               <div className="flex items-baseline justify-between flex-wrap gap-2">
                 <h4 className="text-base font-semibold text-foreground">Entrada + parcelas</h4>
-                <span className="text-lg font-bold text-foreground">R$ 28.000 + 6x R$ 8.667</span>
+                <span className="text-lg font-bold text-foreground">R$ 25.200 + 6x R$ 7.800</span>
               </div>
               <p className="text-xs text-muted mt-1">
                 Entrada mínima de <strong className="text-foreground">35%</strong> (Pix, cartão ou os dois juntos via <strong className="text-foreground">Asaas</strong>) + restante em até 6x no cartão. Combina caixa imediato com fôlego de parcela.

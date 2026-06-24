@@ -34,8 +34,8 @@ interface Produto {
 const PRODUTOS: Produto[] = [
   { id: "plano-a", nome: "Workshop Plano A", valor: 97.0, emoji: "📋" },
   { id: "voce-dirige", nome: "Curso Você Dirige", valor: 970.0, emoji: "🚗" },
-  { id: "the-way-anual", nome: "THE WAY Mentoria (Anual)", valor: 80000.0, emoji: "✦" },
-  { id: "the-way-semestral", nome: "THE WAY Mentoria (Semestral)", valor: 45000.0, emoji: "✦" },
+  { id: "the-way-anual", nome: "THE WAY Mentoria (Anual)", valor: 72000.0, emoji: "✦" },
+  { id: "the-way-semestral", nome: "THE WAY Mentoria (Semestral)", valor: 40000.0, emoji: "✦" },
   { id: "estrategista", nome: "A Estrategista (Gravado)", valor: 2000.0, emoji: "🎯" },
   { id: "vcn", nome: "Vida, Carreira e Negócios (VCN)", valor: 20000.0, emoji: "🏅" },
   { id: "bno-experience", nome: "BNO Experience 2026", valor: 3000.0, emoji: "🌟" },
