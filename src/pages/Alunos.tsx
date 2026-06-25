@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Copy,
   Check,
+  Tag,
 } from "lucide-react";
 import {
   PieChart,
@@ -73,6 +74,7 @@ export function Alunos() {
   const [multiFilter, setMultiFilter] = useState<"all" | "multi" | "single">("all");
   const [sortBy, setSortBy] = useState<"name" | "products">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [tagFilter, setTagFilter] = useState<"all" | "hotmart" | "original">("all");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +96,7 @@ export function Alunos() {
   const totalAlunos = allAlunos.length;
   const multiProdutoAlunos = useMemo(() => allAlunos.filter((a) => a.isMultiProduto), [allAlunos]);
   const multiProdutoPercent = totalAlunos > 0 ? ((multiProdutoAlunos.length / totalAlunos) * 100).toFixed(1) : "0";
+  const hotmartAlunos = useMemo(() => allAlunos.filter((a) => a.tags.includes("hotmart")), [allAlunos]);
 
   // Product distribution
   const productDistribution = useMemo(() => {
@@ -154,6 +157,13 @@ export function Alunos() {
       result = result.filter((a) => !a.isMultiProduto);
     }
 
+    // Tag filter
+    if (tagFilter === "hotmart") {
+      result = result.filter((a) => a.tags.includes("hotmart"));
+    } else if (tagFilter === "original") {
+      result = result.filter((a) => !a.tags.includes("hotmart"));
+    }
+
     // Sort
     result.sort((a, b) => {
       if (sortBy === "name") {
@@ -165,7 +175,7 @@ export function Alunos() {
     });
 
     return result;
-  }, [allAlunos, search, productFilter, multiFilter, sortBy, sortDir]);
+  }, [allAlunos, search, productFilter, multiFilter, tagFilter, sortBy, sortDir]);
 
   const totalPages = Math.ceil(filteredAlunos.length / itemsPerPage);
   const paginatedAlunos = filteredAlunos.slice(
@@ -420,12 +430,13 @@ export function Alunos() {
             <Filter className="h-4 w-4" style={{ color: GOLD }} />
             <span className="text-xs font-semibold uppercase tracking-wider">Filtros & Busca</span>
           </div>
-          {(search || productFilter !== "all" || multiFilter !== "all") && (
+          {(search || productFilter !== "all" || multiFilter !== "all" || tagFilter !== "all") && (
             <button
               onClick={() => {
                 setSearch("");
                 setProductFilter("all");
                 setMultiFilter("all");
+                setTagFilter("all");
                 setCurrentPage(1);
               }}
               className="text-[10px] font-bold uppercase tracking-wider hover:underline cursor-pointer"
@@ -436,7 +447,7 @@ export function Alunos() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           {/* Search */}
           <div className="space-y-1 md:col-span-2">
             <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Buscar Aluno</label>
@@ -481,6 +492,20 @@ export function Alunos() {
               <option value="all">Todos</option>
               <option value="multi">Multi-Produto ({multiProdutoAlunos.length})</option>
               <option value="single">Produto Único ({totalAlunos - multiProdutoAlunos.length})</option>
+            </select>
+          </div>
+
+          {/* Tag filter */}
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-widest text-muted block">Origem</label>
+            <select
+              value={tagFilter}
+              onChange={(e) => handleFilterChange(() => setTagFilter(e.target.value as "all" | "hotmart" | "original"))}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground focus:ring-1 focus:outline-none"
+            >
+              <option value="all">Todas origens</option>
+              <option value="hotmart">Hotmart ({hotmartAlunos.length})</option>
+              <option value="original">Original ({totalAlunos - hotmartAlunos.length})</option>
             </select>
           </div>
         </div>
@@ -528,7 +553,14 @@ export function Alunos() {
                   <p className="text-sm font-medium text-foreground truncate group-hover:underline decoration-foreground/30 underline-offset-2">
                     {aluno.nome}
                   </p>
-                  <p className="text-[10px] text-muted truncate sm:hidden">{aluno.email}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] text-muted truncate sm:hidden">{aluno.email}</p>
+                    {aluno.tags.includes("hotmart") && (
+                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-orange-100 text-orange-700 border border-orange-200 flex-shrink-0">
+                        Hotmart
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -652,6 +684,12 @@ export function Alunos() {
                     {selectedAluno.isMultiProduto && (
                       <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-green-100 text-green-700">
                         Multi-Produto ✨
+                      </span>
+                    )}
+                    {selectedAluno.tags.includes("hotmart") && (
+                      <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-orange-100 text-orange-700 border border-orange-200">
+                        <Tag className="h-2.5 w-2.5 inline mr-0.5" />
+                        Hotmart
                       </span>
                     )}
                   </p>

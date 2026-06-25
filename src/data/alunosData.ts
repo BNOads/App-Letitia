@@ -1,11 +1,14 @@
-// Auto-generated from vendas_contatos_produtos.csv
+// Auto-generated from vendas_contatos_produtos.csv + Hotmart CSV
 // Each raw row from CSV
+
+import { HOTMART_DATA } from './hotmartData';
 
 export interface AlunoRaw {
   nome: string;
   email: string;
   telefone: string;
   produto: string;
+  origem?: string;
 }
 
 export interface Aluno {
@@ -16,6 +19,7 @@ export interface Aluno {
   produtos: string[];
   produtosUnicos: string[];
   isMultiProduto: boolean;
+  tags: string[];
 }
 
 // Normalize product names to group variations
@@ -37,13 +41,19 @@ function normalizeProductName(raw: string): string {
   if (lower.includes("estrategista") && !lower.includes("turma")) {
     return "A Estrategista";
   }
+  if (lower.includes("imersão") && lower.includes("plano a") && lower.includes("gravação")) {
+    return "Imersão Plano A - Gravação";
+  }
+  if (lower.includes("imersão") && lower.includes("plano a")) {
+    return "Imersão Plano A";
+  }
   if (lower.includes("gravação") || lower.includes("gravacao")) {
     return "Gravação Aula ao Vivo";
   }
-  if (lower.includes("style guide") && lower.includes("3.0")) {
+  if (lower.includes("style guide") && (lower.includes("3.0") || lower.includes("bônus") || lower.includes("bonus"))) {
     return "LCz Style Guide 3.0";
   }
-  if (lower.includes("style guide") && lower.includes("40 itens")) {
+  if (lower.includes("style guide") && (lower.includes("40 itens") || lower.includes("40 iten"))) {
     return "LCz Style Guide - 40 Itens";
   }
   if (lower.includes("style guide")) {
@@ -405,9 +415,12 @@ const RAW_DATA: AlunoRaw[] = [
  * Process raw CSV data: split multi-product entries, merge by email, normalize product names
  */
 export function processAlunos(): Aluno[] {
+  // Merge original data + Hotmart data
+  const ALL_DATA: AlunoRaw[] = [...RAW_DATA, ...HOTMART_DATA];
+
   // First expand: each raw row may contain multiple products separated by ";"
   const expanded: AlunoRaw[] = [];
-  for (const row of RAW_DATA) {
+  for (const row of ALL_DATA) {
     const products = row.produto.split(";").map(p => p.trim()).filter(Boolean);
     for (const prod of products) {
       expanded.push({ ...row, produto: prod });
@@ -415,7 +428,7 @@ export function processAlunos(): Aluno[] {
   }
 
   // Group by email (lowercase) to merge same-person entries
-  const byEmail = new Map<string, { nome: string; email: string; telefone: string; allProducts: string[] }>();
+  const byEmail = new Map<string, { nome: string; email: string; telefone: string; allProducts: string[]; tags: Set<string> }>();
 
   for (const row of expanded) {
     const key = row.email.toLowerCase().trim();
@@ -425,6 +438,7 @@ export function processAlunos(): Aluno[] {
         email: row.email,
         telefone: row.telefone,
         allProducts: [],
+        tags: new Set<string>(),
       });
     }
     const entry = byEmail.get(key)!;
@@ -437,6 +451,10 @@ export function processAlunos(): Aluno[] {
       entry.telefone = row.telefone;
     }
     entry.allProducts.push(row.produto);
+    // Propagate tags from origem
+    if (row.origem) {
+      entry.tags.add(row.origem);
+    }
   }
 
   // Convert to Aluno[]
@@ -453,6 +471,7 @@ export function processAlunos(): Aluno[] {
       produtos: entry.allProducts,
       produtosUnicos: uniqueProducts,
       isMultiProduto: uniqueProducts.length > 1,
+      tags: Array.from(entry.tags),
     });
   }
 
@@ -471,6 +490,8 @@ export const PRODUCT_COLORS: Record<string, string> = {
   "LCz Style Guide - 40 Itens": "#D4A574",
   "LCz Style Guide": "#B8956A",
   "Vida, Carreira e Negócios": "#5C6B5A",
+  "Imersão Plano A": "#9B7B5E",
+  "Imersão Plano A - Gravação": "#8A6E52",
 };
 
 export function getProductColor(product: string): string {
