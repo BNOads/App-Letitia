@@ -19,7 +19,7 @@ const sections = [
       { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
       { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
-      { name: "Comercial", href: "/alunos", icon: ContactRound },
+      { name: "Alunos", href: "/alunos", icon: ContactRound },
       { name: "Processos", href: "/processos-comerciais", icon: Handshake },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
       { name: "Links Úteis", href: "/links", icon: Link2 },
@@ -38,7 +38,7 @@ const sections = [
     items: [
       { name: "Treinamentos", href: "/treinamentos", icon: GraduationCap },
       { name: "Senhas Úteis", href: "/senhas", icon: KeyRound },
-      { name: "Comissões e Metas", href: "/comissoes", icon: Percent },
+      { name: "Comercial", href: "/comissoes", icon: Percent },
     ],
   },
 ];
