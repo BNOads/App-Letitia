@@ -29,6 +29,9 @@ function normalizeProductName(raw: string): string {
   if (lower.includes("workshop") && lower.includes("plano a")) {
     return "Workshop - Plano A";
   }
+  if (lower.includes("imersão") && lower.includes("plano a")) {
+    return "Workshop - Plano A";
+  }
   if (lower.includes("você dirige") || lower.includes("voce dirige")) {
     return "Você Dirige";
   }
@@ -40,12 +43,6 @@ function normalizeProductName(raw: string): string {
   }
   if (lower.includes("estrategista") && !lower.includes("turma")) {
     return "A Estrategista";
-  }
-  if (lower.includes("imersão") && lower.includes("plano a") && lower.includes("gravação")) {
-    return "Imersão Plano A - Gravação";
-  }
-  if (lower.includes("imersão") && lower.includes("plano a")) {
-    return "Imersão Plano A";
   }
   if (lower.includes("gravação") || lower.includes("gravacao")) {
     return "Gravação Aula ao Vivo";
@@ -490,8 +487,6 @@ export const PRODUCT_COLORS: Record<string, string> = {
   "LCz Style Guide - 40 Itens": "#D4A574",
   "LCz Style Guide": "#B8956A",
   "Vida, Carreira e Negócios": "#5C6B5A",
-  "Imersão Plano A": "#9B7B5E",
-  "Imersão Plano A - Gravação": "#8A6E52",
 };
 
 export function getProductColor(product: string): string {

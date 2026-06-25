@@ -18,7 +18,7 @@ const sections = [
       { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
       { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
-      { name: "Alunos", href: "/alunos", icon: ContactRound },
+      { name: "Comercial", href: "/alunos", icon: ContactRound },
       { name: "Processos", href: "/processos-comerciais", icon: Handshake },
       { name: "Suporte", href: "/suporte", icon: HeadphonesIcon },
       { name: "Links Úteis", href: "/links", icon: Link2 },
