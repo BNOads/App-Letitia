@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
-import { fetchLiveSalesData, MONTHS_METADATA, type LeadRecord } from "@/data/salesData";
+import { useState, useEffect, useMemo } from "react";
+import { fetchLiveSalesData, fetchRecentLeadsData, MONTHS_METADATA, type LeadRecord, type RecentLeadRecord } from "@/data/salesData";
 import {
   TrendingUp,
   ShoppingBag,
   DollarSign,
   Loader2,
   Search,
+  Users,
+  Inbox,
   Filter,
   Target,
   ChevronLeft,
@@ -50,6 +52,18 @@ export function VendasRelatorio() {
   const [loading, setLoading] = useState(true);
   const [allLeads, setAllLeads] = useState<LeadRecord[]>([]);
   const [isLive, setIsLive] = useState(false);
+
+  // Tab principal: Dashboard vs Leads Recentes
+  const [mainTab, setMainTab] = useState<"dashboard" | "leads-recentes">("dashboard");
+
+  // Leads Recentes
+  const [recentLeads, setRecentLeads] = useState<RecentLeadRecord[]>([]);
+  const [recentLeadsLoading, setRecentLeadsLoading] = useState(false);
+  const [recentSearch, setRecentSearch] = useState("");
+  const [recentFunilFilter, setRecentFunilFilter] = useState("all");
+  const [recentMonthFilter, setRecentMonthFilter] = useState("all");
+  const [recentPage, setRecentPage] = useState(1);
+  const recentPerPage = 15;
 
   // Filtros de Período e Aba (Mês)
   const [monthFilter, setMonthFilter] = useState<string>(() => {
@@ -107,8 +121,12 @@ export function VendasRelatorio() {
     }
     const start = Date.now();
     try {
-      const leads = await fetchLiveSalesData();
+      const [leads, recents] = await Promise.all([
+        fetchLiveSalesData(),
+        fetchRecentLeadsData().catch(() => [] as RecentLeadRecord[])
+      ]);
       setAllLeads(leads);
+      setRecentLeads(recents);
       // Se conseguimos puxar leads de múltiplos meses e o tamanho bate, deduzimos live
       setIsLive(leads.length > 0);
     } catch (err) {
@@ -129,6 +147,126 @@ export function VendasRelatorio() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // ─── LEADS RECENTES: PROCESSAMENTO (hooks devem ficar antes do return) ──────
+  const recentFunis = useMemo(() => {
+    const set = new Set(recentLeads.map((l) => l.produto).filter(Boolean));
+    return Array.from(set).sort();
+  }, [recentLeads]);
+
+  // Meses disponíveis nos leads recentes (extraídos da data DD/MM/YYYY)
+  const recentMonths = useMemo(() => {
+    const monthNames = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    const map = new Map<string, { label: string; sort: number; count: number }>();
+    recentLeads.forEach((l) => {
+      const parts = l.dataFormatada.split("/");
+      if (parts.length === 3) {
+        const m = parseInt(parts[1], 10) - 1;
+        const y = parts[2].substring(2); // "2026" -> "26"
+        const key = `${monthNames[m]}/${y}`;
+        const sortKey = parseInt(parts[2], 10) * 100 + m;
+        if (!map.has(key)) {
+          map.set(key, { label: key, sort: sortKey, count: 0 });
+        }
+        map.get(key)!.count++;
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
+  }, [recentLeads]);
+
+  const filteredRecentLeads = useMemo(() => {
+    const monthNames = [
+      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ];
+    return recentLeads.filter((l) => {
+      // Filtro de mês
+      if (recentMonthFilter !== "all") {
+        const parts = l.dataFormatada.split("/");
+        if (parts.length === 3) {
+          const m = parseInt(parts[1], 10) - 1;
+          const y = parts[2].substring(2);
+          const leadMonth = `${monthNames[m]}/${y}`;
+          if (leadMonth !== recentMonthFilter) return false;
+        } else {
+          return false;
+        }
+      }
+      // Filtro de funil
+      if (recentFunilFilter !== "all" && l.produto !== recentFunilFilter) return false;
+      // Busca textual
+      if (recentSearch) {
+        const q = recentSearch.toLowerCase();
+        const matches =
+          l.nome.toLowerCase().includes(q) ||
+          l.email.toLowerCase().includes(q) ||
+          l.telefone.includes(q) ||
+          l.produto.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }, [recentLeads, recentFunilFilter, recentMonthFilter, recentSearch]);
+
+  const recentByFunil = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredRecentLeads.forEach((l) => {
+      const key = l.produto || "Sem funil";
+      map[key] = (map[key] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([funil, quantidade]) => ({ funil, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [filteredRecentLeads]);
+
+  const recentByDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredRecentLeads.forEach((l) => {
+      const d = l.dataFormatada;
+      if (d) map[d] = (map[d] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([data, quantidade]) => ({ data, quantidade }))
+      .sort((a, b) => {
+        const [dA, mA, yA] = a.data.split("/").map(Number);
+        const [dB, mB, yB] = b.data.split("/").map(Number);
+        return new Date(yA, mA - 1, dA).getTime() - new Date(yB, mB - 1, dB).getTime();
+      });
+  }, [filteredRecentLeads]);
+
+  const recentPieData = useMemo(() => {
+    const total = filteredRecentLeads.length;
+    const map: Record<string, number> = {};
+    filteredRecentLeads.forEach((l) => {
+      const key = l.produto || "Sem funil";
+      map[key] = (map[key] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value, percent: total > 0 ? ((value / total) * 100).toFixed(1) : "0" }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredRecentLeads]);
+
+  const sortedRecentLeads = useMemo(() => {
+    return [...filteredRecentLeads].sort((a, b) => {
+      // data format: "DD/MM/YYYY HH:MM"
+      const parseDateTime = (s: string) => {
+        const [datePart, timePart] = s.split(" ");
+        const [d, m, y] = (datePart || "").split("/").map(Number);
+        const [h, min] = (timePart || "00:00").split(":").map(Number);
+        return new Date(y, m - 1, d, h || 0, min || 0).getTime();
+      };
+      return parseDateTime(b.data) - parseDateTime(a.data);
+    });
+  }, [filteredRecentLeads]);
+
+  const recentTotalPages = Math.ceil(sortedRecentLeads.length / recentPerPage);
+  const recentPaginatedLeads = sortedRecentLeads.slice(
+    (recentPage - 1) * recentPerPage,
+    recentPage * recentPerPage
+  );
 
   if (loading) {
     return (
@@ -578,6 +716,41 @@ export function VendasRelatorio() {
         </div>
       </div>
 
+      {/* ─── TABS PRINCIPAIS (DASHBOARD vs LEADS RECENTES) ────────────────── */}
+      <div className="flex items-center gap-2 border-b border-border pb-0">
+        <button
+          onClick={() => setMainTab("dashboard")}
+          className={cn(
+            "px-5 py-3 text-sm font-semibold tracking-wide transition-all border-b-2 -mb-px flex items-center gap-2",
+            mainTab === "dashboard"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-border"
+          )}
+          style={mainTab === "dashboard" ? { borderColor: GOLD_COLOR } : {}}
+        >
+          <TrendingUp className="h-4 w-4" /> Dashboard de Vendas
+        </button>
+        <button
+          onClick={() => { setMainTab("leads-recentes"); setRecentPage(1); }}
+          className={cn(
+            "px-5 py-3 text-sm font-semibold tracking-wide transition-all border-b-2 -mb-px flex items-center gap-2",
+            mainTab === "leads-recentes"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-border"
+          )}
+          style={mainTab === "leads-recentes" ? { borderColor: GOLD_COLOR } : {}}
+        >
+          <Inbox className="h-4 w-4" /> Leads Recentes
+          {recentLeads.length > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-letitia-gold/15 text-letitia-gold" style={{ color: GOLD_COLOR }}>
+              {recentLeads.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {mainTab === "dashboard" && (
+      <>
       {/* ─── TABS DE SELEÇÃO RÁPIDA DE MÊSES (ABAS DA PLANILHA) ────────────── */}
       <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
@@ -1631,6 +1804,378 @@ export function VendasRelatorio() {
             </div>
           </div>
         </div>
+      )}
+      </>
+      )}
+
+      {/* ─── ABA: LEADS RECENTES ──────────────────────────────────────────── */}
+      {mainTab === "leads-recentes" && (
+      <>
+        {/* Filtro de Mês - Leads Recentes */}
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Filtrar por mês
+          </h3>
+          {/* Dropdown no Mobile */}
+          <div className="block sm:hidden">
+            <select
+              value={recentMonthFilter}
+              onChange={(e) => { setRecentMonthFilter(e.target.value); setRecentPage(1); }}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none uppercase font-semibold"
+            >
+              <option value="all">Todos os Meses ({recentLeads.length} leads)</option>
+              {recentMonths.map((m) => (
+                <option key={m.label} value={m.label}>{m.label} ({m.count} leads)</option>
+              ))}
+            </select>
+          </div>
+          {/* Abas no Desktop */}
+          <div className="hidden sm:flex items-center overflow-x-auto pb-1 gap-2 scrollbar-none">
+            <button
+              onClick={() => { setRecentMonthFilter("all"); setRecentPage(1); }}
+              className={cn(
+                "px-4 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all whitespace-nowrap border border-border/80 uppercase",
+                recentMonthFilter === "all"
+                  ? "bg-letitia-gold text-white shadow-sm border-letitia-gold"
+                  : "bg-background hover:bg-foreground/5 text-foreground/80"
+              )}
+              style={recentMonthFilter === "all" ? { backgroundColor: GOLD_COLOR } : {}}
+            >
+              Todos ({recentLeads.length})
+            </button>
+            {recentMonths.map((m) => (
+              <button
+                key={m.label}
+                onClick={() => { setRecentMonthFilter(m.label); setRecentPage(1); }}
+                className={cn(
+                  "px-3.5 py-2 rounded-lg text-xs font-semibold tracking-wider transition-all whitespace-nowrap border uppercase flex items-center gap-1.5",
+                  recentMonthFilter === m.label
+                    ? "bg-letitia-gold text-white shadow-sm border-letitia-gold"
+                    : "bg-background hover:bg-foreground/5 text-foreground/80 border-border/80"
+                )}
+                style={recentMonthFilter === m.label ? { backgroundColor: GOLD_COLOR, borderColor: GOLD_COLOR } : {}}
+              >
+                {m.label.split("/")[0]}
+                <span className="text-[9px] px-1.5 py-0.25 rounded-full bg-foreground/10 text-foreground/70 font-normal">
+                  {m.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* KPIs de Leads Recentes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[130px]">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Total de Leads
+            </span>
+            <p className="font-serif text-3xl font-medium text-foreground mt-2">
+              {filteredRecentLeads.length}
+            </p>
+            <p className="text-[10px] text-muted uppercase tracking-wider mt-1">
+              {recentMonthFilter !== "all" ? `Leads em ${recentMonthFilter}` : "Leads captados em todos os funis"}
+            </p>
+          </div>
+
+          {recentByFunil.slice(0, 3).map((item, idx) => (
+            <div key={item.funil} className="rounded-xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between min-h-[130px]">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                {item.funil}
+              </span>
+              <p className="font-serif text-3xl font-medium text-foreground mt-2">
+                {item.quantidade}
+              </p>
+              <p className="text-[10px] text-muted uppercase tracking-wider mt-1">
+                {filteredRecentLeads.length > 0 ? ((item.quantidade / filteredRecentLeads.length) * 100).toFixed(1) : "0"}% do total
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Gráficos: Pie chart por funil + Timeline diário */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Distribuição por Funil */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
+              <Target className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+              Distribuição por Funil
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="h-64">
+                {recentPieData.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-sm text-muted italic">Sem dados.</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={recentPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {recentPieData.map((_, index) => (
+                          <Cell key={`cell-rl-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "8px",
+                          fontSize: "11px"
+                        }}
+                        formatter={(value: any) => [`${value} leads`, "Quantidade"]}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              <div className="space-y-2">
+                {recentPieData.map((item, idx) => (
+                  <div key={item.name} className="flex items-center justify-between text-xs border-b border-border/30 pb-1.5 last:border-0">
+                    <span className="flex items-center gap-2 font-medium">
+                      <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      {item.name}
+                    </span>
+                    <span className="text-muted">
+                      {item.value} leads ({item.percent}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline diário */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+                Evolução Diária de Captação
+              </span>
+              <span className="text-[10px] font-sans font-normal text-muted lowercase">
+                {filteredRecentLeads.length} leads
+              </span>
+            </h3>
+            <div className="h-72">
+              {recentByDate.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted italic">Sem dados.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={recentByDate.slice(-30)} margin={{ top: 10, right: 10, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} vertical={false} />
+                    <XAxis
+                      dataKey="data"
+                      tick={{ fontSize: 9, fill: "var(--muted)" }}
+                      angle={-45}
+                      textAnchor="end"
+                      interval={0}
+                      height={60}
+                      tickFormatter={(v) => { const p = v.split("/"); return `${p[0]}/${p[1]}`; }}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "8px",
+                        fontSize: "11px",
+                        color: "var(--foreground)"
+                      }}
+                      formatter={(value: any) => [`${value} leads`, "Quantidade"]}
+                    />
+                    <Bar dataKey="quantidade" fill={GOLD_COLOR} radius={[3, 3, 0, 0]} maxBarSize={30}>
+                      <LabelList
+                        dataKey="quantidade"
+                        position="top"
+                        style={{ fontSize: "9px", fill: "var(--foreground)", fontWeight: 600 }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Resumo por Funil - Cards detalhados */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} />
+            Detalhamento por Funil
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentByFunil.map((item, idx) => {
+              // Leads mais recentes deste funil
+              const funilLeads = recentLeads.filter((l) => (l.produto || "Sem funil") === item.funil);
+              const latestLead = funilLeads[funilLeads.length - 1];
+              // Unique dates for this funnel
+              const uniqueDates = new Set(funilLeads.map((l) => l.dataFormatada));
+
+              return (
+                <div key={item.funil} className="bg-background/30 border border-border p-4 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <span className="font-serif text-lg font-medium text-foreground">{item.funil}</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-letitia-gold/10 text-letitia-gold" style={{ color: GOLD_COLOR }}>
+                      {recentLeads.length > 0 ? ((item.quantidade / recentLeads.length) * 100).toFixed(1) : "0"}%
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="border-r border-border/50">
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Leads</p>
+                      <p className="font-semibold text-foreground mt-0.5">{item.quantidade}</p>
+                    </div>
+                    <div className="border-r border-border/50">
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Dias Ativos</p>
+                      <p className="font-semibold text-foreground mt-0.5">{uniqueDates.size}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-muted">Média/Dia</p>
+                      <p className="font-semibold text-foreground mt-0.5">
+                        {uniqueDates.size > 0 ? (item.quantidade / uniqueDates.size).toFixed(1) : "0"}
+                      </p>
+                    </div>
+                  </div>
+                  {latestLead && (
+                    <div className="pt-2 border-t border-border/30 text-xs text-muted">
+                      <span className="text-[9px] uppercase font-semibold tracking-wider">Último lead: </span>
+                      <span className="text-foreground font-medium">{latestLead.nome}</span>
+                      <span className="text-muted"> • {latestLead.dataFormatada}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Filtros e Tabela de Leads Recentes */}
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="border-b border-border p-4 bg-background/25 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="font-serif text-xl font-medium text-foreground">Leads Recentes — Tabela Completa</h3>
+              <p className="text-xs text-muted mt-0.5">
+                {filteredRecentLeads.length} de {recentLeads.length} leads
+                {recentFunilFilter !== "all" && (
+                  <span className="ml-1 font-medium text-foreground">• Filtro: {recentFunilFilter}</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Busca */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Buscar nome, email..."
+                  value={recentSearch}
+                  onChange={(e) => { setRecentSearch(e.target.value); setRecentPage(1); }}
+                  className="rounded-md border border-border bg-background pl-7 pr-3 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none w-[200px]"
+                />
+              </div>
+              {/* Filtro por funil */}
+              <select
+                value={recentFunilFilter}
+                onChange={(e) => { setRecentFunilFilter(e.target.value); setRecentPage(1); }}
+                className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+              >
+                <option value="all">Todos os Funis ({recentFunis.length})</option>
+                {recentFunis.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              {(recentSearch || recentFunilFilter !== "all") && (
+                <button
+                  onClick={() => { setRecentSearch(""); setRecentFunilFilter("all"); setRecentPage(1); }}
+                  className="text-[10px] font-bold uppercase tracking-wider text-letitia-gold hover:underline"
+                  style={{ color: GOLD_COLOR }}
+                >
+                  Limpar ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-background/10 text-left">
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Data</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Funil / Produto</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Nome</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Email</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Telefone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentPaginatedLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted italic">
+                      Nenhum lead encontrado para os filtros aplicados.
+                    </td>
+                  </tr>
+                ) : (
+                  recentPaginatedLeads.map((l, index) => {
+                    const funilIdx = recentFunis.indexOf(l.produto);
+                    const funilColor = COLORS[(funilIdx >= 0 ? funilIdx : 0) % COLORS.length];
+
+                    return (
+                      <tr
+                        key={`rl-${index}`}
+                        className="border-b border-border last:border-0 hover:bg-background/40 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.data}</td>
+                        <td className="px-4 py-3 text-xs whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: funilColor }} />
+                            <span className="font-medium text-foreground">{l.produto || "—"}</span>
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold text-foreground">{l.nome || "—"}</td>
+                        <td className="px-4 py-3 text-xs text-muted truncate max-w-[220px]">{l.email || "—"}</td>
+                        <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.telefone || "—"}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginação */}
+          {recentTotalPages > 1 && (
+            <div className="border-t border-border px-4 py-3 bg-background/10 flex items-center justify-between">
+              <span className="text-xs text-muted">
+                Página <span className="font-bold text-foreground">{recentPage}</span> de <span className="font-bold">{recentTotalPages}</span> ({filteredRecentLeads.length} leads)
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={recentPage === 1}
+                  onClick={() => setRecentPage((p) => Math.max(1, p - 1))}
+                  className="p-1 rounded border border-border bg-card text-muted hover:text-foreground hover:bg-foreground/5 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  disabled={recentPage === recentTotalPages}
+                  onClick={() => setRecentPage((p) => Math.min(recentTotalPages, p + 1))}
+                  className="p-1 rounded border border-border bg-card text-muted hover:text-foreground hover:bg-foreground/5 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </>
       )}
     </div>
   );

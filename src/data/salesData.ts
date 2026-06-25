@@ -54,6 +54,96 @@ export const MONTHS_METADATA = [
   { name: "Dezembro", label: "Dezembro/26", gid: "1769415475", meta: 300000.0 }
 ];
 
+// ─── LEADS RECENTES (Planilha Mãe - aba de leads recentes) ────────────────
+
+export interface RecentLeadRecord {
+  data: string;        // DD/MM/YYYY HH:MM (data original da planilha)
+  dataFormatada: string; // DD/MM/YYYY (apenas a data)
+  produto: string;     // Nome do funil/produto (THE WAY, A Estrategista, etc.)
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
+const RECENT_LEADS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1zC-6juuXPT-By4lyH264KOJHu3dd_lB9902pUbFyLfQ/export?format=csv&gid=1212206275";
+
+export async function fetchRecentLeadsData(): Promise<RecentLeadRecord[]> {
+  const res = await fetch(RECENT_LEADS_SHEET_URL);
+  if (!res.ok) throw new Error(`Status ${res.status}`);
+  const text = await res.text();
+
+  // Parse CSV com suporte a campos com vírgula dentro de aspas
+  const lines: string[][] = [];
+  let currentLine: string[] = [];
+  let currentVal = "";
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (insideQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentVal += '"';
+          i++;
+        } else {
+          insideQuotes = false;
+        }
+      } else {
+        currentVal += char;
+      }
+    } else {
+      if (char === '"') {
+        insideQuotes = true;
+      } else if (char === ',') {
+        currentLine.push(currentVal.trim());
+        currentVal = "";
+      } else if (char === '\n' || char === '\r') {
+        currentLine.push(currentVal.trim());
+        if (currentLine.some(c => c.length > 0)) {
+          lines.push(currentLine);
+        }
+        currentLine = [];
+        currentVal = "";
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+      } else {
+        currentVal += char;
+      }
+    }
+  }
+  if (currentVal || currentLine.length > 0) {
+    currentLine.push(currentVal.trim());
+    if (currentLine.some(c => c.length > 0)) {
+      lines.push(currentLine);
+    }
+  }
+
+  // Primeira linha é o header (Data, Produto, Nome, Email, Telefone)
+  const records: RecentLeadRecord[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const r = lines[i];
+    if (r.length < 3) continue;
+
+    const rawDate = r[0] || "";
+    // Formato da data na planilha: DD/MM/YYYY HH:MM
+    const dataFormatada = rawDate.split(" ")[0] || rawDate;
+
+    records.push({
+      data: rawDate,
+      dataFormatada,
+      produto: r[1] || "",
+      nome: r[2] || "",
+      email: r.length > 3 ? r[3] || "" : "",
+      telefone: r.length > 4 ? r[4] || "" : "",
+    });
+  }
+
+  return records;
+}
+
 export async function fetchLiveSalesData(): Promise<LeadRecord[]> {
   const allParsedLeads: LeadRecord[] = [];
   

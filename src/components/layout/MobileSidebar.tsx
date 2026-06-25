@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  HeadphonesIcon, LogOut, Link2, X, ContactRound, Percent, ShoppingBag, Handshake
+  HeadphonesIcon, LogOut, Link2, X, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +37,7 @@ const sections = [
       { name: "Treinamentos", href: "/treinamentos", icon: GraduationCap },
       { name: "Senhas Úteis", href: "/senhas", icon: KeyRound },
       { name: "Comercial", href: "/comissoes", icon: Percent },
+      { name: "Vendas e Leads", href: "/vendas-relatorio", icon: TrendingUp },
     ],
   },
 ];
