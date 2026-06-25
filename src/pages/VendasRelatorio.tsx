@@ -20,7 +20,8 @@ import {
   ArrowDown,
   ArrowUpDown,
   ExternalLink,
-  RotateCw
+  RotateCw,
+  MessageCircle
 } from "lucide-react";
 import {
   BarChart,
@@ -47,6 +48,18 @@ const CLAY_COLOR = "#8A8275";
 const CHARCOAL_COLOR = "#1A1A1A";
 
 const COLORS = [GOLD_COLOR, "#A88B63", "#D9C3A5", "#8A8275", "#5C564D", "#403B35", "#C4907C", "#7C98C4"];
+
+// Monta o link do WhatsApp Web a partir de um telefone brasileiro
+function buildWhatsappLink(telefone?: string): string | null {
+  if (!telefone) return null;
+  let digits = telefone.replace(/\D/g, "");
+  if (!digits) return null;
+  // Adiciona o DDI do Brasil quando o número vem só com DDD + número (10 ou 11 dígitos)
+  if (!digits.startsWith("55") && (digits.length === 10 || digits.length === 11)) {
+    digits = "55" + digits;
+  }
+  return `https://wa.me/${digits}`;
+}
 
 export function VendasRelatorio() {
   const [loading, setLoading] = useState(true);
@@ -2112,12 +2125,13 @@ export function VendasRelatorio() {
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Nome</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Email</th>
                   <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Telefone</th>
+                  <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {recentPaginatedLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted italic">
+                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted italic">
                       Nenhum lead encontrado para os filtros aplicados.
                     </td>
                   </tr>
@@ -2125,6 +2139,7 @@ export function VendasRelatorio() {
                   recentPaginatedLeads.map((l, index) => {
                     const funilIdx = recentFunis.indexOf(l.produto);
                     const funilColor = COLORS[(funilIdx >= 0 ? funilIdx : 0) % COLORS.length];
+                    const whatsappLink = buildWhatsappLink(l.telefone);
 
                     return (
                       <tr
@@ -2141,6 +2156,22 @@ export function VendasRelatorio() {
                         <td className="px-4 py-3 text-xs font-semibold text-foreground">{l.nome || "—"}</td>
                         <td className="px-4 py-3 text-xs text-muted truncate max-w-[220px]">{l.email || "—"}</td>
                         <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.telefone || "—"}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {whatsappLink ? (
+                            <a
+                              href={whatsappLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Chamar ${l.nome || "lead"} no WhatsApp`}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-[#25D366]/10 px-2.5 py-1.5 text-xs font-semibold text-[#1e9e4f] hover:bg-[#25D366]/20 transition-colors"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              WhatsApp
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted">—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
