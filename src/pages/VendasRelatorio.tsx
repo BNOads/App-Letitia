@@ -58,7 +58,6 @@ export function VendasRelatorio() {
 
   // Leads Recentes
   const [recentLeads, setRecentLeads] = useState<RecentLeadRecord[]>([]);
-  const [recentLeadsLoading, setRecentLeadsLoading] = useState(false);
   const [recentSearch, setRecentSearch] = useState("");
   const [recentFunilFilter, setRecentFunilFilter] = useState("all");
   const [recentMonthFilter, setRecentMonthFilter] = useState("all");
