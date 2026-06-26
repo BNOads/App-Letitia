@@ -4,7 +4,8 @@ import { getContent, updateContentStatus, createContent, type DBContent } from "
 import { notifyNewPost } from "@/services/notificationService";
 import { pilarColors, formatoIcons } from "@/data/mockData";
 import { cn } from "@/lib/utils";
-import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2, Clock } from "lucide-react";
+import { List, LayoutGrid, Calendar, ChevronLeft, ChevronRight, Camera, Loader2, Plus, X, Users2, Search, ArrowUpDown, ChevronUp, ChevronDown, Link2, Clock, BarChart3 } from "lucide-react";
+import { InsightsPanel } from "@/components/InsightsPanel";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import { UserSelector } from "@/components/UserSelector";
@@ -14,6 +15,7 @@ import { ConteudoDetailModal } from "@/components/ConteudoDetailModal";
 
 type ViewMode = "kanban" | "lista" | "calendario";
 type CalMode = "dia" | "semana" | "mes";
+type PageTab = "calendario" | "insights";
 
 function getLocalDateString(date: Date): string {
   const year = date.getFullYear();
@@ -46,6 +48,7 @@ export function Conteudo() {
   const [loading, setLoading] = useState(true);
 
   // URL-driven state
+  const pageTab = (searchParams.get('pageTab') as PageTab) || 'calendario';
   const view = (searchParams.get('view') as ViewMode) || 'calendario';
   const calMode = (searchParams.get('calMode') as CalMode) || 'semana';
 
@@ -64,6 +67,15 @@ export function Conteudo() {
       return next;
     }, { replace: true });
   }, [setSearchParams]);
+
+  const setPageTab = useCallback((t: PageTab) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('pageTab', t);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const [filtroPlataforma, setFiltroPlataforma] = useState("todas");
   const [weekOffset, setWeekOffset] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -166,33 +178,70 @@ export function Conteudo() {
           <p className="mt-1 text-sm text-muted">{pautas.length} conteúdos neste ciclo</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsPerfisModalOpen(true)}
-            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 transition-all flex items-center gap-2"
-          >
-            <Users2 className="h-4 w-4 text-letitia-gold" /> Perfis
-          </button>
-          <button 
-            onClick={() => openNewModal()}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" /> Novo Conteúdo
-          </button>
-          
-          <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
-            <button onClick={() => setView("kanban")} className={cn("p-1.5 rounded text-sm transition-all", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Kanban">
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("lista")} className={cn("p-1.5 rounded text-sm transition-all", view === "lista" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Lista">
-              <List className="h-4 w-4" />
-            </button>
-            <button onClick={() => setView("calendario")} className={cn("p-1.5 rounded text-sm transition-all", view === "calendario" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Calendário">
-              <Calendar className="h-4 w-4" />
-            </button>
-          </div>
+          {pageTab === "calendario" && (
+            <>
+              <button 
+                onClick={() => setIsPerfisModalOpen(true)}
+                className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-foreground/5 transition-all flex items-center gap-2"
+              >
+                <Users2 className="h-4 w-4 text-letitia-gold" /> Perfis
+              </button>
+              <button 
+                onClick={() => openNewModal()}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Novo Conteúdo
+              </button>
+              
+              <div className="flex items-center gap-0.5 bg-card border border-border rounded-md p-0.5">
+                <button onClick={() => setView("kanban")} className={cn("p-1.5 rounded text-sm transition-all", view === "kanban" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Kanban">
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button onClick={() => setView("lista")} className={cn("p-1.5 rounded text-sm transition-all", view === "lista" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Lista">
+                  <List className="h-4 w-4" />
+                </button>
+                <button onClick={() => setView("calendario")} className={cn("p-1.5 rounded text-sm transition-all", view === "calendario" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground")} title="Calendário">
+                  <Calendar className="h-4 w-4" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
+      {/* Sub-tabs: Calendário / Insights */}
+      <div className="flex gap-1 border-b border-border -mb-1">
+        <button
+          onClick={() => setPageTab("calendario")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px",
+            pageTab === "calendario"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-foreground/20"
+          )}
+        >
+          <Calendar className="h-4 w-4" />
+          Calendário
+        </button>
+        <button
+          onClick={() => setPageTab("insights")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px",
+            pageTab === "insights"
+              ? "border-letitia-gold text-foreground"
+              : "border-transparent text-muted hover:text-foreground hover:border-foreground/20"
+          )}
+        >
+          <BarChart3 className="h-4 w-4" />
+          Insights
+        </button>
+      </div>
+
+      {pageTab === "insights" && (
+        <InsightsPanel pautas={pautas} socialProfiles={socialProfiles} />
+      )}
+
+      {pageTab === "calendario" && (<>
       {/* Search + Filters */}
       <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
         <div className="relative flex-1 w-full md:max-w-sm">
@@ -303,6 +352,7 @@ export function Conteudo() {
       {view === "kanban" && <KanbanView pautas={filtradas} onUpdate={fetchPautas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={(status) => openNewModal(undefined, status)} />}
       {view === "lista" && <ListView pautas={filtradas} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={() => openNewModal()} />}
       {view === "calendario" && <CalendarView pautas={filtradas} mode={calMode} weekOffset={weekOffset} socialProfiles={socialProfiles} onSelect={setSelectedConteudo} onAdd={(date) => openNewModal(date)} />}
+      </>)}
 
       {isModalOpen && (
         <NovoPautaModal 
