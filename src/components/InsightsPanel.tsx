@@ -300,7 +300,7 @@ export function InsightsPanel({ pautas, socialProfiles }: InsightsPanelProps) {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number, name: string) => [value, name === "postados" ? "Publicados" : "Total"]}
+                      formatter={(value, name) => [value, name === "postados" ? "Publicados" : "Total"]}
                       labelStyle={{ fontWeight: 600 }}
                     />
                     <Bar dataKey="postados" name="Publicados" radius={[0, 6, 6, 0]} barSize={24}>
@@ -343,7 +343,7 @@ export function InsightsPanel({ pautas, socialProfiles }: InsightsPanelProps) {
                         borderRadius: "8px",
                         fontSize: "12px",
                       }}
-                      formatter={(value: number) => [value, "Posts publicados"]}
+                      formatter={(value) => [value, "Posts publicados"]}
                     />
                     <Bar dataKey="postados" name="Publicados" fill="#C4A47C" radius={[4, 4, 0, 0]} barSize={28} />
                   </BarChart>
