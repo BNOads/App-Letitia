@@ -21,7 +21,8 @@ import {
   ArrowUpDown,
   ExternalLink,
   RotateCw,
-  MessageCircle
+  MessageCircle,
+  Percent
 } from "lucide-react";
 import {
   BarChart,
@@ -562,6 +563,30 @@ export function VendasRelatorio() {
     }))
     .sort((a, b) => b.value - a.value);
 
+  // 3b. Taxa de Conversão por Produto (leads contactados x vendas ganhas)
+  const conversionByProductMap: { [prod: string]: { leads: number; vendas: number } } = {};
+  filteredLeads.forEach((l) => {
+    const prod = l.produto || "Outros";
+    if (!conversionByProductMap[prod]) {
+      conversionByProductMap[prod] = { leads: 0, vendas: 0 };
+    }
+    conversionByProductMap[prod].leads += 1;
+    if (l.resultado === "Venda Ganha") {
+      conversionByProductMap[prod].vendas += 1;
+    }
+  });
+
+  const conversionByProduct = Object.keys(conversionByProductMap)
+    .map((prod) => ({
+      name: prod,
+      leads: conversionByProductMap[prod].leads,
+      vendas: conversionByProductMap[prod].vendas,
+      conversao: conversionByProductMap[prod].leads > 0
+        ? (conversionByProductMap[prod].vendas / conversionByProductMap[prod].leads) * 100
+        : 0
+    }))
+    .sort((a, b) => b.conversao - a.conversao);
+
   // 4. Comparativo Vendedoras
   const sellerStatsMap: { [seller: string]: { leads: number; faturamento: number; vendas: number } } = {};
   filteredLeads.forEach((l) => {
@@ -919,6 +944,47 @@ export function VendasRelatorio() {
             Meta Ajustada para o Período
           </p>
         </div>
+      </div>
+
+      {/* ─── TAXA DE CONVERSÃO: GERAL E POR PRODUTO ───────────────────────── */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm mt-4">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+            <Percent className="h-4 w-4 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Taxa de Conversão
+          </span>
+          <div className="flex items-baseline gap-2">
+            <p className="font-serif text-3xl font-medium text-foreground">{filteredConversionRate.toFixed(1)}%</p>
+            <span className="text-[11px] text-muted">
+              geral · {filteredSalesCount} vendas de {filteredLeadsContactados} leads
+            </span>
+          </div>
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-3">Conversão por produto</p>
+        {conversionByProduct.length === 0 ? (
+          <p className="text-xs text-muted italic">Sem dados de produtos no período.</p>
+        ) : (
+          <div className="space-y-3">
+            {conversionByProduct.map((p, i) => (
+              <div key={p.name} className="flex items-center gap-3">
+                <span className="w-32 sm:w-44 shrink-0 truncate text-sm text-foreground" title={p.name}>
+                  {p.name}
+                </span>
+                <div className="flex-1 h-2.5 rounded-full bg-foreground/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, p.conversao)}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                  />
+                </div>
+                <span className="w-14 text-right text-sm font-semibold text-foreground tabular-nums">
+                  {p.conversao.toFixed(1)}%
+                </span>
+                <span className="hidden sm:inline w-24 text-right text-[11px] text-muted tabular-nums">
+                  {p.vendas}/{p.leads} leads
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ─── GRÁFICO: META TOTAL X QUANTIDADE DE VENDA ────────────────────── */}
