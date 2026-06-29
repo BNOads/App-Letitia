@@ -31,6 +31,7 @@ interface Produto {
   id: string;
   nome: string;
   valor: number;
+  valor_original?: number;
   descricao: string;
   categoria: "curso" | "mentoria" | "workshop";
   emoji: string;
@@ -40,6 +41,7 @@ const PRODUTOS_INICIAIS: Produto[] = PRODUTOS_CATALOGO.map(p => ({
   id: p.id,
   nome: p.nome,
   valor: p.valor,
+  valor_original: p.valorOriginal,
   descricao: p.descricao,
   categoria: p.categoria,
   emoji: p.emoji,
@@ -230,6 +232,7 @@ export function Comissoes() {
       id: editingProduto ? editingProduto.id : (prodForm.id || prodForm.nome.toLowerCase().replace(/\s+/g, '-')),
       nome: prodForm.nome || "",
       valor: Number(prodForm.valor) || 0,
+      valor_original: prodForm.valor_original ? Number(prodForm.valor_original) : undefined,
       descricao: prodForm.descricao || "",
       categoria: (prodForm.categoria as any) || "curso",
       emoji: prodForm.emoji || "📦",
@@ -494,8 +497,15 @@ export function Comissoes() {
                 <p className="text-sm font-medium text-foreground leading-tight mb-1">
                   {produto.nome}
                 </p>
+                {produto.valor_original != null && produto.valor_original > 0 && (
+                  <p className="text-[11px] text-muted line-through">
+                    De R$ {produto.valor_original.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                )}
                 <p className="font-serif text-lg font-medium text-foreground">
-                  R$ {produto.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  {produto.valor_original != null && produto.valor_original > 0
+                    ? `Por R$ ${produto.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                    : `R$ ${produto.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
                 </p>
                 <p className="text-[10px] text-muted mt-1 line-clamp-2">
                   {produto.descricao}
@@ -983,16 +993,30 @@ export function Comissoes() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Emoji
+                    Valor de Ancoragem (R$)
                   </label>
                   <input
-                    type="text"
-                    value={prodForm.emoji || ""}
-                    onChange={(e) => setProdForm({ ...prodForm, emoji: e.target.value })}
+                    type="number"
+                    step="0.01"
+                    value={prodForm.valor_original || ""}
+                    onChange={(e) => setProdForm({ ...prodForm, valor_original: Number(e.target.value) || undefined })}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
-                    placeholder="Ex: 🚀"
+                    placeholder="Ex: 1200.00 (opcional)"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Emoji
+                </label>
+                <input
+                  type="text"
+                  value={prodForm.emoji || ""}
+                  onChange={(e) => setProdForm({ ...prodForm, emoji: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-letitia-gold/30 focus:border-letitia-gold"
+                  placeholder="Ex: 🚀"
+                />
               </div>
 
               <div>
