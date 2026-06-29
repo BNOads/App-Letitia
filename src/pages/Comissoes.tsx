@@ -197,9 +197,10 @@ export function Comissoes() {
           if (cat) {
             return {
               ...p,
-              valor_original: p.valor_original ?? cat.valorOriginal,
-              tipo: p.tipo ?? cat.tipo,
-              cartao12x: p.cartao12x ?? cat.cartao12x,
+              valor: cat.valor,
+              valor_original: cat.valorOriginal,
+              tipo: cat.tipo,
+              cartao12x: cat.cartao12x,
             };
           }
           return { ...p, tipo: p.tipo ?? ("low" as const), cartao12x: p.cartao12x ?? Math.round(p.valor / 12) };
