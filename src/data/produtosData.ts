@@ -23,7 +23,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     id: "the-way-anual",
     nome: "THE WAY Mentoria (Anual)",
     valor: 72000,
-    valorOriginal: 90000,
+    valorOriginal: 80000,
     descricao: "Mentoria anual premium — ciclos trimestrais com encontros quinzenais",
     categoria: "mentoria",
     emoji: "✦",

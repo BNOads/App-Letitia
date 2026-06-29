@@ -32,6 +32,8 @@ interface Produto {
   nome: string;
   valor: number;
   valor_original?: number;
+  tipo: "high" | "low";
+  cartao12x: number;
   descricao: string;
   categoria: "curso" | "mentoria" | "workshop";
   emoji: string;
@@ -42,6 +44,8 @@ const PRODUTOS_INICIAIS: Produto[] = PRODUTOS_CATALOGO.map(p => ({
   nome: p.nome,
   valor: p.valor,
   valor_original: p.valorOriginal,
+  tipo: p.tipo,
+  cartao12x: p.cartao12x,
   descricao: p.descricao,
   categoria: p.categoria,
   emoji: p.emoji,
@@ -233,6 +237,8 @@ export function Comissoes() {
       nome: prodForm.nome || "",
       valor: Number(prodForm.valor) || 0,
       valor_original: prodForm.valor_original ? Number(prodForm.valor_original) : undefined,
+      tipo: (prodForm.tipo as any) || "low",
+      cartao12x: Number(prodForm.cartao12x) || Math.round(Number(prodForm.valor) / 12),
       descricao: prodForm.descricao || "",
       categoria: (prodForm.categoria as any) || "curso",
       emoji: prodForm.emoji || "📦",
@@ -497,19 +503,11 @@ export function Comissoes() {
                 <p className="text-sm font-medium text-foreground leading-tight mb-1">
                   {produto.nome}
                 </p>
-                {produto.valor_original != null && produto.valor_original > 0 && (
-                  <p className="text-[11px] text-muted line-through">
-                    De R$ {produto.valor_original.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </p>
-                )}
-                <p className="font-serif text-lg font-medium text-foreground">
-                  {produto.valor_original != null && produto.valor_original > 0
-                    ? `Por R$ ${produto.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                    : `R$ ${produto.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-                </p>
                 <p className="text-[10px] text-muted mt-1 line-clamp-2">
                   {produto.descricao}
                 </p>
+
+                {/* Comissão */}
                 <div className="mt-3 pt-2 border-t border-border/50">
                   <p className="text-[9px] text-muted uppercase tracking-widest">Comissão</p>
                   <p className="text-sm font-semibold text-letitia-gold">
@@ -518,6 +516,25 @@ export function Comissoes() {
                       ({comissaoProd.percentualEfetivo.toFixed(1)}%)
                     </span>
                   </p>
+                </div>
+
+                {/* Valores com ancoragem */}
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  {produto.valor_original != null && produto.valor_original > 0 && (
+                    <p className="text-[11px] text-muted line-through">
+                      De R$ {produto.valor_original.toLocaleString("pt-BR")}
+                    </p>
+                  )}
+                  <p className="font-serif text-lg font-medium text-foreground">
+                    {produto.valor_original != null && produto.valor_original > 0
+                      ? <>Por {produto.valor.toLocaleString("pt-BR")} <span className="text-xs font-normal text-emerald-600">à vista</span></>
+                      : `R$ ${produto.valor.toLocaleString("pt-BR")}`}
+                  </p>
+                  {produto.tipo === "high" && (
+                    <p className="text-[10px] text-muted">
+                      ou até 12x de R$ {produto.cartao12x.toLocaleString("pt-BR")}
+                    </p>
+                  )}
                 </div>
               </button>
             );
