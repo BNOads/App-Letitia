@@ -189,7 +189,22 @@ export function Comissoes() {
     const saved = localStorage.getItem("@letitia:produtos");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: Produto[] = JSON.parse(saved);
+        // Merge saved products with catalog to fill missing fields (valor_original, tipo, cartao12x)
+        const catalogMap = new Map(PRODUTOS_CATALOGO.map(p => [p.id, p]));
+        const merged = parsed.map(p => {
+          const cat = catalogMap.get(p.id);
+          if (cat) {
+            return {
+              ...p,
+              valor_original: p.valor_original ?? cat.valorOriginal,
+              tipo: p.tipo ?? cat.tipo,
+              cartao12x: p.cartao12x ?? cat.cartao12x,
+            };
+          }
+          return { ...p, tipo: p.tipo ?? ("low" as const), cartao12x: p.cartao12x ?? Math.round(p.valor / 12) };
+        });
+        return merged;
       } catch (e) {
         return PRODUTOS_INICIAIS;
       }
