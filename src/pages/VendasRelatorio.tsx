@@ -1460,8 +1460,8 @@ export function VendasRelatorio() {
                       fontSize: "11px"
                     }}
                     formatter={(value: any, name: any) => [
-                      name === "faturamento" ? `R$ ${Number(value).toLocaleString("pt-BR")}` : `${value} leads`,
-                      name === "faturamento" ? "Faturamento Ganho" : "Leads Gerados"
+                      name === "Faturamento Ganho" ? `R$ ${Number(value).toLocaleString("pt-BR")}` : `${value} leads`,
+                      name
                     ]}
                   />
                   <Legend wrapperStyle={{ fontSize: "10px" }} />
