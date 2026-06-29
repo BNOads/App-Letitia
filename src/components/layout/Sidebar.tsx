@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp
+  PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./SidebarContext";
@@ -31,6 +31,7 @@ const sections = [
     label: "Conteúdo",
     items: [
       { name: "Editorial", href: "/editorial", icon: FileText },
+      { name: "Marketing", href: "/marketing", icon: BarChart3 },
     ],
   },
   {

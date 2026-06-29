@@ -36,7 +36,9 @@ const PRODUTOS: Produto[] = [
   { id: "voce-dirige", nome: "Curso Você Dirige", valor: 970.0, emoji: "🚗" },
   { id: "the-way-anual", nome: "THE WAY Mentoria (Anual)", valor: 72000.0, emoji: "✦" },
   { id: "the-way-semestral", nome: "THE WAY Mentoria (Semestral)", valor: 40000.0, emoji: "✦" },
+  { id: "the-way-trimestral", nome: "THE WAY Mentoria (Trimestral)", valor: 30000.0, emoji: "✦" },
   { id: "estrategista", nome: "A Estrategista (Gravado)", valor: 2000.0, emoji: "🎯" },
+  { id: "lacademia", nome: "L'Acadèmia", valor: 2997.0, emoji: "🏛️" },
   { id: "vcn", nome: "Vida, Carreira e Negócios (VCN)", valor: 20000.0, emoji: "🏅" },
   { id: "bno-experience", nome: "BNO Experience 2026", valor: 3000.0, emoji: "🌟" },
 ];
@@ -70,7 +72,9 @@ const PRODUCT_ID_TO_SALES_NAMES: Record<string, string[]> = {
   "voce-dirige": ["VOCÊ DIRIGE", "VOCÃ DIRIGE", "Você Dirige", "Curso Você Dirige"],
   "the-way-anual": ["THE WAY", "THE WAY Mentoria", "The Way"],
   "the-way-semestral": ["THE WAY", "THE WAY Mentoria", "The Way"],
+  "the-way-trimestral": ["THE WAY", "THE WAY Mentoria", "The Way"],
   "estrategista": ["A Estrategista", "A ESTRATEGISTA", "Estrategista"],
+  "lacademia": ["L'Acadèmia", "LACADEMIA", "Lacademia", "L'Acadèmia"],
   "vcn": ["VCN", "Vida, Carreira e Negócios"],
   "bno-experience": ["BNO Experience", "BNO EXPERIENCE", "BNO Experience 2026"],
 };

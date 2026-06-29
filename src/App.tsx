@@ -21,6 +21,7 @@ import { VendasRelatorio } from "./pages/VendasRelatorio";
 import { Comissoes } from "./pages/Comissoes";
 import { Alunos } from "./pages/Alunos";
 import { ProcessosComerciais } from "./pages/ProcessosComerciais";
+import { Marketing } from "./pages/Marketing";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
@@ -57,6 +58,7 @@ function App() {
                 <Route path="alunos" element={<Alunos />} />
                 <Route path="comissoes" element={<Comissoes />} />
                 <Route path="processos-comerciais" element={<ProcessosComerciais />} />
+                <Route path="marketing" element={<Marketing />} />
               </Route>
             </Route>
           </Routes>

@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { fetchLiveSalesData, fetchRecentLeadsData, MONTHS_METADATA, type LeadRecord, type RecentLeadRecord } from "@/data/salesData";
+import { getContentByDate, type DBContent } from "@/services/contentService";
 import {
   TrendingUp,
   ShoppingBag,
@@ -22,7 +23,9 @@ import {
   ExternalLink,
   RotateCw,
   MessageCircle,
-  Percent
+  Percent,
+  X,
+  Newspaper
 } from "lucide-react";
 import {
   BarChart,
@@ -69,6 +72,29 @@ export function VendasRelatorio() {
 
   // Tab principal: Dashboard vs Leads Recentes
   const [mainTab, setMainTab] = useState<"dashboard" | "leads-recentes">("dashboard");
+
+  // Correlação Leads × Editorial
+  const [editorialModalDate, setEditorialModalDate] = useState<string | null>(null);
+  const [editorialContent, setEditorialContent] = useState<DBContent[]>([]);
+  const [editorialLoading, setEditorialLoading] = useState(false);
+
+  const handleBarClick = useCallback(async (data: any) => {
+    if (!data?.data) return;
+    const dateStr = data.data; // DD/MM/YYYY
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return;
+    const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+    setEditorialModalDate(dateStr);
+    setEditorialLoading(true);
+    try {
+      const content = await getContentByDate(isoDate);
+      setEditorialContent(content);
+    } catch (err) {
+      console.warn("Erro ao buscar conteúdo editorial:", err);
+      setEditorialContent([]);
+    }
+    setEditorialLoading(false);
+  }, []);
 
   // Leads Recentes
   const [recentLeads, setRecentLeads] = useState<RecentLeadRecord[]>([]);
@@ -506,9 +532,14 @@ export function VendasRelatorio() {
   });
 
   // 2. Estatísticas de Captação e Fechamento por Origem
+  // Quando a origem é "Prospecção Ativa", detalha a sub-origem (enquete, DM, etc.)
   const sourceStatsMap: { [source: string]: { leads: number; faturamento: number; vendas: number } } = {};
   filteredLeads.forEach((l) => {
-    const src = l.origem || "Não Informada";
+    let src = l.origem || "Não Informada";
+    // Granularidade: concatenar detalhes quando for prospecção ativa
+    if (src.toLowerCase().includes("prospecção ativa") && l.detalhes && l.detalhes.trim()) {
+      src = `${src} — ${l.detalhes.trim()}`;
+    }
     if (!sourceStatsMap[src]) {
       sourceStatsMap[src] = { leads: 0, faturamento: 0, vendas: 0 };
     }
@@ -1701,7 +1732,14 @@ export function VendasRelatorio() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.vendedora}</td>
-                      <td className="px-4 py-3 text-xs text-muted truncate max-w-[140px]">{l.origem}</td>
+                      <td className="px-4 py-3 text-xs text-muted truncate max-w-[180px]">
+                        {l.origem}
+                        {l.detalhes && l.detalhes.trim() && (
+                          <span className="block font-normal text-[10px] text-letitia-gold/80 truncate">
+                            {l.detalhes}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-foreground font-medium whitespace-nowrap">
                         {l.produto || <span className="text-[10px] text-muted italic">Nenhum</span>}
                       </td>
@@ -1803,6 +1841,13 @@ export function VendasRelatorio() {
                   <p className="font-medium text-foreground mt-0.5">{selectedLead.pipeline || "Em aberto"}</p>
                 </div>
               </div>
+
+              {selectedLead.detalhes && selectedLead.detalhes.trim() && (
+                <div>
+                  <p className="font-bold text-muted uppercase tracking-wider text-[9px]">Detalhes / Sub-origem</p>
+                  <p className="font-medium text-foreground mt-0.5">{selectedLead.detalhes}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2067,7 +2112,10 @@ export function VendasRelatorio() {
                       }}
                       formatter={(value: any) => [`${value} leads`, "Quantidade"]}
                     />
-                    <Bar dataKey="quantidade" fill={GOLD_COLOR} radius={[3, 3, 0, 0]} maxBarSize={30}>
+                    <Bar dataKey="quantidade" fill={GOLD_COLOR} radius={[3, 3, 0, 0]} maxBarSize={30}
+                      onClick={(data: any) => handleBarClick(data)}
+                      className="cursor-pointer"
+                    >
                       <LabelList
                         dataKey="quantidade"
                         position="top"
@@ -2078,6 +2126,66 @@ export function VendasRelatorio() {
                 </ResponsiveContainer>
               )}
             </div>
+
+            {/* Mini-modal de Correlação com Conteúdo Editorial */}
+            {editorialModalDate && (
+              <div className="mt-4 border border-letitia-gold/30 bg-letitia-gold/5 rounded-xl p-5 relative animate-in fade-in slide-in-from-top-2 duration-200">
+                <button
+                  onClick={() => setEditorialModalDate(null)}
+                  className="absolute top-3 right-3 p-1 text-muted hover:text-foreground hover:bg-foreground/10 rounded-md transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <h4 className="text-xs font-bold uppercase tracking-widest text-letitia-gold mb-3 flex items-center gap-2">
+                  <Newspaper className="h-4 w-4" />
+                  Conteúdo Editorial em {editorialModalDate}
+                </h4>
+                {editorialLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted py-3">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando conteúdos...
+                  </div>
+                ) : editorialContent.length === 0 ? (
+                  <p className="text-xs text-muted italic py-2">
+                    Nenhum conteúdo editorial programado ou postado nesta data.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {editorialContent.map((c) => (
+                      <div key={c.id} className="bg-card border border-border rounded-lg p-3 flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{c.titulo}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-letitia-gold/10 text-letitia-gold">
+                              {c.plataforma}
+                            </span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/5 text-muted">
+                              {c.formato}
+                            </span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/5 text-muted">
+                              {c.pilar}
+                            </span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                              c.status === 'postado' ? 'bg-green-500/10 text-green-700' :
+                              c.status === 'pronto' ? 'bg-blue-500/10 text-blue-700' :
+                              c.status === 'programado' ? 'bg-purple-500/10 text-purple-700' :
+                              'bg-yellow-500/10 text-yellow-700'
+                            }`}>
+                              {c.status}
+                            </span>
+                          </div>
+                          {c.big_idea && (
+                            <p className="text-[10px] text-muted mt-1 truncate">{c.big_idea}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[9px] text-muted mt-3 italic">
+                  💡 Clique em qualquer barra do gráfico para ver o conteúdo editorial daquele dia e correlacionar com a entrada de leads.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
   Calendar, FileStack, GraduationCap, KeyRound,
-  HeadphonesIcon, LogOut, Link2, X, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp
+  HeadphonesIcon, LogOut, Link2, X, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +29,7 @@ const sections = [
     label: "Conteúdo",
     items: [
       { name: "Editorial", href: "/editorial", icon: FileText },
+      { name: "Marketing", href: "/marketing", icon: BarChart3 },
     ],
   },
   {

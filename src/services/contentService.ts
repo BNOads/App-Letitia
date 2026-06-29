@@ -119,3 +119,15 @@ export async function deleteContent(id: string) {
 
   if (error) throw error;
 }
+
+/** Busca conteúdos editoriais por uma data específica (YYYY-MM-DD) */
+export async function getContentByDate(date: string): Promise<DBContent[]> {
+  const { data, error } = await supabase
+    .from('conteudo_pautas')
+    .select('*')
+    .eq('data_prevista', date)
+    .order('horario_previsto', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as DBContent[];
+}
