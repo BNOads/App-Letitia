@@ -101,7 +101,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     id: "vcn",
     nome: "Vida, Carreira e Negócios (VCN)",
     valor: 20000,
-    valorOriginal: 24000,
+    valorOriginal: 25000,
     descricao: "Programa completo de transformação — vida, carreira e negócios",
     categoria: "mentoria",
     emoji: "🏅",
