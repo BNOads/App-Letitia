@@ -20,6 +20,8 @@ import {
   Eye,
   MousePointerClick,
   Send,
+  ExternalLink,
+  RotateCw,
 } from "lucide-react";
 import {
   BarChart,
@@ -109,18 +111,45 @@ export function Marketing() {
   });
   const [editingSocial, setEditingSocial] = useState<number | null>(null);
 
-  // ─── SUBSTACK ──────────────────────────────────────────────────────────────
-  const [substackLeads, setSubstackLeads] = useState<{ nome: string; email: string; data: string }[]>(() => {
-    const saved = localStorage.getItem("@letitia:substack-leads");
+  // ─── SUBSTACK (dados ao vivo da planilha) ───────────────────────────────────
+  const SUBSTACK_SHEET_ID = "1zC-6juuXPT-By4lyH264KOJHu3dd_lB9902pUbFyLfQ";
+  const SUBSTACK_GID = "562732819";
+  const SUBSTACK_SHEET_URL = `https://docs.google.com/spreadsheets/d/${SUBSTACK_SHEET_ID}/edit?gid=${SUBSTACK_GID}#gid=${SUBSTACK_GID}`;
+
+  const [substackLeads, setSubstackLeads] = useState<{ nome: string; email: string }[]>(() => {
+    const saved = localStorage.getItem("@letitia:substack-leads-live");
     return saved ? JSON.parse(saved) : [];
   });
-  const [showSubstackModal, setShowSubstackModal] = useState(false);
-  const [substackForm, setSubstackForm] = useState({ nome: "", email: "" });
+  const [substackLoading, setSubstackLoading] = useState(false);
+  const [substackSearch, setSubstackSearch] = useState("");
+
+  const fetchSubstackLeads = async () => {
+    setSubstackLoading(true);
+    try {
+      const url = `https://docs.google.com/spreadsheets/d/${SUBSTACK_SHEET_ID}/export?format=csv&gid=${SUBSTACK_GID}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const text = await res.text();
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const records: { nome: string; email: string }[] = [];
+      // Pula o cabeçalho (NOME,EMAIL)
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",");
+        const nome = (parts[0] || "").replace(/^"|"$/g, "").trim();
+        const email = (parts[1] || "").replace(/^"|"$/g, "").trim();
+        if (email) records.push({ nome, email });
+      }
+      setSubstackLeads(records);
+      localStorage.setItem("@letitia:substack-leads-live", JSON.stringify(records));
+    } catch (err) {
+      console.warn("Erro ao buscar leads do Substack:", err);
+    }
+    setSubstackLoading(false);
+  };
 
   // ─── PERSISTÊNCIA ──────────────────────────────────────────────────────────
   useEffect(() => { localStorage.setItem("@letitia:mail-campaigns", JSON.stringify(mailCampaigns)); }, [mailCampaigns]);
   useEffect(() => { localStorage.setItem("@letitia:social-metrics", JSON.stringify(socialMetrics)); }, [socialMetrics]);
-  useEffect(() => { localStorage.setItem("@letitia:substack-leads", JSON.stringify(substackLeads)); }, [substackLeads]);
 
   // ─── FETCH LEADS ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -740,34 +769,64 @@ export function Marketing() {
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* ─── TAB: SUBSTACK / NEWSLETTER ───────────────────────────────────── */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {activeTab === "substack" && (
+      {activeTab === "substack" && (() => {
+        const filteredSubstack = substackLeads.filter((l) => {
+          if (!substackSearch) return true;
+          const q = substackSearch.toLowerCase();
+          return l.nome.toLowerCase().includes(q) || l.email.toLowerCase().includes(q);
+        });
+        const substackPerPage = 25;
+
+        return (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted">
-                Leads do Substack (Petit Journal). Semanalmente, o time precisa baixar novos assinantes e trazer para cá.
-              </p>
-              <p className="text-[10px] text-muted mt-1">
-                Esses leads alimentarão o futuro mail marketing e aparecerão em "Leads Recentes" quando integrados ao CRM.
-              </p>
+          {/* Atalho para a planilha + botão de sincronizar */}
+          <div className="rounded-xl border border-letitia-gold/30 bg-gradient-to-r from-letitia-gold/5 to-transparent p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-letitia-gold/15 flex items-center justify-center flex-shrink-0">
+                  <Globe className="h-5 w-5" style={{ color: GOLD_COLOR }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Planilha Mãe — Leads Leticia Cazarré</p>
+                  <p className="text-[10px] text-muted mt-0.5">
+                    Os dados abaixo são sincronizados diretamente da aba <strong>NEWSLETTER SUBSTACK</strong> da planilha.
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    Para adicionar ou editar leads, use a planilha e depois clique em "Sincronizar".
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={SUBSTACK_SHEET_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-letitia-gold/30 px-4 py-2.5 text-xs font-semibold transition-all hover:bg-letitia-gold/10"
+                  style={{ color: GOLD_COLOR }}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Abrir Planilha
+                </a>
+                <button
+                  onClick={fetchSubstackLeads}
+                  disabled={substackLoading}
+                  className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: GOLD_COLOR }}
+                >
+                  <RotateCw className={cn("h-3.5 w-3.5", substackLoading && "animate-spin")} />
+                  {substackLoading ? "Sincronizando..." : "Sincronizar"}
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => { setSubstackForm({ nome: "", email: "" }); setShowSubstackModal(true); }}
-              className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all hover:opacity-90"
-              style={{ backgroundColor: GOLD_COLOR }}
-            >
-              <Plus className="h-4 w-4" /> Adicionar Lead
-            </button>
           </div>
 
-          {/* KPI */}
+          {/* KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
-                <Globe className="h-4 w-4" style={{ color: GOLD_COLOR }} /> Leads Substack Importados
+                <Globe className="h-4 w-4" style={{ color: GOLD_COLOR }} /> Assinantes Newsletter
               </span>
               <p className="font-serif text-3xl font-medium text-foreground mt-2">{substackLeads.length}</p>
-              <p className="text-[10px] text-muted mt-1">assinantes registrados manualmente</p>
+              <p className="text-[10px] text-muted mt-1">leads importados da planilha Substack</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <span className="text-[11px] font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
@@ -778,80 +837,68 @@ export function Marketing() {
             </div>
           </div>
 
-          {/* Tabela de Leads Substack */}
+          {/* Busca */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+              <input
+                value={substackSearch}
+                onChange={(e) => setSubstackSearch(e.target.value)}
+                placeholder="Buscar por nome ou e-mail..."
+                className="w-full rounded-md border border-border bg-background pl-8 pr-3 py-2 text-xs focus:ring-1 focus:ring-letitia-gold focus:outline-none"
+              />
+            </div>
+            <span className="text-[10px] text-muted whitespace-nowrap">
+              {filteredSubstack.length} de {substackLeads.length}
+            </span>
+          </div>
+
+          {/* Tabela */}
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-background/10 text-left">
-                    {["Data Import", "Nome", "E-mail", ""].map((h) => (
-                      <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted">{h}</th>
+                    {["#", "Nome", "E-mail"].map((h) => (
+                      <th key={h} className={cn("px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted", h === "#" && "w-12 text-center")}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {substackLeads.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted italic">Nenhum lead importado do Substack. Clique em "Adicionar Lead" para começar.</td></tr>
+                  {substackLoading ? (
+                    <tr><td colSpan={3} className="px-4 py-8 text-center">
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Carregando leads da planilha...
+                      </div>
+                    </td></tr>
+                  ) : filteredSubstack.length === 0 ? (
+                    <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-muted italic">
+                      {substackLeads.length === 0
+                        ? "Nenhum lead carregado. Clique em \"Sincronizar\" para importar da planilha."
+                        : "Nenhum resultado para a busca."
+                      }
+                    </td></tr>
                   ) : (
-                    substackLeads.map((l, i) => (
+                    filteredSubstack.slice(0, substackPerPage).map((l, i) => (
                       <tr key={i} className="border-b border-border last:border-0 hover:bg-background/40 transition-colors">
-                        <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{l.data}</td>
+                        <td className="px-4 py-3 text-[10px] text-muted text-center font-mono">{i + 1}</td>
                         <td className="px-4 py-3 text-xs font-semibold text-foreground">{l.nome || "—"}</td>
                         <td className="px-4 py-3 text-xs text-muted">{l.email}</td>
-                        <td className="px-4 py-3 text-xs">
-                          <button onClick={() => setSubstackLeads(prev => prev.filter((_, idx) => idx !== i))} className="p-1 text-muted hover:text-red-500">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Modal Substack */}
-          {showSubstackModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowSubstackModal(false)}>
-              <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="font-serif text-lg font-semibold text-foreground">Adicionar Lead Substack</h3>
-                  <button onClick={() => setShowSubstackModal(false)} className="p-1 text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted block mb-1">Nome</label>
-                    <input value={substackForm.nome} onChange={(e) => setSubstackForm({ ...substackForm, nome: e.target.value })}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-letitia-gold focus:outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted block mb-1">E-mail *</label>
-                    <input type="email" value={substackForm.email} onChange={(e) => setSubstackForm({ ...substackForm, email: e.target.value })}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-letitia-gold focus:outline-none" />
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-6">
-                  <button onClick={() => setShowSubstackModal(false)} className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-muted hover:bg-foreground/5 transition-colors">
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!substackForm.email) return;
-                      setSubstackLeads(prev => [{ ...substackForm, data: new Date().toLocaleDateString("pt-BR") }, ...prev]);
-                      setShowSubstackModal(false);
-                    }}
-                    className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
-                    style={{ backgroundColor: GOLD_COLOR }}
-                  >
-                    Adicionar
-                  </button>
-                </div>
+            {filteredSubstack.length > substackPerPage && (
+              <div className="px-4 py-3 border-t border-border text-center text-[10px] text-muted">
+                Exibindo {substackPerPage} de {filteredSubstack.length} leads. Use a busca para filtrar.
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

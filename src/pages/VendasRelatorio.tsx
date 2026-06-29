@@ -25,7 +25,8 @@ import {
   MessageCircle,
   Percent,
   X,
-  Newspaper
+  Newspaper,
+  MousePointerClick
 } from "lucide-react";
 import {
   BarChart,
@@ -2085,6 +2086,24 @@ export function VendasRelatorio() {
                 {filteredRecentLeads.length} leads
               </span>
             </h3>
+
+            {/* Instrução visual para clicar nas barras */}
+            {!editorialModalDate && (
+              <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-lg bg-letitia-gold/8 border border-letitia-gold/20 animate-in fade-in slide-in-from-top-1 duration-300">
+                <span className="flex-shrink-0 h-7 w-7 rounded-full bg-letitia-gold/15 flex items-center justify-center animate-pulse">
+                  <MousePointerClick className="h-3.5 w-3.5" style={{ color: GOLD_COLOR }} />
+                </span>
+                <div>
+                  <p className="text-[11px] font-semibold text-foreground leading-tight">
+                    Clique em qualquer barra para ver os conteúdos editoriais do dia
+                  </p>
+                  <p className="text-[9px] text-muted mt-0.5">
+                    Descubra quais posts, reels e stories foram publicados no dia que gerou esses leads
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="h-72">
               {recentByDate.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted italic">Sem dados.</div>
