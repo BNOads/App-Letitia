@@ -2,26 +2,60 @@ import { supabase } from '@/lib/supabase';
 
 // ─── AUREA Webhook ─────────────────────────────────────────
 const AUREA_WEBHOOK_URL = 'https://aureawook.redbearid.com.br/webhook/838ae18f-330a-424b-bd4a-bb509bce699e-lc';
+const AUREA_PROFILE_NAME = 'Áurea Design';
 
 type WebhookAction = 'criado' | 'atualizado';
+type WebhookTipo = 'tarefa' | 'subtarefa';
+
+/** Cache do ID da Áurea para não buscar no banco a cada chamada */
+let _aureaIdCache: string | null = null;
+let _aureaIdFetched = false;
+
+async function getAureaProfileId(): Promise<string | null> {
+  if (_aureaIdFetched) return _aureaIdCache;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('full_name', AUREA_PROFILE_NAME)
+      .single();
+    _aureaIdCache = data?.id ?? null;
+  } catch {
+    _aureaIdCache = null;
+  }
+  _aureaIdFetched = true;
+  return _aureaIdCache;
+}
+
+/** Verifica se o responsável é a Áurea Design */
+async function isAureaResponsavel(responsavelId: string | null | undefined): Promise<boolean> {
+  if (!responsavelId) return false;
+  const aureaId = await getAureaProfileId();
+  return aureaId !== null && responsavelId === aureaId;
+}
 
 /**
- * Dispara webhook para AUREA com todas as informações da demanda.
+ * Dispara webhook para AUREA somente quando ela é a responsável.
  * Fire-and-forget: não bloqueia a operação principal.
  */
-async function sendAureaWebhook(action: WebhookAction, taskData: Record<string, any>) {
+async function sendAureaWebhook(action: WebhookAction, tipo: WebhookTipo, itemData: Record<string, any>) {
   try {
+    // Só dispara se a Áurea for a responsável
+    const responsavelId = itemData.responsavel_id;
+    if (!(await isAureaResponsavel(responsavelId))) return;
+
     await fetch(AUREA_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: action,
+        tipo,
         timestamp: new Date().toISOString(),
-        tarefa: taskData,
+        ...(tipo === 'tarefa' ? { tarefa: itemData } : { subtarefa: itemData }),
       }),
     });
   } catch (err) {
-    console.warn(`[AUREA Webhook] Erro ao enviar (${action}):`, err);
+    console.warn(`[AUREA Webhook] Erro ao enviar (${action} ${tipo}):`, err);
   }
 }
 
@@ -149,7 +183,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
             created_by: task.created_by,
           };
           const { data: newRecurring } = await supabase.from('tarefas').insert([nextTask]).select().single();
-          if (newRecurring) sendAureaWebhook('criado', newRecurring);
+          if (newRecurring) sendAureaWebhook('criado', 'tarefa', newRecurring);
         }
       }
     }
@@ -164,7 +198,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
 
   // Webhook AUREA – status atualizado
   const { data: updatedTask } = await supabase.from('tarefas').select('*').eq('id', taskId).single();
-  if (updatedTask) sendAureaWebhook('atualizado', updatedTask);
+  if (updatedTask) sendAureaWebhook('atualizado', 'tarefa', updatedTask);
 }
 
 export async function updateTask(taskId: string, updates: Partial<DBTask>) {
@@ -177,7 +211,7 @@ export async function updateTask(taskId: string, updates: Partial<DBTask>) {
 
   // Webhook AUREA – tarefa atualizada
   const { data: updatedTask } = await supabase.from('tarefas').select('*').eq('id', taskId).single();
-  if (updatedTask) sendAureaWebhook('atualizado', updatedTask);
+  if (updatedTask) sendAureaWebhook('atualizado', 'tarefa', updatedTask);
 }
 
 export async function createTask(task: Partial<DBTask>) {
@@ -189,8 +223,8 @@ export async function createTask(task: Partial<DBTask>) {
 
   if (error) throw error;
 
-  // Webhook AUREA – tarefa criada
-  sendAureaWebhook('criado', data);
+  // Webhook AUREA – tarefa criada (só se Áurea for responsável)
+  sendAureaWebhook('criado', 'tarefa', data);
 
   return data;
 }
@@ -212,9 +246,9 @@ export async function createBulkTasks(tasks: Partial<DBTask>[]): Promise<DBTask[
 
   if (error) throw error;
 
-  // Webhook AUREA – cada tarefa criada em massa
+  // Webhook AUREA – cada tarefa criada em massa (só se Áurea for responsável)
   for (const t of (data as DBTask[])) {
-    sendAureaWebhook('criado', t);
+    sendAureaWebhook('criado', 'tarefa', t);
   }
 
   return data as DBTask[];
@@ -498,6 +532,10 @@ export async function createSubtask(subtask: Partial<DBSubtask>): Promise<DBSubt
     .single();
 
   if (error) throw error;
+
+  // Webhook AUREA – subtarefa criada (só se Áurea for responsável)
+  sendAureaWebhook('criado', 'subtarefa', data);
+
   return data as DBSubtask;
 }
 
@@ -508,6 +546,10 @@ export async function updateSubtask(id: string, updates: Partial<DBSubtask>) {
     .eq('id', id);
 
   if (error) throw error;
+
+  // Webhook AUREA – subtarefa atualizada (só se Áurea for responsável)
+  const { data: updatedSub } = await supabase.from('subtarefas').select('*').eq('id', id).single();
+  if (updatedSub) sendAureaWebhook('atualizado', 'subtarefa', updatedSub);
 }
 
 export async function toggleSubtask(id: string, concluida: boolean) {
@@ -517,6 +559,10 @@ export async function toggleSubtask(id: string, concluida: boolean) {
     .eq('id', id);
 
   if (error) throw error;
+
+  // Webhook AUREA – subtarefa toggle (só se Áurea for responsável)
+  const { data: toggledSub } = await supabase.from('subtarefas').select('*').eq('id', id).single();
+  if (toggledSub) sendAureaWebhook('atualizado', 'subtarefa', toggledSub);
 }
 
 export async function deleteSubtask(id: string) {
@@ -542,6 +588,12 @@ export async function createBulkSubtasks(subtasks: Partial<DBSubtask>[]): Promis
     `);
 
   if (error) throw error;
+
+  // Webhook AUREA – cada subtarefa criada em massa (só se Áurea for responsável)
+  for (const s of (data as DBSubtask[])) {
+    sendAureaWebhook('criado', 'subtarefa', s);
+  }
+
   return data as DBSubtask[];
 }
 
@@ -713,8 +765,8 @@ export async function createTaskFromTemplate(
     await supabase.from('subtarefas').insert(subs);
   }
 
-  // Webhook AUREA – tarefa criada a partir de modelo
-  sendAureaWebhook('criado', data);
+  // Webhook AUREA – tarefa criada a partir de modelo (só se Áurea for responsável)
+  sendAureaWebhook('criado', 'tarefa', data);
 
   return data as DBTask;
 }
