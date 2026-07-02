@@ -534,7 +534,23 @@ export async function createSubtask(subtask: Partial<DBSubtask>): Promise<DBSubt
   if (error) throw error;
 
   // Webhook AUREA – subtarefa criada (só se Áurea for responsável)
-  sendAureaWebhook('criado', 'subtarefa', data);
+  // Re-fetch com joins para payload completo
+  const { data: fullSub } = await supabase
+    .from('subtarefas')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      ),
+      tarefas (
+        id,
+        titulo
+      )
+    `)
+    .eq('id', data.id)
+    .single();
+  sendAureaWebhook('criado', 'subtarefa', fullSub || data);
 
   return data as DBSubtask;
 }
@@ -548,7 +564,21 @@ export async function updateSubtask(id: string, updates: Partial<DBSubtask>) {
   if (error) throw error;
 
   // Webhook AUREA – subtarefa atualizada (só se Áurea for responsável)
-  const { data: updatedSub } = await supabase.from('subtarefas').select('*').eq('id', id).single();
+  const { data: updatedSub } = await supabase
+    .from('subtarefas')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      ),
+      tarefas (
+        id,
+        titulo
+      )
+    `)
+    .eq('id', id)
+    .single();
   if (updatedSub) sendAureaWebhook('atualizado', 'subtarefa', updatedSub);
 }
 
@@ -561,7 +591,21 @@ export async function toggleSubtask(id: string, concluida: boolean) {
   if (error) throw error;
 
   // Webhook AUREA – subtarefa toggle (só se Áurea for responsável)
-  const { data: toggledSub } = await supabase.from('subtarefas').select('*').eq('id', id).single();
+  const { data: toggledSub } = await supabase
+    .from('subtarefas')
+    .select(`
+      *,
+      profiles (
+        full_name,
+        avatar_url
+      ),
+      tarefas (
+        id,
+        titulo
+      )
+    `)
+    .eq('id', id)
+    .single();
   if (toggledSub) sendAureaWebhook('atualizado', 'subtarefa', toggledSub);
 }
 
@@ -584,6 +628,10 @@ export async function createBulkSubtasks(subtasks: Partial<DBSubtask>[]): Promis
       profiles (
         full_name,
         avatar_url
+      ),
+      tarefas (
+        id,
+        titulo
       )
     `);
 
