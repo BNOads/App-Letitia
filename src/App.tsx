@@ -48,6 +48,8 @@ function App() {
                 <Route path="editorial" element={<Conteudo />} />
                 <Route path="documentos" element={<Documentos />} />
                 <Route path="treinamentos" element={<Treinamentos />} />
+                <Route path="treinamentos/:cursoId" element={<Treinamentos />} />
+                <Route path="treinamentos/:cursoId/:aulaId" element={<Treinamentos />} />
                 <Route path="senhas" element={<Senhas />} />
                 <Route path="suporte" element={<Suporte />} />
                 <Route path="links" element={<LinksUteis />} />

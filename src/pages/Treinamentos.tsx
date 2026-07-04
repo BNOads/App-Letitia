@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Search, Plus, Play, Loader2, Edit2, Trash2, X, Save } from "lucide-react";
 import { CursoDetailModal } from "@/components/CursoDetailModal";
@@ -37,6 +38,9 @@ export function Treinamentos() {
   const [editingCurso, setEditingCurso] = useState<DBCurso | null>(null);
   const [showCursoForm, setShowCursoForm] = useState(false);
 
+  const { cursoId: urlCursoId, aulaId: urlAulaId } = useParams<{ cursoId?: string; aulaId?: string }>();
+  const navigate = useNavigate();
+
   useEffect(() => {
     fetchCursos();
   }, []);
@@ -46,6 +50,11 @@ export function Treinamentos() {
     try {
       const data = await getCursos();
       setCursos(data);
+      // Deep-link: abrir curso/aula da URL automaticamente
+      if (urlCursoId && !selectedCurso) {
+        const match = data.find((c: DBCurso) => c.id === urlCursoId);
+        if (match) setSelectedCurso(match);
+      }
     } catch (e) { console.error(e); } finally { setLoadingCursos(false); }
   }
 
@@ -150,8 +159,9 @@ export function Treinamentos() {
       {selectedCurso && (
         <CursoDetailModal
           curso={selectedCurso}
-          onClose={() => setSelectedCurso(null)}
+          onClose={() => { setSelectedCurso(null); navigate('/treinamentos', { replace: true }); }}
           onUpdate={fetchCursos}
+          initialAulaId={urlAulaId}
         />
       )}
 

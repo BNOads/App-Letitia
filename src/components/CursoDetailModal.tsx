@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   X, Plus, Loader2, Play, Trash2, Edit2,
-  CheckCircle2, Circle, Save, Video, FileText, Link2
+  CheckCircle2, Circle, Save, Video, FileText, Link2, Share2, Check
 } from "lucide-react";
 import {
   getAulas, createAula, updateAula, deleteAula,
@@ -15,9 +15,10 @@ interface Props {
   curso: DBCurso;
   onClose: () => void;
   onUpdate: () => void;
+  initialAulaId?: string;
 }
 
-export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props) {
+export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate, initialAulaId }: Props) {
   const { user } = useAuth();
   const [aulas, setAulas] = useState<DBAula[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,7 @@ export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props)
   const [selectedAula, setSelectedAula] = useState<DBAula | null>(null);
   const [showAddAula, setShowAddAula] = useState(false);
   const [editingAula, setEditingAula] = useState<DBAula | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => { fetchAulas(); }, []);
 
@@ -38,7 +40,14 @@ export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props)
       const pMap: Record<string, boolean> = {};
       progressoData.forEach((p: any) => { pMap[p.aula_id] = p.concluida; });
       setProgresso(pMap);
-      if (aulasData.length > 0 && !selectedAula) setSelectedAula(aulasData[0]);
+      // Deep-link: se tem initialAulaId, abre essa aula; senão abre a primeira
+      if (initialAulaId) {
+        const match = aulasData.find((a: DBAula) => a.id === initialAulaId);
+        if (match) setSelectedAula(match);
+        else if (aulasData.length > 0 && !selectedAula) setSelectedAula(aulasData[0]);
+      } else if (aulasData.length > 0 && !selectedAula) {
+        setSelectedAula(aulasData[0]);
+      }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }
 
@@ -61,6 +70,15 @@ export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props)
   const totalAulas = aulas.length;
   const concluidas = Object.values(progresso).filter(Boolean).length;
   const pct = totalAulas > 0 ? Math.round((concluidas / totalAulas) * 100) : 0;
+
+  function copyAulaLink(aulaId: string) {
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/treinamentos/${curso.id}/${aulaId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedId(aulaId);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }
 
   return (
     <div className="modal-overlay items-center justify-center p-2 sm:p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -120,6 +138,9 @@ export function CursoDetailModal({ curso, onClose, onUpdate: _onUpdate }: Props)
                     {aula.duracao_minutos > 0 && <span className="text-[10px] text-muted">{aula.duracao_minutos}min</span>}
                   </div>
                   <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
+                    <button onClick={e => { e.stopPropagation(); copyAulaLink(aula.id); }} className="p-1 rounded hover:bg-foreground/10 text-muted" title="Copiar link da aula">
+                      {copiedId === aula.id ? <Check className="h-3 w-3 text-green-500" /> : <Share2 className="h-3 w-3" />}
+                    </button>
                     <button onClick={e => { e.stopPropagation(); setEditingAula(aula); setSelectedAula(aula); }} className="p-1 rounded hover:bg-foreground/10 text-muted"><Edit2 className="h-3 w-3" /></button>
                     <button onClick={e => { e.stopPropagation(); handleDeleteAula(aula.id); }} className="p-1 rounded hover:bg-red-500/10 text-muted hover:text-red-500"><Trash2 className="h-3 w-3" /></button>
                   </div>
