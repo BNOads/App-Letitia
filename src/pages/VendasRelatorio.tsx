@@ -706,6 +706,49 @@ export function VendasRelatorio() {
     .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 5);
 
+  // 5b. Word Cloud dos motivos de perda (palavras individuais)
+  const lossWordCloud = (() => {
+    const stopwords = new Set([
+      "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas",
+      "um", "uma", "o", "a", "os", "as", "e", "ou", "que", "para",
+      "por", "com", "não", "nao", "se", "é", "ao", "à", "mais", "sem",
+      "já", "ja", "foi", "ser", "ter", "sua", "seu", "ele", "ela",
+      "isso", "este", "esta", "esse", "essa", "dia", "vira", "pro", "pra"
+    ]);
+
+    const wordMap: { [word: string]: number } = {};
+    filteredLeads.forEach((l) => {
+      if (l.resultado === "Venda Perdida" || (l.pipeline === "FINALIZADO" && l.resultado !== "Venda Ganha")) {
+        const reason = l.motivoPerda || l.detalhes || "";
+        if (!reason) return;
+        const words = reason
+          .toLowerCase()
+          .replace(/[^a-záàâãéèêíïóôõúüç\s]/gi, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !stopwords.has(w));
+        words.forEach((w) => {
+          const capitalized = w.charAt(0).toUpperCase() + w.slice(1);
+          wordMap[capitalized] = (wordMap[capitalized] || 0) + 1;
+        });
+      }
+    });
+
+    const entries = Object.entries(wordMap)
+      .map(([word, count]) => ({ word, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 30);
+
+    if (entries.length === 0) return [];
+    const maxCount = entries[0].count;
+    const minCount = entries[entries.length - 1].count;
+    return entries.map((e) => ({
+      ...e,
+      size: minCount === maxCount
+        ? 1
+        : 0.4 + ((e.count - minCount) / (maxCount - minCount)) * 0.6
+    }));
+  })();
+
   // Lógica de ordenação dos Leads
   const sortedLeads = [...filteredLeads].sort((a, b) => {
     if (!sortConfig) return 0;
@@ -833,15 +876,6 @@ export function VendasRelatorio() {
             <span className="text-xs text-muted flex items-center gap-1">
               • Planilha: {isLive ? "Conectada em tempo real 🟢" : "Local Fallback 🟡"}
             </span>
-            <a
-              href="https://docs.google.com/spreadsheets/d/19MYerw0dR6mwDSvK-qahzZ97suXOO2Nv/edit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold hover:underline flex items-center gap-1 ml-2 transition-all"
-              style={{ color: GOLD_COLOR }}
-            >
-              • Abrir Planilha Base <ExternalLink className="h-3 w-3" />
-            </a>
             <button
               onClick={() => loadData(true)}
               disabled={isRefreshing || loading}
@@ -853,9 +887,26 @@ export function VendasRelatorio() {
           <h2 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-foreground mt-2">
             Dashboard de Vendas & Performance
           </h2>
-          <p className="mt-1 text-sm text-muted">
-            Relatório de leads, faturamento e metas extraído das abas mensais da planilha para a liderança.
+          <p className="mt-1 text-sm text-muted max-w-xl">
+            Painel espelhado da planilha de vendas. Todos os dados exibidos aqui são extraídos automaticamente da planilha base — leads, faturamento e metas atualizados em tempo real.
           </p>
+          <a
+            href="https://docs.google.com/spreadsheets/d/19MYerw0dR6mwDSvK-qahzZ97suXOO2Nv/edit"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-2.5 rounded-lg border-2 border-letitia-gold/30 bg-letitia-gold/10 px-5 py-3 text-sm font-bold tracking-wide hover:bg-letitia-gold/20 hover:border-letitia-gold/50 transition-all group"
+            style={{ color: GOLD_COLOR }}
+          >
+            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+            📊 Abrir Planilha de Vendas
+            <ExternalLink className="h-4 w-4 opacity-60 group-hover:opacity-100 transition-opacity" />
+          </a>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="text-left bg-background/50 border border-border/60 rounded-lg px-4 py-2 min-w-[180px]">
@@ -1656,6 +1707,44 @@ export function VendasRelatorio() {
               )}
             </div>
           </div>
+
+          {/* Word Cloud dos motivos de perda */}
+          {lossWordCloud.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-border">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted mb-4 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-letitia-gold" style={{ color: GOLD_COLOR }} /> Nuvem de Palavras — Motivos de Perda
+              </h4>
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 py-4 px-2 rounded-lg bg-foreground/[0.02] border border-border/50 min-h-[120px]">
+                {lossWordCloud.map((item, i) => {
+                  const fontSize = 11 + item.size * 18; // 11px to 29px
+                  const opacity = 0.45 + item.size * 0.55;
+                  const colors = [GOLD_COLOR, CLAY_COLOR, CHARCOAL_COLOR, "#C4907C", "#A88B63", "#5C564D"];
+                  const color = colors[i % colors.length];
+                  const rotations = [0, 0, 0, -3, 3, -5, 5]; // subtle rotations, mostly horizontal
+                  const rotation = rotations[i % rotations.length];
+                  return (
+                    <span
+                      key={item.word}
+                      className="inline-block cursor-default transition-all duration-200 hover:scale-110 hover:opacity-100 font-semibold whitespace-nowrap"
+                      style={{
+                        fontSize: `${fontSize}px`,
+                        opacity,
+                        color,
+                        transform: `rotate(${rotation}deg)`,
+                        lineHeight: 1.3
+                      }}
+                      title={`"${item.word}" — ${item.count}× nos motivos de perda`}
+                    >
+                      {item.word}
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted mt-2 text-center italic">
+                Palavras mais frequentes nos motivos de perda registrados. Tamanho proporcional à frequência.
+              </p>
+            </div>
+          )}
         </div>
 
       </div>
