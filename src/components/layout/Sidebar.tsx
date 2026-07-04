@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, CheckSquare, Users, FileText,
-  Calendar, FileStack, GraduationCap, KeyRound,
+  FileStack, GraduationCap, KeyRound,
   PanelLeftClose, PanelLeftOpen, HeadphonesIcon, LogOut, Link2, ContactRound, Percent, ShoppingBag, Handshake, TrendingUp, BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";

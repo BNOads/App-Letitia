@@ -27,7 +27,6 @@ import {
   ExternalLink,
   RotateCw,
   Newspaper,
-  FileText as FileTextIcon,
 } from "lucide-react";
 import {
   BarChart,
@@ -106,7 +105,6 @@ export function Marketing() {
   const [editorialContent, setEditorialContent] = useState<DBContent[]>([]);
   const [editorialLoading, setEditorialLoading] = useState(false);
   const [editorialSearch, setEditorialSearch] = useState("");
-  const [selectedPost, setSelectedPost] = useState<DBContent | null>(null);
   const [selectedConteudo, setSelectedConteudo] = useState<DBContent | null>(null);
 
   // ─── PROFILES (para ConteudoDetailModal) ───────────────────────────────────
