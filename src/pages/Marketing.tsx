@@ -1,5 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { fetchRecentLeadsData, type RecentLeadRecord } from "@/data/salesData";
+import { getContentByDate, type DBContent } from "@/services/contentService";
+import { ConteudoDetailModal } from "@/components/ConteudoDetailModal";
+import { getProfiles, type DBProfile } from "@/services/profileService";
+import { getSocialProfiles, type SocialProfile } from "@/services/socialProfileService";
 import {
   BarChart3,
   TrendingUp,
@@ -22,6 +26,8 @@ import {
   Send,
   ExternalLink,
   RotateCw,
+  Newspaper,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import {
   BarChart,
@@ -95,6 +101,38 @@ export function Marketing() {
   const [recentPage, setRecentPage] = useState(1);
   const recentPerPage = 15;
 
+  // ─── CORRELAÇÃO EDITORIAL (clique nas barras do gráfico) ───────────────────
+  const [editorialModalDate, setEditorialModalDate] = useState<string | null>(null);
+  const [editorialContent, setEditorialContent] = useState<DBContent[]>([]);
+  const [editorialLoading, setEditorialLoading] = useState(false);
+  const [editorialSearch, setEditorialSearch] = useState("");
+  const [selectedPost, setSelectedPost] = useState<DBContent | null>(null);
+  const [selectedConteudo, setSelectedConteudo] = useState<DBContent | null>(null);
+
+  // ─── PROFILES (para ConteudoDetailModal) ───────────────────────────────────
+  const [profiles, setProfiles] = useState<DBProfile[]>([]);
+  const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
+
+  const handleBarClick = useCallback(async (data: any) => {
+    if (!data?.data) return;
+    const dateStr = data.data; // DD/MM/YYYY
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return;
+    const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    setEditorialModalDate(dateStr);
+    setEditorialSearch("");
+    setSelectedPost(null);
+    setEditorialLoading(true);
+    try {
+      const content = await getContentByDate(isoDate);
+      setEditorialContent(content);
+    } catch (err) {
+      console.warn("Erro ao buscar conteúdo editorial:", err);
+      setEditorialContent([]);
+    }
+    setEditorialLoading(false);
+  }, []);
+
   // ─── MAIL MARKETING ────────────────────────────────────────────────────────
   const [mailCampaigns, setMailCampaigns] = useState<MailCampaign[]>(() => {
     const saved = localStorage.getItem("@letitia:mail-campaigns");
@@ -162,6 +200,9 @@ export function Marketing() {
       }
       setLoading(false);
     })();
+    // Fetch profiles for ConteudoDetailModal
+    getProfiles().then(setProfiles).catch(console.error);
+    getSocialProfiles().then(setSocialProfiles).catch(console.error);
   }, []);
 
   // ─── PROCESSAMENTO LEADS ──────────────────────────────────────────────────
@@ -415,6 +456,23 @@ export function Marketing() {
                 <Calendar className="h-4 w-4" style={{ color: GOLD_COLOR }} />
                 Evolução Diária de Captação
               </h3>
+              {/* Instrução visual para clicar nas barras */}
+              {!editorialModalDate && (
+                <div className="flex items-center gap-2.5 mb-4 px-4 py-2.5 rounded-lg bg-letitia-gold/8 border border-letitia-gold/20">
+                  <span className="flex-shrink-0 h-7 w-7 rounded-full bg-letitia-gold/15 flex items-center justify-center animate-pulse">
+                    <MousePointerClick className="h-3.5 w-3.5" style={{ color: GOLD_COLOR }} />
+                  </span>
+                  <div>
+                    <p className="text-[11px] font-semibold text-foreground leading-tight">
+                      Clique em qualquer barra para ver os posts do dia
+                    </p>
+                    <p className="text-[9px] text-muted mt-0.5">
+                      Descubra quais posts, reels e stories foram publicados no dia que gerou esses leads
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="h-64">
                 {recentByDate.length === 0 ? (
                   <div className="flex h-full items-center justify-center text-sm text-muted italic">Sem dados.</div>
@@ -427,13 +485,100 @@ export function Marketing() {
                       <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} allowDecimals={false} />
                       <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "11px", color: "var(--foreground)" }}
                         formatter={(value: any) => [`${value} leads`, "Quantidade"]} />
-                      <Bar dataKey="quantidade" fill={GOLD_COLOR} radius={[3, 3, 0, 0]} maxBarSize={30}>
+                      <Bar dataKey="quantidade" fill={GOLD_COLOR} radius={[3, 3, 0, 0]} maxBarSize={30}
+                        onClick={(data: any) => handleBarClick(data)}
+                        className="cursor-pointer"
+                      >
                         <LabelList dataKey="quantidade" position="top" style={{ fontSize: "9px", fill: "var(--foreground)", fontWeight: 600 }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
+
+              {/* Mini-modal de Correlação com Conteúdo Editorial */}
+              {editorialModalDate && (
+                <div className="mt-4 border border-letitia-gold/30 bg-letitia-gold/5 rounded-xl p-5 relative animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button
+                    onClick={() => { setEditorialModalDate(null); setSelectedPost(null); }}
+                    className="absolute top-3 right-3 p-1 text-muted hover:text-foreground hover:bg-foreground/10 rounded-md transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-letitia-gold mb-3 flex items-center gap-2">
+                    <Newspaper className="h-4 w-4" />
+                    Conteúdo Editorial em {editorialModalDate}
+                  </h4>
+
+                  {/* Busca de posts */}
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
+                    <input
+                      value={editorialSearch}
+                      onChange={(e) => setEditorialSearch(e.target.value)}
+                      placeholder="Buscar post por título..."
+                      className="w-full rounded-lg border border-border bg-card pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                    />
+                  </div>
+
+                  {editorialLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted py-3">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando conteúdos...
+                    </div>
+                  ) : editorialContent.length === 0 ? (
+                    <p className="text-xs text-muted italic py-2">
+                      Nenhum conteúdo editorial programado ou postado nesta data.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {editorialContent
+                        .filter((c) => !editorialSearch || c.titulo.toLowerCase().includes(editorialSearch.toLowerCase()))
+                        .map((c) => (
+                          <div
+                            key={c.id}
+                            onClick={() => setSelectedConteudo(c)}
+                            className="bg-card border border-border rounded-lg p-3 cursor-pointer transition-all hover:shadow-sm hover:border-letitia-gold/30 group"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{c.titulo}</p>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-letitia-gold/10 text-letitia-gold">
+                                    {c.plataforma}
+                                  </span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/5 text-muted">
+                                    {c.formato}
+                                  </span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/5 text-muted">
+                                    {c.pilar}
+                                  </span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                    c.status === 'postado' ? 'bg-green-500/10 text-green-700' :
+                                    c.status === 'pronto' ? 'bg-blue-500/10 text-blue-700' :
+                                    c.status === 'programado' ? 'bg-purple-500/10 text-purple-700' :
+                                    'bg-yellow-500/10 text-yellow-700'
+                                  }`}>
+                                    {c.status}
+                                  </span>
+                                </div>
+                                {c.big_idea && (
+                                  <p className="text-[10px] text-muted mt-1 truncate">{c.big_idea}</p>
+                                )}
+                              </div>
+                              <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted/40 group-hover:text-letitia-gold transition-colors" />
+                            </div>
+                          </div>
+                        ))}
+                      {editorialContent.filter((c) => !editorialSearch || c.titulo.toLowerCase().includes(editorialSearch.toLowerCase())).length === 0 && (
+                        <p className="text-xs text-muted italic py-2">Nenhum post encontrado com "{editorialSearch}".</p>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[9px] text-muted mt-3 italic">
+                    💡 Clique em qualquer barra para ver o conteúdo editorial do dia e correlacionar com leads.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Distribuição por Funil */}
@@ -899,6 +1044,15 @@ export function Marketing() {
         </div>
         );
       })()}
+      {selectedConteudo && (
+        <ConteudoDetailModal
+          conteudo={selectedConteudo}
+          profiles={profiles}
+          socialProfiles={socialProfiles}
+          onClose={() => setSelectedConteudo(null)}
+          onUpdate={() => setSelectedConteudo(null)}
+        />
+      )}
     </div>
   );
 }

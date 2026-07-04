@@ -26,7 +26,10 @@ import {
   Percent,
   X,
   Newspaper,
-  MousePointerClick
+  MousePointerClick,
+  Lock,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import {
   BarChart,
@@ -66,7 +69,30 @@ function buildWhatsappLink(telefone?: string): string | null {
   return `https://wa.me/${digits}`;
 }
 
+const REPORT_PASSWORD = "LCZ2026#*";
+const SESSION_KEY = "vendas_relatorio_auth";
+
 export function VendasRelatorio() {
+  // ─── Proteção por Senha ─────────────────────────────────────────────
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem(SESSION_KEY) === "true";
+  });
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === REPORT_PASSWORD) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem(SESSION_KEY, "true");
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPasswordInput("");
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [allLeads, setAllLeads] = useState<LeadRecord[]>([]);
   const [isLive, setIsLive] = useState(false);
@@ -732,6 +758,68 @@ export function VendasRelatorio() {
     }
     return "Consolidado 2026 (Todos os Meses)";
   })();
+
+  // ─── TELA DE SENHA ──────────────────────────────────────────────────
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-[80vh] items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="text-center mb-8 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-letitia-gold/10 flex items-center justify-center mb-4 border border-letitia-gold/20">
+              <Lock className="h-6 w-6 text-letitia-gold" />
+            </div>
+            <h1 className="font-serif text-2xl font-semibold tracking-wide text-foreground">Área Restrita</h1>
+            <p className="mt-2 text-sm text-muted">Insira a senha para acessar o relatório de vendas</p>
+          </div>
+
+          {passwordError && (
+            <div className="mb-4 rounded-md bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20 text-center">
+              Senha incorreta. Tente novamente.
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest text-muted mb-1.5" htmlFor="report-password">
+                Senha de Acesso
+              </label>
+              <div className="relative">
+                <input
+                  id="report-password"
+                  type={showPassword ? "text" : "password"}
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    setPasswordError(false);
+                  }}
+                  required
+                  autoFocus
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 pr-10 text-sm text-foreground focus:ring-2 focus:ring-letitia-gold focus:outline-none"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full mt-2 flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              <Lock className="h-4 w-4" />
+              Acessar Relatório
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
