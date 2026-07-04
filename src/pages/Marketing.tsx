@@ -119,7 +119,7 @@ export function Marketing() {
     const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
     setEditorialModalDate(dateStr);
     setEditorialSearch("");
-    setSelectedPost(null);
+    setSelectedConteudo(null);
     setEditorialLoading(true);
     try {
       const content = await getContentByDate(isoDate);
@@ -498,7 +498,7 @@ export function Marketing() {
               {editorialModalDate && (
                 <div className="mt-4 border border-letitia-gold/30 bg-letitia-gold/5 rounded-xl p-5 relative animate-in fade-in slide-in-from-top-2 duration-200">
                   <button
-                    onClick={() => { setEditorialModalDate(null); setSelectedPost(null); }}
+                    onClick={() => { setEditorialModalDate(null); setSelectedConteudo(null); }}
                     className="absolute top-3 right-3 p-1 text-muted hover:text-foreground hover:bg-foreground/10 rounded-md transition-colors"
                   >
                     <X className="h-4 w-4" />
