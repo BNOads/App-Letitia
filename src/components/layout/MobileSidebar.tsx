@@ -16,7 +16,6 @@ const sections = [
     items: [
       { name: "Dashboard", href: "/", icon: LayoutDashboard },
       { name: "Tarefas", href: "/tarefas", icon: CheckSquare },
-      { name: "Agenda", href: "/agenda", icon: Calendar },
       { name: "Documentos", href: "/documentos", icon: FileStack },
       { name: "Alunos", href: "/alunos", icon: ContactRound },
       { name: "Processos", href: "/processos-comerciais", icon: Handshake },
@@ -35,7 +34,7 @@ const sections = [
   {
     label: "Interno",
     items: [
-      { name: "Treinamentos", href: "/treinamentos", icon: GraduationCap },
+      { name: "Universidade", href: "/treinamentos", icon: GraduationCap },
       { name: "Senhas Úteis", href: "/senhas", icon: KeyRound },
       { name: "Comercial", href: "/comissoes", icon: Percent },
       { name: "Vendas e Leads", href: "/vendas-relatorio", icon: TrendingUp },

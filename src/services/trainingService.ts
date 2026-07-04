@@ -278,8 +278,8 @@ export function toEmbedUrl(url: string): string | null {
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
 
-  // Google Drive
-  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([\w-]+)/);
+  // Google Drive — handles /file/d/ID, /file/u/0/d/ID, and strips ?t=... etc.
+  const driveMatch = url.match(/drive\.google\.com\/file\/(?:u\/\d+\/)?d\/([\w-]+)/);
   if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
 
   // Already an embed URL or other iframe-compatible URL
