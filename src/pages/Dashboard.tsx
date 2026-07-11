@@ -574,11 +574,12 @@ export function Dashboard() {
           }}
           onDuplicate={async (task) => {
             try {
-              const { getSubtasks, createTask, createBulkSubtasks, saveTaskHistory } = await import("@/services/taskService");
+              const { getSubtasks, getTaskDescricao, createTask, createBulkSubtasks, saveTaskHistory } = await import("@/services/taskService");
               const taskSubtasks = await getSubtasks(task.id);
+              const descricaoCompleta = await getTaskDescricao(task.id);
               const newTask = await createTask({
                 titulo: task.titulo + " (Cópia)",
-                descricao: task.descricao,
+                descricao: descricaoCompleta ?? undefined,
                 prioridade: task.prioridade,
                 status: 'fazer',
                 responsavel_id: task.responsavel_id,

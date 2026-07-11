@@ -141,20 +141,39 @@ function generateRecurringDates(baseDate: string, type: RecurrenceType, count: n
 
 // ─── CRUD ──────────────────────────────────────────────────
 
-export async function getTasks() {
-  const { data, error } = await supabase
-    .from('tarefas')
-    .select(`
-      *,
+// Colunas leves p/ listas, board e dashboard. NÃO inclui `descricao`
+// (rich-text pesado, ~7 MB da tabela). A descrição é carregada sob demanda
+// ao abrir a tarefa (getTaskDescricao) para economizar egress — no plano Free
+// o limite é 5 GB/mês, e o select('*') repetido gerava ~18 GB/mês.
+const TASK_LIST_COLUMNS = `
+      id, titulo, prioridade, status, responsavel_id, prazo,
+      created_at, updated_at, recorrencia, recorrencia_pai_id,
+      em_aprovacao, created_by,
       profiles (
         full_name,
         avatar_url
       )
-    `)
+    `;
+
+export async function getTasks() {
+  const { data, error } = await supabase
+    .from('tarefas')
+    .select(TASK_LIST_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data as DBTask[];
+  return data as unknown as DBTask[];
+}
+
+/** Carrega apenas a descrição (rich-text) de uma tarefa, sob demanda. */
+export async function getTaskDescricao(taskId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('tarefas')
+    .select('descricao')
+    .eq('id', taskId)
+    .single();
+  if (error) return null;
+  return ((data as { descricao?: string | null } | null)?.descricao) ?? null;
 }
 
 export async function updateTaskStatus(taskId: string, status: TaskStatus) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTasks, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
+import { getTasks, getTaskDescricao, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
 import { getProfiles, updateProfile, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted, notifyNewTaskAssigned, notifySubtaskCompleted } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
@@ -483,9 +483,10 @@ export function Tarefas() {
   const handleDuplicateTask = async (task: DBTask) => {
     try {
       const taskSubtasks = await getSubtasks(task.id);
+      const descricaoCompleta = await getTaskDescricao(task.id);
       const newTask = await createTask({
         titulo: task.titulo + " (Cópia)",
-        descricao: task.descricao,
+        descricao: descricaoCompleta ?? undefined,
         prioridade: task.prioridade,
         status: 'fazer',
         responsavel_id: task.responsavel_id,
@@ -689,9 +690,10 @@ export function Tarefas() {
         const tarefa = tarefas.find(t => t.id === id);
         if (tarefa) {
           const taskSubtasks = await getSubtasks(tarefa.id);
+          const descricaoCompleta = await getTaskDescricao(tarefa.id);
           const newTask = await createTask({
             titulo: tarefa.titulo + " (Cópia)",
-            descricao: tarefa.descricao,
+            descricao: descricaoCompleta ?? undefined,
             prioridade: tarefa.prioridade,
             status: 'fazer',
             responsavel_id: tarefa.responsavel_id,
@@ -1330,6 +1332,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
+  const [descricaoFull, setDescricaoFull] = useState<string | null>(tarefa.descricao ?? null);
   const [descDraft, setDescDraft] = useState(tarefa.descricao || "");
   const [showResponsavelPicker, setShowResponsavelPicker] = useState(false);
   const [respSearch, setRespSearch] = useState("");
@@ -1365,6 +1368,22 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
 
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
   useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
+  // A descrição não vem na query de lista (economia de egress) — carrega sob demanda ao abrir.
+  useEffect(() => {
+    if (tarefa.descricao != null) {
+      setDescricaoFull(tarefa.descricao);
+      setDescDraft(tarefa.descricao || "");
+      return;
+    }
+    let cancelled = false;
+    getTaskDescricao(tarefa.id).then(d => {
+      if (cancelled) return;
+      setDescricaoFull(d);
+      setDescDraft(prev => (editingDesc ? prev : (d || "")));
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tarefa.id]);
 
   // Atualiza título da aba e meta tags OG quando a tarefa é aberta
   useEffect(() => {
@@ -1609,6 +1628,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
 
   const handleSaveDesc = async () => {
     await onUpdate({ descricao: descDraft } as any);
+    setDescricaoFull(descDraft);
     setEditingDesc(false);
   };
 
@@ -1766,14 +1786,14 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                     minHeight="150px"
                   />
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => { setEditingDesc(false); setDescDraft(tarefa.descricao || ""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
+                    <button onClick={() => { setEditingDesc(false); setDescDraft(descricaoFull || ""); }} className="px-3 py-1 rounded text-xs text-muted hover:text-foreground">Cancelar</button>
                     <button onClick={handleSaveDesc} className="px-3 py-1 rounded bg-primary text-primary-foreground text-xs font-medium">Salvar</button>
                   </div>
                 </div>
               ) : (
                 <div onClick={() => setEditingDesc(true)} className="min-h-[60px] p-4 rounded-xl border border-border bg-background/50 text-sm text-foreground/80 leading-relaxed cursor-pointer hover:border-primary/30 transition-colors">
-                  {tarefa.descricao ? (
-                    <div className="tiptap-display" dangerouslySetInnerHTML={{ __html: tarefa.descricao }} />
+                  {descricaoFull ? (
+                    <div className="tiptap-display" dangerouslySetInnerHTML={{ __html: descricaoFull }} />
                   ) : (
                     <span className="italic opacity-50">Clique para adicionar descrição...</span>
                   )}
@@ -2323,6 +2343,18 @@ export function NovoTarefaModal({ profiles, onClose, onSuccess, tarefa, defaultR
       setLoadingTemplates(true);
       getTaskTemplates().then(setTemplates).finally(() => setLoadingTemplates(false));
     }
+  }, [tarefa]);
+
+  // A descrição não vem na query de lista (economia de egress). Ao editar uma
+  // tarefa existente, carrega o texto completo para não sobrescrever com vazio.
+  useEffect(() => {
+    if (!tarefa || tarefa.descricao != null) return;
+    let cancelled = false;
+    getTaskDescricao(tarefa.id).then(d => {
+      if (cancelled || !d) return;
+      setFormData(prev => (prev.descricao ? prev : { ...prev, descricao: d }));
+    });
+    return () => { cancelled = true; };
   }, [tarefa]);
 
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId) || null;
