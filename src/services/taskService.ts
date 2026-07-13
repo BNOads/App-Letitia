@@ -637,6 +637,57 @@ export async function deleteSubtask(id: string) {
   if (error) throw error;
 }
 
+// ─── Dependências entre tarefas ────────────────────────────
+// A automação (espera → liberação em cadeia) é feita por triggers no banco.
+// Aqui só gerenciamos os vínculos.
+
+export interface TaskDependencyInfo {
+  depende_de_id: string;
+  titulo: string;
+  status: TaskStatus;
+}
+
+/** Tarefas das quais ESTA tarefa depende (pré-requisitos) */
+export async function getTaskDependencies(taskId: string): Promise<TaskDependencyInfo[]> {
+  const { data, error } = await supabase
+    .from('tarefa_dependencias')
+    .select('depende_de_id, tarefas:depende_de_id ( titulo, status )')
+    .eq('tarefa_id', taskId);
+
+  if (error) {
+    console.warn('Erro ao buscar dependências:', error.message);
+    return [];
+  }
+  return (data || []).map((d: any) => ({
+    depende_de_id: d.depende_de_id,
+    titulo: d.tarefas?.titulo ?? 'Tarefa',
+    status: (d.tarefas?.status ?? 'fazer') as TaskStatus,
+  }));
+}
+
+export async function addTaskDependency(taskId: string, dependsOnId: string) {
+  if (taskId === dependsOnId) throw new Error('Uma tarefa não pode depender de si mesma');
+  const { error } = await supabase
+    .from('tarefa_dependencias')
+    .insert([{ tarefa_id: taskId, depende_de_id: dependsOnId }]);
+  if (error && error.code !== '23505') throw error; // ignora duplicada
+}
+
+export async function removeTaskDependency(taskId: string, dependsOnId: string) {
+  const { error } = await supabase
+    .from('tarefa_dependencias')
+    .delete()
+    .eq('tarefa_id', taskId)
+    .eq('depende_de_id', dependsOnId);
+  if (error) throw error;
+}
+
+/** true se o erro veio do bloqueio de conclusão com subtarefas pendentes */
+export function isBlockedBySubtasksError(err: unknown): boolean {
+  const msg = (err as any)?.message || '';
+  return typeof msg === 'string' && msg.includes('BLOQUEADO_SUBTAREFAS');
+}
+
 export async function createBulkSubtasks(subtasks: Partial<DBSubtask>[]): Promise<DBSubtask[]> {
   if (subtasks.length === 0) return [];
   const { data, error } = await supabase

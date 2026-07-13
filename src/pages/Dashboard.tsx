@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { createTask, updateTaskStatus, updateTask, updateSubtask, getTasks, type DBTask } from "@/services/taskService";
+import { createTask, updateTaskStatus, updateTask, updateSubtask, getTasks, isBlockedBySubtasksError, type DBTask } from "@/services/taskService";
 import { getProfiles, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted } from "@/services/notificationService";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -153,7 +153,11 @@ export function Dashboard() {
       // Defer stats refresh so optimistic update persists visually
       setTimeout(() => loadStats(), 1500);
     } catch (error) {
-      console.error("Erro ao alternar tarefa:", error);
+      if (isBlockedBySubtasksError(error)) {
+        alert('Conclua todas as subtarefas antes de concluir esta tarefa.');
+      } else {
+        console.error("Erro ao alternar tarefa:", error);
+      }
       loadStats();
     }
   };

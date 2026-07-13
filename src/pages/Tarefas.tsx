@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { getTasks, getTaskDescricao, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate } from "@/services/taskService";
+import { getTasks, getTaskDescricao, updateTaskStatus, createTask, createBulkTasks, updateTask, deleteTask, deleteRecurringTaskSeries, cleanupDuplicateRecurringTasks, getTaskComments, addTaskComment, saveTaskHistory, getTaskHistory, exportTaskHistory, recurrenceLabels, getSubtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, getAllSubtasks, getTaskTemplates, createTaskTemplate, deleteTaskTemplate, createTaskFromTemplate, createBulkSubtasks, getTaskDependencies, addTaskDependency, removeTaskDependency, isBlockedBySubtasksError, type DBTask, type TaskStatus, type TaskPriority, type TaskComment, type RecurrenceType, type TaskHistoryEntry, type DBSubtask, type DBTaskTemplate, type TaskDependencyInfo } from "@/services/taskService";
 import { getProfiles, updateProfile, type DBProfile } from "@/services/profileService";
 import { notifyTaskCompleted, notifyNewTaskAssigned, notifySubtaskCompleted } from "@/services/notificationService";
 import { prioridadeColors } from "@/data/mockData";
@@ -11,7 +11,7 @@ import {
   CalendarClock, Square, CheckSquare2, LayoutGrid, List, Loader2, X, 
   Trash2, History, MessageSquare, Send, User, Edit3, Copy, Check, Repeat,
   Download, Calendar, FileText, Layers, Filter, Flag, BookTemplate, ListChecks,
-  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw, ArrowUpDown, Save
+  GripVertical, AlignLeft, Eye, EyeOff, RefreshCw, ArrowUpDown, Save, Link2, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserSelector } from "@/components/UserSelector";
@@ -347,8 +347,11 @@ export function Tarefas() {
       const realId = id.replace('sub_', '');
       const newVal = currentStatus !== 'concluido';
       setAllSubtasks(prev => prev.map(s => s.id === realId ? { ...s, concluida: newVal, status: newVal ? 'concluido' : 'fazer' } : s));
-      try { 
-        await toggleSubtask(realId, newVal); 
+      try {
+        await toggleSubtask(realId, newVal);
+        // A automação server-side pode ter mudado o status da tarefa-pai
+        // (1ª subtarefa → progresso; todas → concluído). Refaz o fetch p/ refletir.
+        fetchTarefas();
         const sub = allSubtasks.find(s => s.id === realId);
         if (sub && sub.titulo.startsWith('Aprovação:') && newVal === true) {
           await updateTask(sub.tarefa_id, { em_aprovacao: false });
@@ -385,6 +388,17 @@ export function Tarefas() {
     setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
     try {
       await updateTaskStatus(id, newStatus);
+    } catch (error) {
+      if (isBlockedBySubtasksError(error)) {
+        setTarefas(prev => prev.map(t => t.id === id ? { ...t, status: currentStatus } : t));
+        alert('Conclua todas as subtarefas antes de concluir esta tarefa.');
+        return;
+      }
+      console.error("Erro ao atualizar status:", error);
+      fetchTarefas();
+      return;
+    }
+    try {
       if (tarefa) {
         saveTaskHistory({
           tarefa_id: id,
@@ -1150,14 +1164,27 @@ export function Tarefas() {
         <TaskDetailModal
           tarefa={selectedTarefa}
           profiles={profiles}
+          allTarefas={tarefas}
+          onSubtaskChange={fetchTarefas}
           onClose={() => setSelectedTarefa(null)}
           onEdit={(t) => { setSelectedTarefa(null); setEditingTarefa(t); }}
           onDelete={handleDeleteTask}
           onDuplicate={(t) => { setSelectedTarefa(null); handleDuplicateTask(t); }}
           onSendToApproval={handleSendToApproval}
           onStatusChange={async (status) => {
+            const prevStatus = selectedTarefa.status;
             setTarefas(prev => prev.map(t => t.id === selectedTarefa.id ? { ...t, status } : t));
-            await updateTaskStatus(selectedTarefa.id, status);
+            try {
+              await updateTaskStatus(selectedTarefa.id, status);
+            } catch (error) {
+              setTarefas(prev => prev.map(t => t.id === selectedTarefa.id ? { ...t, status: prevStatus } : t));
+              if (isBlockedBySubtasksError(error)) {
+                alert('Conclua todas as subtarefas antes de concluir esta tarefa.');
+              } else {
+                console.error('Erro ao atualizar status:', error);
+              }
+              return;
+            }
             fetchTarefas();
           }}
           onUpdate={async (updates) => {
@@ -1314,9 +1341,11 @@ function AprovacoesView({ tarefas, profiles, onTaskClick, onToggleApprover }: an
 
 /* ─── Modals ────────────────────────────────────────────── */
 
-export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit, onDelete, onDuplicate, onStatusChange, onUpdate, onSendToApproval }: {
+export function TaskDetailModal({ tarefa, profiles: allProfiles, allTarefas = [], onSubtaskChange, onClose, onEdit, onDelete, onDuplicate, onStatusChange, onUpdate, onSendToApproval }: {
   tarefa: DBTask;
   profiles: DBProfile[];
+  allTarefas?: DBTask[];
+  onSubtaskChange?: () => void;
   onClose: () => void;
   onEdit: (t: DBTask) => void;
   onDelete: (id: string) => void;
@@ -1366,8 +1395,38 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
   const [templateName, setTemplateName] = useState("");
   const subTemplateRef = useRef<HTMLDivElement>(null);
 
+  // Dependências (pré-requisitos desta tarefa)
+  const [dependencies, setDependencies] = useState<TaskDependencyInfo[]>([]);
+  const [showDepPicker, setShowDepPicker] = useState(false);
+  const [depSearch, setDepSearch] = useState("");
+  const reloadDeps = useCallback(() => { getTaskDependencies(tarefa.id).then(setDependencies); }, [tarefa.id]);
+
   useEffect(() => { getTaskComments(tarefa.id).then(setComments); }, [tarefa.id]);
   useEffect(() => { getSubtasks(tarefa.id).then(setSubtasks); }, [tarefa.id]);
+  useEffect(() => { reloadDeps(); }, [reloadDeps]);
+
+  const handleAddDependency = async (dependsOnId: string) => {
+    try {
+      await addTaskDependency(tarefa.id, dependsOnId);
+      setShowDepPicker(false);
+      setDepSearch("");
+      reloadDeps();
+      onSubtaskChange?.(); // a tarefa pode ter ido p/ "espera"
+    } catch (err) {
+      console.error('Erro ao adicionar dependência:', err);
+      alert('Não foi possível adicionar a dependência.');
+    }
+  };
+
+  const handleRemoveDependency = async (dependsOnId: string) => {
+    try {
+      await removeTaskDependency(tarefa.id, dependsOnId);
+      reloadDeps();
+      onSubtaskChange?.(); // pode ter destravado a tarefa
+    } catch (err) {
+      console.error('Erro ao remover dependência:', err);
+    }
+  };
   // A descrição não vem na query de lista (economia de egress) — carrega sob demanda ao abrir.
   useEffect(() => {
     if (tarefa.descricao != null) {
@@ -1453,6 +1512,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
       setNewSubtaskTitle("");
       setNewSubtaskResp(null);
       setNewSubtaskPrazo(todayStr);
+      onSubtaskChange?.();
     } catch (e) { console.error("Erro ao criar subtarefa:", e); }
     finally { setAddingSubtask(false); }
   };
@@ -1537,14 +1597,16 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
           userName
         ).catch(e => console.warn('Erro ao notificar subtarefa concluída:', e));
       }
+      // Reflete a automação server-side na tarefa-pai (progresso/concluído)
+      onSubtaskChange?.();
     } catch { getSubtasks(tarefa.id).then(setSubtasks); }
   };
 
   const handleDeleteSubtask = async (id: string) => {
     const sub = subtasks.find(s => s.id === id);
     setSubtasks(prev => prev.filter(s => s.id !== id));
-    try { 
-      await deleteSubtask(id); 
+    try {
+      await deleteSubtask(id);
       if (sub) {
         saveTaskHistory({
            tarefa_id: tarefa.id,
@@ -1555,6 +1617,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
            details: `Subtarefa excluída: "${sub.titulo}"`
         });
       }
+      onSubtaskChange?.();
     } catch { getSubtasks(tarefa.id).then(setSubtasks); }
   };
 
@@ -1801,6 +1864,96 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
               )}
             </div>
 
+            {/* Dependencies Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted">
+                  <Link2 className="h-3.5 w-3.5" /> Dependências
+                  {dependencies.length > 0 && (
+                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {dependencies.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowDepPicker(v => !v)}
+                  className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Adicionar
+                </button>
+              </div>
+
+              {tarefa.status === 'espera' && dependencies.some(d => d.status !== 'concluido') && (
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+                  <Lock className="h-3 w-3 flex-shrink-0" />
+                  Em espera — será liberada automaticamente quando as dependências forem concluídas.
+                </div>
+              )}
+
+              {dependencies.length > 0 && (
+                <div className="space-y-1">
+                  {dependencies.map((dep) => {
+                    const done = dep.status === 'concluido';
+                    return (
+                      <div key={dep.depende_de_id} className="flex items-center gap-2 text-xs rounded border border-border bg-background/50 px-2 py-1.5">
+                        {done
+                          ? <CheckSquare2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                          : <Lock className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
+                        <span className={cn("flex-1 min-w-0 truncate", done && "text-muted line-through")}>{dep.titulo}</span>
+                        <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest border", getStatusBadge(dep.status).color)}>
+                          {getStatusBadge(dep.status).label}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveDependency(dep.depende_de_id)}
+                          className="text-muted hover:text-red-500 transition-colors flex-shrink-0"
+                          title="Remover dependência"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {showDepPicker && (
+                <div className="rounded border border-border bg-background p-2 space-y-2">
+                  <div className="flex items-center gap-1.5 rounded border border-border px-2 py-1">
+                    <Search className="h-3 w-3 text-muted" />
+                    <input
+                      autoFocus
+                      value={depSearch}
+                      onChange={e => setDepSearch(e.target.value)}
+                      placeholder="Buscar tarefa pré-requisito..."
+                      className="flex-1 bg-transparent text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto space-y-0.5">
+                    {allTarefas
+                      .filter(t => t.id !== tarefa.id
+                        && !dependencies.some(d => d.depende_de_id === t.id)
+                        && t.titulo.toLowerCase().includes(depSearch.toLowerCase()))
+                      .slice(0, 30)
+                      .map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleAddDependency(t.id)}
+                          className="w-full flex items-center gap-2 text-xs text-left rounded px-2 py-1.5 hover:bg-muted/10 transition-colors"
+                        >
+                          <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest border flex-shrink-0", getStatusBadge(t.status).color)}>
+                            {getStatusBadge(t.status).label}
+                          </span>
+                          <span className="flex-1 min-w-0 truncate">{t.titulo}</span>
+                        </button>
+                      ))}
+                    {allTarefas.filter(t => t.id !== tarefa.id && !dependencies.some(d => d.depende_de_id === t.id) && t.titulo.toLowerCase().includes(depSearch.toLowerCase())).length === 0 && (
+                      <p className="text-[10px] text-muted text-center py-2">Nenhuma tarefa encontrada.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Subtasks Section */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -1878,6 +2031,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                                   try {
                                     await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
                                     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                    onSubtaskChange?.();
                                     // Notificar quando muda status para concluído via dropdown
                                     if (val === 'concluido' && user) {
                                       const userName = allProfiles.find(p => p.id === user.id)?.full_name || 'Alguém';
@@ -1940,6 +2094,7 @@ export function TaskDetailModal({ tarefa, profiles: allProfiles, onClose, onEdit
                                   try {
                                     await updateSubtask(sub.id, { status: val, concluida: val === 'concluido' });
                                     setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, status: val, concluida: val === 'concluido' } : s));
+                                    onSubtaskChange?.();
                                     // Notificar quando muda status para concluído via dropdown inline
                                     if (val === 'concluido' && user) {
                                       const userName = allProfiles.find(p => p.id === user.id)?.full_name || 'Alguém';
