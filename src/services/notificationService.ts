@@ -1,6 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { sendEmail, emailTemplates } from './emailService';
-import { sendPushNotification } from './pushService';
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -120,97 +118,10 @@ export async function createNotification(params: CreateNotificationParams) {
     return;
   }
 
-  // Dispara e-mail e push se necessário (não bloqueia)
-  setTimeout(async () => {
-    // 1. DISPARAR PUSH NOTIFICATION
-    try {
-      let subscriptions: any[] = [];
-      if (params.user_id) {
-        // Busca inscrições do usuário específico
-        const { data } = await supabase
-          .from('push_subscriptions')
-          .select('subscription')
-          .eq('user_id', params.user_id);
-        if (data) subscriptions = data.map(s => s.subscription);
-      } else {
-        // Broadcast para todas as inscrições cadastradas
-        const { data } = await supabase
-          .from('push_subscriptions')
-          .select('subscription');
-        if (data) subscriptions = data.map(s => s.subscription);
-      }
-
-      if (subscriptions.length > 0) {
-        const response = await sendPushNotification({
-          subscriptions,
-          payload: {
-            title: params.titulo,
-            body: params.descricao,
-            icon: '/logo.png',
-            badge: '/favicon.png',
-            data: { url: params.link || '/' }
-          }
-        });
-
-        // Autolimpeza de endpoints inativos (410 Gone / 404 Not Found)
-        if (response && response.results) {
-          const deadEndpoints = response.results
-            .filter((r: any) => !r.success && (r.statusCode === 410 || r.statusCode === 404))
-            .map((r: any) => r.endpoint);
-          
-          if (deadEndpoints.length > 0) {
-            await supabase
-              .from('push_subscriptions')
-              .delete()
-              .in('endpoint', deadEndpoints);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Erro ao processar envio de push notification:', err);
-    }
-
-    // 2. DISPARAR E-MAIL
-    try {
-      if (params.user_id) {
-        // Notificação para usuário específico
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email, full_name, receber_notificacoes_email')
-          .eq('id', params.user_id)
-          .single();
-
-        if (profile?.receber_notificacoes_email && profile?.email) {
-          await sendEmail({
-            to: profile.email,
-            subject: params.titulo,
-            html: emailTemplates.generalNotification(params.titulo, params.descricao)
-          });
-        }
-      } else {
-        // Broadcast para todos os usuários com email ativado
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('receber_notificacoes_email', true);
-
-        if (profiles && profiles.length > 0) {
-          const emails = profiles.map(p => p.email).filter(Boolean) as string[];
-          if (emails.length > 0) {
-            for (const email of emails) {
-              await sendEmail({
-                to: email,
-                subject: params.titulo,
-                html: emailTemplates.generalNotification(params.titulo, params.descricao)
-              }).catch(e => console.warn('Erro ao enviar email em massa', e));
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Erro na rotina de email da notificação', err);
-    }
-  }, 0);
+  // O envio de push + e-mail é feito SERVER-SIDE por um Database Webhook
+  // (trigger AFTER INSERT em `notificacoes` → /api/dispatch-notification).
+  // Isso garante entrega confiável mesmo que este navegador feche/troque de
+  // página logo após a ação. Não disparamos nada pelo cliente aqui.
 }
 
 /** Create a notification for multiple users at once */
@@ -237,69 +148,8 @@ export async function createNotificationForUsers(
     return;
   }
 
-  // Dispara e-mail e push se necessário (não bloqueia)
-  setTimeout(async () => {
-    // 1. DISPARAR PUSH NOTIFICATION EM MASSA
-    try {
-      const { data } = await supabase
-        .from('push_subscriptions')
-        .select('subscription')
-        .in('user_id', userIds);
-      
-      if (data && data.length > 0) {
-        const subscriptions = data.map(s => s.subscription);
-        const response = await sendPushNotification({
-          subscriptions,
-          payload: {
-            title: params.titulo,
-            body: params.descricao,
-            icon: '/logo.png',
-            badge: '/favicon.png',
-            data: { url: params.link || '/' }
-          }
-        });
-
-        // Autolimpeza de endpoints inativos (410 Gone / 404 Not Found)
-        if (response && response.results) {
-          const deadEndpoints = response.results
-            .filter((r: any) => !r.success && (r.statusCode === 410 || r.statusCode === 404))
-            .map((r: any) => r.endpoint);
-          
-          if (deadEndpoints.length > 0) {
-            await supabase
-              .from('push_subscriptions')
-              .delete()
-              .in('endpoint', deadEndpoints);
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Erro ao processar envio de push notification em massa:', err);
-    }
-
-    // 2. DISPARAR E-MAIL EM MASSA
-    try {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, email, receber_notificacoes_email')
-        .in('id', userIds)
-        .eq('receber_notificacoes_email', true);
-
-      if (profiles && profiles.length > 0) {
-        for (const profile of profiles) {
-          if (profile.email) {
-            await sendEmail({
-              to: profile.email,
-              subject: params.titulo,
-              html: emailTemplates.generalNotification(params.titulo, params.descricao)
-            }).catch(e => console.warn('Erro ao enviar email notificação em massa', e));
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Erro na rotina de email em massa', err);
-    }
-  }, 0);
+  // O envio de push + e-mail é feito SERVER-SIDE pelo Database Webhook em
+  // cada linha inserida (trigger AFTER INSERT em `notificacoes`).
 }
 
 // ─── Convenience Helpers (call from existing services) ────
