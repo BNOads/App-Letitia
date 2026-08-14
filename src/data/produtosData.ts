@@ -100,13 +100,13 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   {
     id: "vcn",
     nome: "Vida, Carreira e Negócios (VCN)",
-    valor: 20000,
+    valor: 13000,
     valorOriginal: 25000,
     descricao: "Programa completo de transformação — vida, carreira e negócios",
     categoria: "mentoria",
     emoji: "🏅",
     tipo: "high",
-    cartao12x: 2000,
+    cartao12x: 1344.5,
     entrada35: 8400,
     restante: 15600,
     parc6: 2600,
@@ -129,7 +129,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     categoria: "curso",
     emoji: "🏛️",
     tipo: "low",
-    cartao12x: 250,
+    cartao12x: 309.95,
     entrada35: 1049,
     restante: 1948,
     parc6: 325,
@@ -151,7 +151,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     categoria: "curso",
     emoji: "🎯",
     tipo: "low",
-    cartao12x: 167,
+    cartao12x: 206.8,
     entrada35: 700,
     restante: 1300,
     parc6: 217,
@@ -165,12 +165,12 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   {
     id: "voce-dirige",
     nome: "Curso Você Dirige",
-    valor: 970,
+    valor: 960,
     descricao: "Produto intermediário — curso completo",
     categoria: "curso",
     emoji: "🚗",
     tipo: "low",
-    cartao12x: 81,
+    cartao12x: 99.3,
     entrada35: 340,
     restante: 630,
     parc6: 105,
@@ -190,7 +190,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     categoria: "workshop",
     emoji: "📋",
     tipo: "low",
-    cartao12x: 8,
+    cartao12x: 10,
     entrada35: 34,
     restante: 63,
     parc6: 11,
@@ -206,7 +206,8 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
 /** Formatar valor em BRL */
-export const brl = (n: number) => "R$ " + n.toLocaleString("pt-BR");
+export const brl = (n: number) =>
+  "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Buscar produto por id */
 export function getProdutoById(id: string): ProdutoCatalogo | undefined {
