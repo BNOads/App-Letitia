@@ -107,9 +107,9 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
     emoji: "🏅",
     tipo: "high",
     cartao12x: 1344.5,
-    entrada35: 8400,
-    restante: 15600,
-    parc6: 2600,
+    entrada35: 4550,
+    restante: 8450,
+    parc6: 1408.33,
     entregaveis: [
       "Programa completo de transformação pessoal e profissional",
       "Encontros em grupo com Letícia",
