@@ -1,5 +1,6 @@
 // ─── CATÁLOGO DE PRODUTOS LETITIA (fonte única de verdade) ──────────────────
 // Usado em: Comissões, Playbook, Produtos (público)
+// Última atualização de preços: 2026-08-17 (VCN, L'Acadèmia, Você Dirige, Estrategista, Plano A)
 
 export interface ProdutoCatalogo {
   id: string;
