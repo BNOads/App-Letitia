@@ -194,7 +194,7 @@ export function Dashboard() {
           <h2 className="font-serif text-4xl font-medium tracking-tight text-foreground">
             {saudacao}, {userName}
           </h2>
-          <p className="mt-1.5 text-muted text-sm">Aqui está o panorama geral do seu ecossistema hoje.</p>
+          <p className="mt-1.5 text-muted text-sm">Tarefas, atendimentos e agenda: tudo o que importa hoje, em um só lugar.</p>
         </div>
         
         {/* Ticket Summary */}
