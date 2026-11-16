@@ -13,6 +13,8 @@ import {
   Globe,
   Loader2,
   Sparkles,
+  ShieldCheck,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PRODUTOS_CATALOGO, brl, type ProdutoCatalogo } from "@/data/produtosData";
@@ -178,7 +180,7 @@ export function Produtos() {
                     </p>
                     {produto.tipo === "high" && (
                       <p className="text-[10px] text-[#8A8275]">
-                        ou até 12x de {brl(produto.cartao12x)}
+                        ou 12x de {brl(produto.cartao12x)}{produto.cartao12x * 12 > produto.valor + 0.5 ? " (com juros)" : ""}
                       </p>
                     )}
                   </div>
@@ -213,7 +215,7 @@ export function Produtos() {
                   </p>
                   {produto.tipo === "high" && (
                     <p className="text-[10px] text-[#8A8275]">
-                      ou até 12x de {brl(produto.cartao12x)}
+                      ou 12x de {brl(produto.cartao12x)}{produto.cartao12x * 12 > produto.valor + 0.5 ? " (com juros)" : ""}
                     </p>
                   )}
                 </div>
@@ -235,6 +237,18 @@ export function Produtos() {
                     </p>
                     <p className="text-xs text-[#8A8275] mt-0.5">{produto.descricao}</p>
                   </div>
+
+                  {/* ── AVISOS ──────────────────────────────────────── */}
+                  {produto.avisos && produto.avisos.length > 0 && (
+                    <div className="rounded-xl bg-[#8E1B1B]/5 border border-[#8E1B1B]/15 p-3.5 space-y-1.5">
+                      {produto.avisos.map((aviso, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <Info className="h-4 w-4 text-[#8E1B1B] flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-[#1A1A1A] leading-snug">{aviso}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* ── ENTREGÁVEIS ──────────────────────────────────── */}
                   <div>
@@ -372,6 +386,9 @@ export function Produtos() {
 // ─── SEÇÃO DE FORMAS DE PAGAMENTO ───────────────────────────────────────────
 function PaymentSection({ produto }: { produto: ProdutoCatalogo }) {
   const isHigh = produto.tipo === "high";
+  const temEntrada = isHigh && produto.temEntradaParcelas !== false;
+  const totalCartao = Math.round(produto.cartao12x * 12 * 100) / 100;
+  const temJuros = totalCartao > produto.valor + 0.5;
 
   return (
     <div>
@@ -422,17 +439,23 @@ function PaymentSection({ produto }: { produto: ProdutoCatalogo }) {
                 <h5 className="text-sm font-semibold text-[#1A1A1A]">Cartão de crédito</h5>
               </div>
               <span className="text-base font-bold text-[#1A1A1A] font-serif">
-                até 12x {brl(produto.cartao12x)}
+                {produto.cartaoParcelaAConfirmar
+                  ? "até 12x (com juros)"
+                  : `12x de ${brl(produto.cartao12x)}${temJuros ? " (com juros)" : ""}`}
               </span>
             </div>
             <p className="text-[11px] text-[#8A8275] mt-1">
-              Parcelamento padrão no cartão de crédito. Valor total: {brl(produto.valor)}.
+              {produto.cartaoParcelaAConfirmar
+                ? "Parcelamento em até 12x no cartão, com juros."
+                : temJuros
+                  ? `Parcelamento com juros. Total no cartão: ${brl(totalCartao)}.`
+                  : `Parcelamento sem juros. Total: ${brl(totalCartao)}.`}
             </p>
           </div>
         </div>
 
-        {/* 3 — Entrada + parcelas (só high-ticket) */}
-        {isHigh && (
+        {/* 3 — Entrada + parcelas (só high-ticket, quando previsto no playbook) */}
+        {temEntrada && (
           <div className="flex items-stretch rounded-xl border border-[rgba(138,130,117,0.15)] bg-white overflow-hidden">
             <div className="flex-shrink-0 w-12 bg-[#8E1B1B] flex flex-col items-center justify-center">
               <span className="text-white font-serif text-lg font-bold">3</span>
@@ -455,15 +478,23 @@ function PaymentSection({ produto }: { produto: ProdutoCatalogo }) {
           </div>
         )}
 
-        {/* Note for low-ticket */}
-        {!isHigh && (
+        {/* Nota da porta de entrada (só Plano A) */}
+        {produto.portaDeEntrada && (
           <div className="rounded-lg bg-[#C4A47C]/5 border border-[#C4A47C]/15 px-4 py-3">
             <p className="text-[11px] text-[#8A8275]">
-              Produto de entrada: pagamento <strong className="text-[#1A1A1A]">à vista</strong> no
-              Pix ou cartão (até 12x de {brl(produto.cartao12x)}).
+              Porta de entrada: pagamento <strong className="text-[#1A1A1A]">à vista</strong> no
+              Pix ou cartão.
             </p>
           </div>
         )}
+
+        {/* Garantia */}
+        <div className="flex items-center gap-2 rounded-lg bg-[#FDFCF9] border border-[rgba(138,130,117,0.12)] px-4 py-3">
+          <ShieldCheck className="h-4 w-4 text-[#C4A47C] flex-shrink-0" />
+          <p className="text-[12px] text-[#1A1A1A]">
+            <strong>Garantia:</strong> {produto.garantia}
+          </p>
+        </div>
       </div>
     </div>
   );

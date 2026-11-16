@@ -24,6 +24,7 @@ interface ProdutoPlaybook {
   entrada: number;
   restante: number;
   parc6: number;
+  temEntrada: boolean;
 }
 
 const PRODUTOS_PLAYBOOK: ProdutoPlaybook[] = PRODUTOS_CATALOGO.map(p => ({
@@ -34,6 +35,7 @@ const PRODUTOS_PLAYBOOK: ProdutoPlaybook[] = PRODUTOS_CATALOGO.map(p => ({
   entrada: p.entrada35,
   restante: p.restante,
   parc6: p.parc6,
+  temEntrada: p.tipo === "high" && p.temEntradaParcelas !== false,
 }));
 
 // ─── SEÇÕES COLAPSÁVEIS ─────────────────────────────────────────────────────
@@ -222,7 +224,7 @@ export function PlaybookRecebimentoTab() {
               </div>
 
               {/* 3 - Entrada + Parcelas (só high-ticket) */}
-              {isHigh && (
+              {isHigh && produto.temEntrada && (
                 <div className="flex items-stretch rounded-xl border border-border bg-card overflow-hidden">
                   <div className="flex-shrink-0 w-12 bg-[#8E1B1B] flex items-center justify-center">
                     <span className="text-white font-serif text-lg font-bold">3</span>
@@ -442,7 +444,7 @@ export function PlaybookRecebimentoTab() {
                   <td className="px-4 py-3 text-sm font-semibold text-foreground">{p.nome}</td>
                   <td className="px-4 py-3 text-sm text-foreground text-right">{brl(p.valor)}</td>
                   <td className="px-4 py-3 text-sm text-foreground text-right">{brl(p.cartao)}/mês</td>
-                  <td className="px-4 py-3 text-sm text-foreground text-right">{brl(p.entrada)} + 6x {brl(p.parc6)}</td>
+                  <td className="px-4 py-3 text-sm text-foreground text-right">{p.temEntrada ? `${brl(p.entrada)} + 6x ${brl(p.parc6)}` : "—"}</td>
                 </tr>
               ))}
               {PRODUTOS_PLAYBOOK.filter(p => p.tipo === "low").slice(0, 2).map((p) => (
