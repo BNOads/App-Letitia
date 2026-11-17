@@ -27,6 +27,8 @@ export interface ProdutoCatalogo {
   avisos?: string[];
   entregaveis: string[];
   pdfUrl?: string;
+  /** Link da página de pagamento/checkout */
+  checkoutUrl?: string;
 }
 
 const THE_WAY_BASE = [
@@ -105,6 +107,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "vcn",
+    checkoutUrl: "https://letciacazarre.herospark.co/vida-carreira-e-negocios-leticia-cazarre",
     nome: "Vida, Carreira e Negócios (VCN)",
     valor: 25000,
     valorOriginal: 41500,
@@ -135,6 +138,8 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "lacademia",
+    checkoutUrl: "https://letciacazarre.herospark.co/lacademia",
+    pdfUrl: "/propostas/Playbook-LAcademia.pdf",
     nome: "L'ACADEMIA",
     valor: 6000,
     descricao: "Academia de Formação Humana Integral — formar pessoas insubstituíveis na Era da IA por meio da formação humana, das artes liberais e da filosofia aplicada",
@@ -194,6 +199,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "estrategista",
+    checkoutUrl: "https://letciacazarre.herospark.co/curso-a-estrategista",
     nome: "A Estrategista (Gravado)",
     valor: 2000,
     valorOriginal: 5000,
@@ -218,6 +224,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "voce-dirige",
+    checkoutUrl: "https://letciacazarre.herospark.co/voce-dirige",
     nome: "Curso Você Dirige",
     valor: 960,
     valorOriginal: 1597,
@@ -243,6 +250,7 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "plano-a",
+    checkoutUrl: "https://letciacazarre.herospark.co/workshop-plano-a-2026",
     nome: "Workshop Plano A",
     valor: 97,
     descricao: "Porta de entrada — workshop gravado em estúdio",

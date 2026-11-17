@@ -324,13 +324,37 @@ export function Produtos() {
                     </div>
                   )}
 
+                  {/* ── LINK DE PAGAMENTO ─────────────────────────────── */}
+                  {produto.checkoutUrl && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <ExternalLink className="h-4 w-4 text-[#C4A47C]" />
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-[#8A8275]">
+                          Link de Pagamento
+                        </h4>
+                      </div>
+                      <a
+                        href={produto.checkoutUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#C4A47C] to-[#B08D5E] px-5 py-3 text-white hover:opacity-90 transition-all shadow-sm hover:shadow group"
+                      >
+                        <ExternalLink className="h-5 w-5" />
+                        <div>
+                          <p className="text-sm font-semibold">Ir para o Pagamento</p>
+                          <p className="text-[10px] text-white/70">{produto.checkoutUrl.replace(/^https?:\/\//, "")}</p>
+                        </div>
+                      </a>
+                    </div>
+                  )}
+
                   {/* ── PDF DA PROPOSTA ──────────────────────────────── */}
                   {produto.pdfUrl && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <FileText className="h-4 w-4 text-[#C4A47C]" />
                         <h4 className="text-xs font-bold uppercase tracking-widest text-[#8A8275]">
-                          Proposta em PDF
+                          {produto.id === "lacademia" ? "Playbook em PDF" : "Proposta em PDF"}
                         </h4>
                       </div>
                       <a
@@ -341,7 +365,7 @@ export function Produtos() {
                       >
                         <FileText className="h-5 w-5" />
                         <div>
-                          <p className="text-sm font-semibold">Abrir Proposta</p>
+                          <p className="text-sm font-semibold">{produto.id === "lacademia" ? "Abrir Playbook" : "Abrir Proposta"}</p>
                           <p className="text-[10px] text-white/60">Visualizar PDF completo</p>
                         </div>
                         <ExternalLink className="h-4 w-4 text-white/60 group-hover:text-white transition-colors ml-2" />
