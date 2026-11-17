@@ -29,6 +29,8 @@ export interface ProdutoCatalogo {
   pdfUrl?: string;
   /** Link da página de pagamento/checkout */
   checkoutUrl?: string;
+  /** PDFs adicionais (ex.: playbooks) */
+  arquivos?: { titulo: string; url: string }[];
 }
 
 const THE_WAY_BASE = [
@@ -173,6 +175,10 @@ export const PRODUTOS_CATALOGO: ProdutoCatalogo[] = [
   },
   {
     id: "estrategista-online",
+    arquivos: [
+      { titulo: "Playbook 1 — O ponto de partida para uma vida intencional", url: "/propostas/Estrategista-Playbook-1-Ponto-de-Partida.pdf" },
+      { titulo: "Playbook 2 — O pré-planejamento: Diagnóstico e verdade brutal", url: "/propostas/Estrategista-Playbook-2-Pre-Planejamento.pdf" },
+    ],
     nome: "A Estrategista Encontros Online",
     valor: 20000,
     descricao: "Programa intensivo de visão e ação estratégica: \"A vida que você sonha não acontece por acaso. Acontece por design.\"",

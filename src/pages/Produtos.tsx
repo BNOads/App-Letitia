@@ -341,10 +341,37 @@ export function Produtos() {
                       >
                         <ExternalLink className="h-5 w-5" />
                         <div>
-                          <p className="text-sm font-semibold">Ir para o Pagamento</p>
+                          <p className="text-sm font-semibold">Página de Pagamento</p>
                           <p className="text-[10px] text-white/70">{produto.checkoutUrl.replace(/^https?:\/\//, "")}</p>
                         </div>
                       </a>
+                    </div>
+                  )}
+
+                  {/* ── PLAYBOOKS ─────────────────────────────────────── */}
+                  {produto.arquivos && produto.arquivos.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <FileText className="h-4 w-4 text-[#C4A47C]" />
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-[#8A8275]">
+                          Playbooks em PDF
+                        </h4>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {produto.arquivos.map((arq) => (
+                          <a
+                            key={arq.url}
+                            href={arq.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#8E1B1B] to-[#A52828] px-5 py-3 text-white hover:opacity-90 transition-all shadow-sm hover:shadow group"
+                          >
+                            <FileText className="h-5 w-5 shrink-0" />
+                            <p className="text-sm font-semibold">{arq.titulo}</p>
+                            <ExternalLink className="h-4 w-4 text-white/60 group-hover:text-white transition-colors ml-auto shrink-0" />
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   )}
 
